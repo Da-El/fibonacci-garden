@@ -152,6 +152,31 @@
     to   { transform: translateX(360px); }
   }
 
+  /* ---------- weather ---------- */
+  #sky .wx { position: absolute; inset: 0; pointer-events: none; }
+  #sky.rain .wx {
+    background: repeating-linear-gradient(105deg,
+      transparent 0 7px, #bcd8f055 7px 8px, transparent 8px 15px);
+    animation: rainfall .55s linear infinite;
+  }
+  @keyframes rainfall {
+    from { background-position: 0 0; }
+    to   { background-position: -22px 60px; }
+  }
+  #sky.heat .wx {
+    background: linear-gradient(#e2703a30, #e2703a10);
+    animation: heatthrob 2.6s ease-in-out infinite;
+  }
+  @keyframes heatthrob { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  #p-weather { color: var(--pale); cursor: default; }
+
+  /* ---------- orders ---------- */
+  .order-exp { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+  .order-exp.soon { color: var(--bad); }
+  .order-pay { color: var(--gold); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  .discount { color: var(--leaf); }
+  .markup { color: var(--bad); }
+
   /* ---------- plant life ---------- */
   @keyframes sway {
     0%, 100% { transform: rotate(-1.2deg); }
@@ -336,6 +361,7 @@
         <div id="brand">Fibonacci Garden</div>
         <div id="brandsub">plant · water · harvest · sell</div>
       </div>
+      <div class="pill" id="p-weather"><i id="wxicon">☁️</i></div>
       <div class="pill" id="p-coins"><i>🪙</i><b id="coins">0</b></div>
       <div class="pill" id="p-water"><i>💧</i><b id="water">0</b><span id="wtimer"></span></div>
     </div>
@@ -344,6 +370,7 @@
     <div class="view" id="v-garden">
       <div id="sky">
         <div class="stars"></div>
+        <div class="wx"></div>
         <span class="orb" id="orb">☀️</span>
         <span class="skylabel" id="skylabel"></span>
       </div>
@@ -354,6 +381,8 @@
 
     <!-- MARKET -->
     <div class="view hidden" id="v-market">
+      <div class="sectitle">Orders <span id="orderinfo"></span></div>
+      <div id="orderlist"></div>
       <div class="sectitle">Barn <span id="barninfo"></span></div>
       <div id="barnlist"></div>
       <div id="marketnote" class="empty-note" style="display:none">
@@ -642,6 +671,8 @@ function freshState() {
     barn: {},                        // speciesId -> { starTier: count }
     compost: 0,                      // stage-advances that need no water
     discovered: {},                  // speciesId -> true once harvested
+    orders: [],                      // customer orders awaiting delivery
+    orderN: 0,                       // deterministic order counter
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -672,6 +703,8 @@ function loadState() {
         p.plots.forEach(function (pl) { if (pl && typeof pl.q !== 'number') pl.q = 0; });
         p.compost = p.compost | 0;
         p.discovered = p.discovered || {};
+        p.orders = Array.isArray(p.orders) ? p.orders : [];
+        p.orderN = p.orderN | 0;
         return p;
       }
     }
@@ -689,29 +722,63 @@ function dayIndex() { return Math.floor(NOW() / DAY_MS); }
 /* Spending your last coins on land or a can could otherwise leave you with
    no plants, no stock and nothing affordable to plant — an unrecoverable
    save. This also repairs saves already stuck that way. */
-const CHEAPEST_SEED = Math.min.apply(null, SPECIES.map(function (s) { return s.seed; }));
 function ensureSolvent() {
   const noPlants  = state.plots.every(function (p) { return !p; });
   const emptyBarn = barnCountAll() === 0;
-  if (noPlants && emptyBarn && state.coins < CHEAPEST_SEED) {
-    state.coins = CHEAPEST_SEED;
+  const floor = cheapestSeedNow();     // seed prices drift daily, so check live
+  if (noPlants && emptyBarn && state.coins < floor) {
+    state.coins = floor;
     saveState();
     return true;
   }
   return false;
 }
 
-/* market price drifts each day, but is stable within one day */
-function priceMult(sp) {
-  // every step forced back to unsigned: ^ yields a SIGNED int32 in JS, and a
-  // negative hash would push the multiplier below the intended floor.
-  let h = (dayIndex() * 2654435761 + (sp.idx + 1) * 40503) >>> 0;
+/* deterministic hash — every step forced back to unsigned: ^ yields a
+   SIGNED int32 in JS and a negative hash would break the ranges below */
+function hash32(x) {
+  let h = x >>> 0;
   h = (h ^ (h >>> 13)) >>> 0;
   h = (h * 1274126177) >>> 0;
   h = (h ^ (h >>> 16)) >>> 0;
+  return h;
+}
+
+/* market price drifts each day, but is stable within one day */
+function priceMult(sp) {
+  const h = hash32((dayIndex() * 2654435761 + (sp.idx + 1) * 40503) >>> 0);
   return 0.75 + (h % 1000) / 1000 * 0.7;         // 0.75 .. 1.45
 }
-function priceOf(sp) { return Math.max(1, Math.round(sp.price * priceMult(sp))); }
+function priceOf(sp) {
+  return Math.max(1, Math.round(sp.price * priceMult(sp) * weatherNow().sell));
+}
+
+/* seed prices drift on their own daily cycle — buy low, plant cheap */
+function seedMult(sp) {
+  const h = hash32((dayIndex() * 2654435761 + (sp.idx + 101) * 48611) >>> 0);
+  return 0.7 + (h % 1000) / 1000 * 0.6;          // 0.7 .. 1.3
+}
+function seedCostOf(sp) { return Math.max(1, Math.round(sp.seed * seedMult(sp))); }
+function cheapestSeedNow() {
+  return Math.min.apply(null, SPECIES.map(seedCostOf));
+}
+
+/* ---- weather ----------------------------------------------------
+   Changes every 20 minutes, deterministic on the time slot, so it's
+   the same for everyone and survives reloads. Rain fills the can
+   twice as fast; a heatwave halves refill but bumps sell prices.  */
+const WEATHER_SLOT_MS = 20 * 60 * 1000;
+const WEATHERS = [
+  { id: 'sun',   icon: '☀️', name: 'sunny',    regen: 1,   sell: 1.05, blurb: 'prices +5%' },
+  { id: 'cloud', icon: '☁️', name: 'overcast', regen: 1,   sell: 1,    blurb: 'a quiet sky' },
+  { id: 'rain',  icon: '🌧️', name: 'rain',     regen: 2,   sell: 1,    blurb: 'water refills 2× fast' },
+  { id: 'heat',  icon: '🔥', name: 'heatwave', regen: 0.5, sell: 1.25, blurb: 'slow refill · prices +25%' }
+];
+function weatherNow() {
+  const r = hash32(Math.floor(NOW() / WEATHER_SLOT_MS) * 2246822519 + 7 >>> 0) % 100;
+  return WEATHERS[r < 30 ? 0 : r < 60 ? 1 : r < 85 ? 2 : 3];
+}
+function regenIntervalMs() { return Math.round(WATER_REGEN_MS / weatherNow().regen); }
 
 /* ---- day / night ------------------------------------------------
    Species prefer a time of day; watering during it earns a care
@@ -751,21 +818,81 @@ function barnValueAll() {
   return v;
 }
 
-/* water accrues on real time, including while the app is closed */
+/* ---- customer orders --------------------------------------------
+   Three standing orders. Each wants qty × species at a minimum
+   quality, pays well over market, and expires. Deterministic on a
+   counter so a save always regenerates the same next order.       */
+function makeOrder(n) {
+  const sp = SPECIES[hash32(n * 2654435761 + 99991 >>> 0) % SPECIES.length];
+  const qty = 1 + hash32(n * 7 + 1 >>> 0) % 3;                 // 1..3
+  const stars = 1 + hash32(n * 13 + 2 >>> 0) % 3;              // min quality 1..3
+  const hours = 4 + hash32(n * 17 + 3 >>> 0) % 9;              // 4..12 h to deliver
+  const mult = 1.5 + stars * 0.25 + qty * 0.05;                // premium over base
+  return {
+    n: n, s: sp.id, qty: qty, stars: stars,
+    pay: Math.round(sp.price * STAR_MULT[stars] * qty * mult),
+    exp: NOW() + hours * 3600 * 1000
+  };
+}
+function ensureOrders() {
+  let changed = false;
+  state.orders = state.orders.filter(function (o) {
+    if (o.exp > NOW() && byId[o.s]) return true;
+    changed = true;                                            // expired quietly
+    return false;
+  });
+  while (state.orders.length < 3) {
+    state.orders.push(makeOrder(state.orderN++));
+    changed = true;
+  }
+  if (changed) saveState();
+}
+function orderAvail(o) {
+  const tiers = state.barn[o.s] || {};
+  let n = 0;
+  for (let t = o.stars; t <= 3; t++) n += tiers[t] || 0;
+  return n;
+}
+function deliverOrder(idx) {
+  const o = state.orders[idx];
+  if (!o || orderAvail(o) < o.qty) return;
+  let need = o.qty;
+  for (let t = o.stars; t <= 3 && need > 0; t++) {             // spend lowest tier that qualifies
+    const have = state.barn[o.s][t] || 0;
+    const take = Math.min(have, need);
+    if (take) {
+      state.barn[o.s][t] -= take;
+      if (state.barn[o.s][t] <= 0) delete state.barn[o.s][t];
+      need -= take;
+    }
+  }
+  if (Object.keys(state.barn[o.s] || {}).length === 0) delete state.barn[o.s];
+  state.coins += o.pay;
+  state.earned += o.pay;
+  state.orders.splice(idx, 1);
+  ensureOrders();
+  saveState(); paintTop(); paintMarket(); paintShop();
+  toast('Order delivered · +' + o.pay + '🪙');
+}
+
+/* water accrues on real time, including while the app is closed.
+   Current weather's rate is applied to the whole elapsed window —
+   an approximation, but a kind one. */
 function tickWater() {
   const now = NOW();
   if (state.water >= waterCap()) { state.lastTick = now; return; }
-  const gained = Math.floor((now - state.lastTick) / WATER_REGEN_MS);
+  const interval = regenIntervalMs();
+  const gained = Math.floor((now - state.lastTick) / interval);
   if (gained > 0) {
     state.water = Math.min(waterCap(), state.water + gained);
-    state.lastTick += gained * WATER_REGEN_MS;
+    state.lastTick += gained * interval;
     if (state.water >= waterCap()) state.lastTick = now;
     saveState();
   }
 }
 function msToNextDrop() {
   if (state.water >= waterCap()) return 0;
-  return Math.max(0, WATER_REGEN_MS - (NOW() - state.lastTick));
+  return Math.max(0, regenIntervalMs() - (NOW() - state.lastTick));
 }
 function fmtMS(ms) {
   const s = Math.ceil(ms / 1000);
@@ -809,16 +936,19 @@ function paintSky() {
   const sky = $('sky');
   if (!sky) return;
   const h = hourNow(), m = new Date(NOW()).getMinutes();
+  const wx = weatherNow();
   const phase = isDusk() ? 'dusk' : (isDay() ? 'day' : 'night');
-  sky.className = phase;
+  sky.className = phase + (wx.id === 'rain' || wx.id === 'heat' ? ' ' + wx.id : '');
+  $('wxicon').textContent = wx.icon;
+  $('p-weather').title = wx.name + ' — ' + wx.blurb;
   const frac = isDay()
     ? ((h - 6) * 60 + m) / (12 * 60)              // sun sweeps 6:00 -> 18:00
     : ((((h + 24 - 18) % 24) * 60 + m) / (12 * 60));  // moon sweeps 18:00 -> 6:00
   $('orb').textContent = isDay() ? '☀️' : '🌙';
   $('orb').style.left = (8 + frac * 84) + '%';
   $('orb').style.top = (58 - Math.sin(frac * Math.PI) * 26) + '%';
-  $('skylabel').textContent = (isDay() ? 'day' : 'night') +
-    ' · ' + (isDay() ? '☀️' : '🌙') + ' plants earn care now';
+  $('skylabel').textContent = wx.icon + ' ' + wx.name + ' · ' + wx.blurb + '  |  ' +
+    (isDay() ? '☀️' : '🌙') + ' plants earn care now';
   // a couple of drifting clouds by day
   let clouds = sky.querySelectorAll('.cloud');
   if (isDay() && clouds.length === 0) {
@@ -908,18 +1038,22 @@ function paintPlots() {
 function openPlanter(plotIdx) {
   let rows = '';
   SPECIES.forEach(function (sp) {
-    const afford = state.coins >= sp.seed;
-    const profit = priceOf(sp) - sp.seed;
+    const cost = seedCostOf(sp);
+    const afford = state.coins >= cost;
+    const profit = priceOf(sp) - cost;
     const match = prefMatch(sp);
+    const sm = seedMult(sp);
+    const deal = sm < 0.85 ? ' <span class="discount">seed sale!</span>'
+               : sm > 1.15 ? ' <span class="markup">seeds dear</span>' : '';
     rows +=
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
           '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span></h4>' +
-          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙 base<br>' +
+          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
           '+' + (profit / sp.stages).toFixed(1) + '/💧 · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
         '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
-          (afford ? '' : ' disabled') + '>' + sp.seed + '🪙</button></div>' +
+          (afford ? '' : ' disabled') + '>' + cost + '🪙</button></div>' +
       '</div>';
   });
   $('card').innerHTML =
@@ -934,9 +1068,10 @@ function openPlanter(plotIdx) {
 
 function plant(plotIdx, spId) {
   const sp = byId[spId];
-  if (state.coins < sp.seed) return;
+  const cost = seedCostOf(sp);
+  if (state.coins < cost) return;
   if (state.plots[plotIdx]) return;
-  state.coins -= sp.seed;
+  state.coins -= cost;
   state.plots[plotIdx] = { s: spId, stage: 0, q: 0 };
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
@@ -1093,7 +1228,36 @@ $('grow-close').addEventListener('click', function () {
 });
 
 /* ---- market ---- */
+function paintOrders() {
+  ensureOrders();
+  const list = $('orderlist');
+  list.innerHTML = '';
+  $('orderinfo').textContent = 'premium pay · they expire';
+  state.orders.forEach(function (o, idx) {
+    const sp = byId[o.s];
+    const avail = orderAvail(o);
+    const left = o.exp - NOW();
+    const soon = left < 3600 * 1000;
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.innerHTML =
+      '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+      '<div class="info"><h4>' + o.qty + '× ' + sp.name +
+        ' <span class="stars">' + starStr(o.stars) + (o.stars < 3 ? '+' : '') + '</span></h4>' +
+        '<p>have ' + avail + ' of ' + o.qty +
+        ' · <span class="order-exp' + (soon ? ' soon' : '') + '">expires in ' + fmtLong(left) + '</span></p></div>' +
+      '<div class="actions"><span class="order-pay">' + o.pay + '🪙</span>' +
+        '<button class="mini gold" data-deliver="' + idx + '"' + (avail >= o.qty ? '' : ' disabled') +
+        '>deliver</button></div>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll('button[data-deliver]').forEach(function (b) {
+    b.addEventListener('click', function () { deliverOrder(+b.dataset.deliver); });
+  });
+}
+
 function paintMarket() {
+  paintOrders();
   const list = $('barnlist');
   const count = barnCountAll();
   const value = barnValueAll();
@@ -1329,6 +1493,7 @@ ensureSolvent();          // also un-sticks any save left stranded by an older b
 paintAll();
 GO('garden');
 
+let tickN = 0;
 setInterval(function () {
   const before = state.water;
   tickWater();
@@ -1336,6 +1501,8 @@ setInterval(function () {
   paintSky();
   if (state.water !== before) { paintPlots(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
+  // keep order countdowns honest while the market is open
+  if (++tickN % 30 === 0 && !$('v-market').classList.contains('hidden')) paintMarket();
 }, 1000);
 </script>
 </body>
