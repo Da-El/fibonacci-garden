@@ -29,18 +29,28 @@ the first several taps and then visibly explodes.
 
 ## The loop
 
-1. **Plant** a seed in a plot, paying coins
-2. **Water** it — each drop advances one Fibonacci batch
-3. **Harvest** it at full size into the barn
-4. **Sell** at market, where prices drift daily (0.75×–1.45×)
-5. **Reinvest** in better seeds, more plots, a bigger watering can
+1. **Plant** a seed in a plot — seed prices drift daily, so buy on sale
+2. **Water** it — each drop advances one Fibonacci batch; watering a species
+   during its preferred time of day (☀️/🌙, from your real clock) earns **care
+   points** that set the harvest's ★–★★★ quality (×1 / ×1.3 / ×1.6 price)
+3. **Squash aphids** — they roll in every so often and drink your water until tapped
+4. **Harvest** before it wilts (ripe plants lose a star per day left standing);
+   ~3% of harvests come up **✨ golden** and sell for 3× the ★★★ price
+5. **Sell** at market — prices move with the day (0.75×–1.45×), the **weather**
+   (heatwaves pay +25% but halve water refill; rain refills 2× fast), and the
+   **season** (one week each; every season favours a different growth form)
+6. **Deliver customer orders** — three standing requests for qty × species at a
+   minimum quality, paying well over market, expiring in 4–12 hours
+7. **Reinvest** — more plots (3→9), bigger cans (13→21→34→55→89 drops, all
+   Fibonacci), compost (grows a stage without water, but earns no care)
 
-Water is the time gate: one drop every 90 seconds up to your can's capacity, and it
-accrues while the app is closed. Plants cost as many drops as they have growth stages,
-so **profit per drop** is the real decision — an elm sprig returns ~2 coins per drop,
-a sunflower ~9.
+When a garden has earned enough, **replant it**: everything resets except the
+almanac, achievements and your **golden seeds** — each one raises all sale prices
+by 6.18% (a hundredth of φ−1) forever, and each successive seed costs 15% more
+run-earnings than the last.
 
-Watering-can capacities are Fibonacci numbers: 13 → 21 → 34 → 55 → 89.
+Long-term goals: the **botanist's almanac** (best quality per species; all nine at
+★★★ pays a golden seed) and eleven **achievements**.
 
 ## Species
 
