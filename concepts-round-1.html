@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fibonacci — 4 mobile game concepts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg:      #0c0a08;
+    --panel:   #16120e;
+    --panel-2: #1f1913;
+    --line:    #2e2619;
+    --gold:    #f2b53c;
+    --amber:   #e78a3c;
+    --pale:    #f8e7c6;
+    --text:    #f4ece0;
+    --muted:   #a3978a;
+    --dim:     #6f665c;
+    --cool:    #5ec8c0;
+    --bad:     #e0664f;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1100px 560px at 12% -12%, #2a1f13 0%, transparent 62%),
+      radial-gradient(900px 500px at 92% 4%,  #1c1a2a 0%, transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- hero ---------- */
+
+  header.hero { padding: 72px 0 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(34px, 6vw, 60px); line-height: 1.04; margin: 0 0 20px;
+    letter-spacing: -.02em; font-weight: 620;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--gold), var(--amber) 60%, #d8654f);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lede { font-size: 17px; color: var(--muted); max-width: 62ch; margin: 0 0 34px; }
+  .lede strong { color: var(--pale); font-weight: 560; }
+
+  .hero-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 44px; align-items: center; }
+  .seq {
+    font-family: var(--mono); font-size: 14px; color: var(--dim);
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline;
+  }
+  .seq b { color: var(--gold); font-weight: 500; }
+  figure.spiral { margin: 0; }
+  figure.spiral svg { width: 100%; height: auto; display: block; }
+  figure.spiral figcaption {
+    font-family: var(--mono); font-size: 11px; color: var(--dim);
+    margin-top: 12px; text-align: center;
+  }
+
+  /* ---------- concept blocks ---------- */
+
+  .concept {
+    display: grid; grid-template-columns: 1fr 340px; gap: 52px;
+    padding: 56px 0; border-top: 1px solid var(--line); align-items: start;
+  }
+  .concept-num {
+    font-family: var(--mono); font-size: 12px; color: var(--gold);
+    letter-spacing: .16em; margin: 0 0 10px;
+  }
+  .concept h2 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.015em; font-weight: 600; }
+  .tagline { color: var(--amber); font-size: 15px; margin: 0 0 20px; font-weight: 500; }
+  .concept p { color: var(--muted); margin: 0 0 16px; max-width: 58ch; }
+  .concept p strong { color: var(--pale); font-weight: 560; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+  .tag {
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px; border-radius: 100px;
+    background: #ffffff0a; border: 1px solid var(--line); color: var(--muted);
+  }
+
+  .math {
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 2px solid var(--gold);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 0 0 20px;
+  }
+  .math h4 {
+    margin: 0 0 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--gold); font-weight: 500;
+  }
+  .math p { margin: 0; font-size: 14px; color: var(--muted); max-width: none; }
+  .math code {
+    font-family: var(--mono); font-size: 13px; color: var(--pale);
+    background: #ffffff0d; padding: 1px 5px; border-radius: 4px;
+  }
+
+  .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 24px; margin-top: 24px; }
+  .meta div { border-top: 1px solid var(--line); padding-top: 10px; }
+  .meta dt {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 3px;
+  }
+  .meta dd { margin: 0; font-size: 13.5px; color: var(--text); }
+
+  /* ---------- phone ---------- */
+
+  .phone-col { position: sticky; top: 32px; }
+  .phone {
+    width: 320px; height: 620px; margin: 0 auto;
+    background: linear-gradient(160deg, #2b2620, #16130f);
+    border-radius: 42px; padding: 12px;
+    box-shadow: 0 0 0 1px #ffffff14, 0 30px 60px -20px #000000cc, inset 0 1px 0 #ffffff1a;
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    border-radius: 32px; background: #0a0806;
+    display: flex; flex-direction: column;
+    box-shadow: inset 0 0 0 1px #ffffff0f;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .notch {
+    position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+    width: 78px; height: 5px; border-radius: 100px; background: #ffffff1f; z-index: 30;
+  }
+  .hud {
+    display: flex; align-items: center; gap: 10px;
+    padding: 26px 18px 12px; flex: 0 0 auto;
+  }
+  .hud-item { flex: 1; }
+  .hud-item.right { text-align: right; flex: 0 0 auto; }
+  .hud-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .hud-val { font-family: var(--mono); font-size: 20px; color: var(--pale); font-variant-numeric: tabular-nums; }
+  .hud-val.sm { font-size: 15px; }
+  .stage { flex: 1 1 auto; position: relative; padding: 0 16px 16px; min-height: 0; }
+  .footnote {
+    text-align: center; font-family: var(--mono); font-size: 10px;
+    color: var(--dim); padding: 0 16px 18px; flex: 0 0 auto;
+  }
+  .phone-caption {
+    text-align: center; font-family: var(--mono); font-size: 11px;
+    color: var(--dim); margin-top: 16px;
+  }
+  .phone-caption b { color: var(--gold); font-weight: 500; }
+
+  button.btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    background: #ffffff0f; color: var(--pale); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 100px; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  button.btn:hover { background: #ffffff1c; border-color: #4a3d29; }
+  button.btn.primary {
+    background: linear-gradient(160deg, var(--gold), var(--amber));
+    color: #241705; border-color: transparent; font-weight: 600;
+  }
+  button.btn.primary:hover { filter: brightness(1.08); }
+
+  /* overlay used by every prototype */
+  .overlay {
+    position: absolute; inset: 0; z-index: 20; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: #0a0806f2; backdrop-filter: blur(3px); border-radius: 32px; text-align: center; padding: 30px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h3 { margin: 0; font-size: 22px; font-weight: 600; }
+  .overlay p { margin: 0; font-size: 13px; color: var(--muted); }
+  .overlay .big {
+    font-family: var(--mono); font-size: 46px; color: var(--gold);
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- G1 merge ---------- */
+  #g1-board {
+    position: relative; width: 100%; aspect-ratio: 1; background: #ffffff08;
+    border-radius: 14px; padding: 7px; display: grid;
+    grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 7px;
+    touch-action: none;
+  }
+  .cell { background: #ffffff07; border-radius: 8px; }
+  .tile {
+    position: absolute; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-family: var(--mono); font-weight: 600; color: #2a1a05;
+    font-variant-numeric: tabular-nums; transition: transform .09s ease-out;
+  }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+  .tile.new { animation: pop .16s ease-out; }
+  @keyframes bump { 0% { transform: scale(1) } 45% { transform: scale(1.16) } 100% { transform: scale(1) } }
+  .tile.merged { animation: bump .2s ease-out; }
+  #g1-next { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+  #g1-next span {
+    font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 6px;
+    background: #ffffff12; color: var(--muted);
+  }
+
+  /* ---------- G2 zeckendorf ---------- */
+  #g2-target {
+    text-align: center; font-family: var(--mono); font-size: 62px; line-height: 1;
+    color: var(--pale); font-variant-numeric: tabular-nums; margin: 4px 0 2px;
+    transition: color .2s, transform .2s;
+  }
+  #g2-target.ok { color: var(--cool); transform: scale(1.06); }
+  #g2-sum {
+    text-align: center; font-family: var(--mono); font-size: 12px; color: var(--dim);
+    height: 18px; margin-bottom: 14px;
+  }
+  #g2-sum b { color: var(--gold); font-weight: 500; }
+  #g2-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .fibtile {
+    aspect-ratio: 1.35; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--pale);
+    font-family: var(--mono); font-size: 19px; font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s, transform .1s, opacity .12s;
+  }
+  .fibtile:active { transform: scale(.94); }
+  .fibtile.on {
+    background: linear-gradient(160deg, var(--gold), var(--amber));
+    color: #2a1a05; border-color: transparent; font-weight: 600;
+  }
+  .fibtile.locked { opacity: .22; cursor: not-allowed; }
+  .fibtile.over { border-color: var(--bad); color: var(--bad); }
+
+  /* ---------- G3 rhythm ---------- */
+  #g3-stage { touch-action: none; cursor: pointer; }
+  #g3-lane {
+    position: absolute; left: 16px; right: 16px; top: 34%; height: 108px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    background: linear-gradient(#ffffff05, transparent);
+    overflow: hidden;
+  }
+  #g3-hitline {
+    position: absolute; left: 54px; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(transparent, var(--gold), transparent);
+  }
+  #g3-ring {
+    position: absolute; left: 55px; top: 50%; width: 44px; height: 44px;
+    margin: -22px 0 0 -22px; border-radius: 50%; border: 1px solid #ffffff26;
+  }
+  .note {
+    position: absolute; top: 50%; border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), var(--amber));
+    box-shadow: 0 0 14px -2px #f2b53c66;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10px; color: #2a1a05; font-weight: 700;
+    will-change: transform;
+  }
+  #g3-judge {
+    position: absolute; left: 0; right: 0; top: calc(34% + 128px); text-align: center;
+    font-family: var(--mono); font-size: 15px; letter-spacing: .1em; text-transform: uppercase;
+    height: 22px; transition: opacity .3s; opacity: 0;
+  }
+  #g3-combo {
+    position: absolute; left: 0; right: 0; top: calc(34% - 52px); text-align: center;
+    font-family: var(--mono); font-size: 13px; color: var(--dim);
+  }
+  #g3-combo b { color: var(--pale); font-size: 24px; font-weight: 500; }
+
+  /* ---------- G4 rabbits ---------- */
+  #g4-eq {
+    font-family: var(--mono); font-size: 11.5px; color: var(--dim);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 12px; line-height: 1.7;
+  }
+  #g4-eq b { color: var(--gold); font-weight: 500; }
+  #g4-pen {
+    height: 176px; overflow: hidden; border-radius: 12px;
+    background: radial-gradient(120% 100% at 50% 0%, #1c2416, #12130d);
+    border: 1px solid var(--line); padding: 8px;
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 2px;
+  }
+  .bun { font-size: 15px; line-height: 1; animation: pop .3s ease-out; }
+  .bun.juv { font-size: 10px; opacity: .5; }
+  #g4-chart { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin-top: 12px; }
+  #g4-chart i {
+    flex: 1; background: linear-gradient(var(--gold), #8a5c1c); border-radius: 2px 2px 0 0;
+    min-height: 2px; transition: height .3s;
+  }
+  #g4-controls { display: flex; gap: 8px; margin-top: 12px; }
+  #g4-controls .btn { flex: 1; }
+
+  /* ---------- verdict table ---------- */
+  .verdict { border-top: 1px solid var(--line); padding-top: 56px; }
+  .verdict h2 { font-size: 30px; margin: 0 0 8px; letter-spacing: -.015em; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 28px 0 34px;
+    font-size: 14px;
+  }
+  th, td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim); font-weight: 500; border-bottom-color: #3d3221;
+  }
+  td:first-child { color: var(--pale); font-weight: 560; white-space: nowrap; }
+  td.dim { color: var(--muted); }
+  .pick { color: var(--cool); font-family: var(--mono); font-size: 12px; }
+  .rec {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 24px; border-left: 2px solid var(--cool);
+  }
+  .rec h3 { margin: 0 0 8px; font-size: 17px; }
+  .rec p { margin: 0 0 12px; color: var(--muted); font-size: 14.5px; }
+  .rec p:last-child { margin: 0; }
+  .rec strong { color: var(--pale); font-weight: 560; }
+
+  @media (max-width: 900px) {
+    .hero-grid, .concept { grid-template-columns: 1fr; gap: 34px; }
+    figure.spiral { max-width: 420px; }
+    .phone-col { position: static; }
+    .concept { padding: 44px 0; }
+  }
+  @media (max-width: 420px) {
+    .wrap { padding: 0 16px 64px; }
+    .phone { width: 100%; max-width: 320px; height: 600px; }
+    .meta { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Concept deck · mobile · prototype</p>
+        <h1>Four mobile games built on the <em>Fibonacci sequence</em></h1>
+        <p class="lede">
+          Each concept uses a <strong>different mathematical property</strong> of the sequence as its core
+          mechanic — not just Fibonacci numbers as decoration. All four prototypes below are
+          <strong>playable right here</strong>. Tap into the phones.
+        </p>
+        <div class="seq">
+          <b>1</b><span>·</span><b>1</b><span>·</span><b>2</b><span>·</span><b>3</b><span>·</span><b>5</b><span>·</span>
+          <b>8</b><span>·</span><b>13</b><span>·</span><b>21</b><span>·</span><b>34</b><span>·</span><b>55</b><span>·</span>
+          <b>89</b><span>·</span><b>144</b><span>·</span><span>F(n) = F(n−1) + F(n−2)</span>
+        </div>
+      </div>
+
+      <figure class="spiral">
+        <svg viewBox="-0.6 -0.6 35.2 22.2" xmlns="http://www.w3.org/2000/svg" aria-label="Fibonacci square tiling">
+          <g id="fibsquares" fill="none" stroke-width="0.14"></g>
+          <g id="fiblabels" font-family="ui-monospace, Menlo, monospace" fill="#f8e7c6" opacity=".85"></g>
+        </svg>
+        <figcaption>each square's side = the two before it</figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <!-- ============ CONCEPT 1 ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT 01</p>
+      <h2>FibMerge</h2>
+      <p class="tagline">2048, but tiles only merge with their Fibonacci neighbour.</p>
+
+      <p>
+        Swipe to slide tiles. Two tiles merge <strong>only if they're consecutive in the sequence</strong> —
+        a <code>3</code> merges with a <code>5</code> to make <code>8</code>, but never with another <code>3</code>.
+        (The one exception: <code>1 + 1 = 2</code>, exactly as the sequence starts.)
+      </p>
+      <p>
+        That single rule change transforms the 2048 feel completely. You can't mash a direction and hope
+        for pairs — you have to <strong>build a ladder</strong>, keeping ascending runs intact. It's noticeably
+        harder and much more deliberate.
+      </p>
+
+      <div class="math">
+        <h4>The math it teaches</h4>
+        <p>The recurrence itself. Players internalise <code>F(n−1) + F(n−2) = F(n)</code> as muscle memory, because it's
+        the only legal move. Also surfaces the ratio: each tile is ≈<code>1.618×</code> the one before it.</p>
+      </div>
+
+      <div class="tags">
+        <span class="tag">puzzle</span><span class="tag">endless</span>
+        <span class="tag">one-thumb</span><span class="tag">offline</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>3–10 min</dd></div>
+        <div><dt>Build effort</dt><dd>Low — grid logic is well-trodden</dd></div>
+        <div><dt>Monetisation</dt><dd>Undo tokens, cosmetic tile skins</dd></div>
+        <div><dt>Risk</dt><dd>Crowded genre; needs a strong hook</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Score</div><div class="hud-val" id="g1-score">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Best tile</div><div class="hud-val" id="g1-best">1</div></div>
+        </div>
+        <div class="stage">
+          <div id="g1-board"></div>
+          <div id="g1-next" style="margin-top:12px">
+            <span>legal: 1+1 · 1+2 · 2+3 · 3+5 · 5+8 …</span>
+          </div>
+        </div>
+        <div class="footnote">swipe the board · or use arrow keys</div>
+        <div class="overlay" id="g1-over">
+          <h3>No legal merges</h3>
+          <div class="big" id="g1-final">0</div>
+          <p>Nothing left that's Fibonacci-adjacent.</p>
+          <button class="btn primary" id="g1-again">play again</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — swipe or arrow keys</p>
+    </div>
+  </section>
+
+  <!-- ============ CONCEPT 2 ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT 02</p>
+      <h2>Zeckendorf</h2>
+      <p class="tagline">Hit the target number using Fibonacci tiles — no two touching.</p>
+
+      <p>
+        A target appears. Tap Fibonacci tiles to sum to it exactly. The catch: you may
+        <strong>never use two consecutive Fibonacci numbers</strong>. Picking <code>8</code> instantly locks
+        both <code>5</code> and <code>13</code>.
+      </p>
+      <p>
+        This isn't an arbitrary restriction — it's <strong>Zeckendorf's theorem</strong>, which guarantees
+        every positive integer has exactly <strong>one</strong> such representation. So every round has a
+        unique solution, and a greedy strategy (always grab the largest tile that fits) always works.
+        Players discover that algorithm on their own within about ten rounds.
+      </p>
+
+      <div class="math">
+        <h4>The math it teaches</h4>
+        <p>Zeckendorf's theorem and greedy decomposition — effectively counting in
+        <em>Fibonacci base</em>. <code>88 = 55 + 21 + 8 + 3 + 1</code>, and no other combination works.</p>
+      </div>
+
+      <div class="tags">
+        <span class="tag">arcade-puzzle</span><span class="tag">timed runs</span>
+        <span class="tag">genuinely educational</span><span class="tag">tiny build</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>40 s per run</dd></div>
+        <div><dt>Build effort</dt><dd>Very low — smallest scope here</dd></div>
+        <div><dt>Monetisation</dt><dd>Ad-light; strong fit for school / EDU</dd></div>
+        <div><dt>Risk</dt><dd>Can feel like homework without good juice</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Solved</div><div class="hud-val" id="g2-score">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Time</div><div class="hud-val" id="g2-time">40</div></div>
+        </div>
+        <div class="stage">
+          <div id="g2-target">—</div>
+          <div id="g2-sum">tap tiles to build the target</div>
+          <div id="g2-tiles"></div>
+          <div style="margin-top:14px;text-align:center">
+            <button class="btn" id="g2-clear">clear</button>
+          </div>
+        </div>
+        <div class="footnote">neighbours of a picked tile lock out</div>
+        <div class="overlay show" id="g2-over">
+          <h3>Zeckendorf</h3>
+          <p>Sum to the target with non-consecutive Fibonacci numbers. 40 seconds.</p>
+          <button class="btn primary" id="g2-start">start</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — 40-second run</p>
+    </div>
+  </section>
+
+  <!-- ============ CONCEPT 3 ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT 03</p>
+      <h2>Golden Rhythm</h2>
+      <p class="tagline">A rhythm game where the beat gaps <em>are</em> the sequence.</p>
+
+      <p>
+        Notes travel toward the hit line and you tap as they cross. But the spacing between them isn't
+        a steady 4/4 — the gaps cycle through <strong>1, 1, 2, 3, 5, 8</strong> beat units, then restart.
+        Each note is drawn at a size matching the gap that follows it, so you can <em>read</em> the pattern
+        coming.
+      </p>
+      <p>
+        The result is a lurching, self-similar groove: two quick hits, a breath, a longer breath, a long
+        pause, then a snap back to fast. Once it clicks it's <strong>extremely satisfying</strong>, and it's a
+        rhythm nobody has in their muscle memory yet — which is the whole pitch.
+      </p>
+
+      <div class="math">
+        <h4>The math it teaches</h4>
+        <p>Fibonacci as <em>proportion in time</em> rather than quantity. Players feel the ratio between
+        successive terms approaching φ — every gap is roughly <code>1.6×</code> the one before it. This is
+        real compositional technique (Bartók, Lutosławski used it).</p>
+      </div>
+
+      <div class="tags">
+        <span class="tag">rhythm</span><span class="tag">arcade</span>
+        <span class="tag">high skill ceiling</span><span class="tag">needs audio</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>30–90 s per track</dd></div>
+        <div><dt>Build effort</dt><dd>Medium-high — audio sync is the hard part</dd></div>
+        <div><dt>Monetisation</dt><dd>Track packs, remix DLC</dd></div>
+        <div><dt>Risk</dt><dd>Needs original music; latency-sensitive</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Score</div><div class="hud-val" id="g3-score">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Accuracy</div><div class="hud-val sm" id="g3-acc">—</div></div>
+        </div>
+        <div class="stage" id="g3-stage">
+          <div id="g3-combo">combo<br><b>0</b></div>
+          <div id="g3-lane">
+            <div id="g3-ring"></div>
+            <div id="g3-hitline"></div>
+          </div>
+          <div id="g3-judge"></div>
+        </div>
+        <div class="footnote">tap anywhere on the screen, in time</div>
+        <div class="overlay show" id="g3-over">
+          <h3>Golden Rhythm</h3>
+          <p>Gaps run 1 · 1 · 2 · 3 · 5 · 8 and repeat. Tap as each note crosses the line.</p>
+          <button class="btn primary" id="g3-start">start</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — silent prototype, no audio yet</p>
+    </div>
+  </section>
+
+  <!-- ============ CONCEPT 4 ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT 04</p>
+      <h2>Rabbit Ranch</h2>
+      <p class="tagline">The original 1202 problem, as a cozy idle game.</p>
+
+      <p>
+        Fibonacci introduced the sequence in <em>Liber Abaci</em> by asking how fast rabbits breed. The rules
+        he set: a pair takes <strong>one month to mature</strong>, and every mature pair produces one new pair
+        each month. Nothing dies.
+      </p>
+      <p>
+        That's the entire game loop. Advance the month and watch <strong>adults = adults + juveniles</strong>,
+        <strong>juveniles = previous adults</strong>. The total is always the next Fibonacci number — the growth
+        curve <em>is</em> the reward, and it goes exponential right when the pen starts feeling full.
+      </p>
+      <p>
+        The full version adds pressure Fibonacci left out: <strong>feed cost scales with population</strong>,
+        so you're forced to cull or expand. Cozy on the surface, an exponential-growth squeeze underneath.
+      </p>
+
+      <div class="math">
+        <h4>The math it teaches</h4>
+        <p>Where the sequence came from, and why recursive growth is deceptive.
+        <code>A' = A + J</code>, <code>J' = A</code>. Reaching 144 pairs takes 11 months — but 6 of those
+        months you're under 10 rabbits.</p>
+      </div>
+
+      <div class="tags">
+        <span class="tag">idle / cozy</span><span class="tag">sim</span>
+        <span class="tag">broadest appeal</span><span class="tag">retention hook</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>2 min, many times a day</dd></div>
+        <div><dt>Build effort</dt><dd>Medium — economy tuning is the work</dd></div>
+        <div><dt>Monetisation</dt><dd>Strongest of the four: IAP, offline growth</dd></div>
+        <div><dt>Risk</dt><dd>Math becomes background flavour, not the game</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Month</div><div class="hud-val" id="g4-month">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Pairs</div><div class="hud-val" id="g4-total">1</div></div>
+        </div>
+        <div class="stage">
+          <div id="g4-eq"></div>
+          <div id="g4-pen"></div>
+          <div id="g4-chart"></div>
+          <div id="g4-controls">
+            <button class="btn primary" id="g4-next">advance month</button>
+            <button class="btn" id="g4-reset">reset</button>
+          </div>
+        </div>
+        <div class="footnote">goal: 144 pairs</div>
+        <div class="overlay" id="g4-over">
+          <h3>144 pairs</h3>
+          <div class="big" id="g4-months">11</div>
+          <p>months elapsed. The last 3 months produced more rabbits than the first 8 combined.</p>
+          <button class="btn primary" id="g4-again">run it again</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — growth-curve sim</p>
+    </div>
+  </section>
+
+  <!-- ============ VERDICT ============ -->
+  <section class="verdict">
+    <h2>Which one to build</h2>
+    <p class="lede" style="margin-bottom:0">Same sequence, four very different products.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Concept</th><th>Core property used</th><th>Build effort</th>
+          <th>Mass appeal</th><th>Math actually taught</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>FibMerge</td>
+          <td class="dim">The recurrence, as a merge rule</td>
+          <td class="dim">Low</td>
+          <td class="dim">High — known genre</td>
+          <td class="dim">Medium</td>
+        </tr>
+        <tr>
+          <td>Zeckendorf</td>
+          <td class="dim">Zeckendorf's theorem, unique decomposition</td>
+          <td class="dim">Very low</td>
+          <td class="dim">Medium</td>
+          <td class="pick">Highest</td>
+        </tr>
+        <tr>
+          <td>Golden Rhythm</td>
+          <td class="dim">Fibonacci ratios in time / φ</td>
+          <td class="dim">Medium-high</td>
+          <td class="dim">Medium</td>
+          <td class="dim">Low but felt</td>
+        </tr>
+        <tr>
+          <td>Rabbit Ranch</td>
+          <td class="dim">The original breeding recurrence</td>
+          <td class="dim">Medium</td>
+          <td class="pick">Highest</td>
+          <td class="dim">Medium</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="rec">
+      <h3>Recommendation: ship Zeckendorf first, FibMerge second</h3>
+      <p>
+        <strong>Zeckendorf</strong> is the smallest complete game here — a weekend build, no art pipeline, no
+        audio, no economy tuning — and it's the only one where the math <em>is</em> the fun rather than a
+        skin over it. Perfect first release to test whether "Fibonacci game" finds an audience at all.
+      </p>
+      <p>
+        <strong>FibMerge</strong> is the one most likely to actually retain players, because the genre is
+        proven and the Fibonacci constraint is a real, felt twist rather than a reskin. But it's entering a
+        crowded market, so validate the audience with the cheap one first.
+      </p>
+      <p>
+        <strong>Rabbit Ranch</strong> has the best long-term revenue shape of the four — worth building if
+        this becomes more than a side project. <strong>Golden Rhythm</strong> is the most original idea and the
+        riskiest; it needs a composer before it needs a programmer.
+      </p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   Hero — Fibonacci square tiling
+   Squares placed right, up, left, down, repeating, so sides follow Fib.
+   ===================================================================== */
+(function () {
+  const squares = [
+    { s: 21, x: 0,  y: 0  },
+    { s: 13, x: 21, y: 0  },
+    { s: 8,  x: 26, y: 13 },
+    { s: 5,  x: 21, y: 16 },
+    { s: 3,  x: 21, y: 13 },
+    { s: 2,  x: 24, y: 13 },
+    { s: 1,  x: 24, y: 15 },
+    { s: 1,  x: 25, y: 15 }
+  ];
+  const g = document.getElementById('fibsquares');
+  const l = document.getElementById('fiblabels');
+  squares.forEach(function (q, i) {
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('x', q.x); r.setAttribute('y', q.y);
+    r.setAttribute('width', q.s); r.setAttribute('height', q.s);
+    r.setAttribute('stroke', '#f2b53c');
+    r.setAttribute('stroke-opacity', 0.85 - i * 0.06);
+    r.setAttribute('fill', '#f2b53c');
+    r.setAttribute('fill-opacity', 0.03 + i * 0.012);
+    r.setAttribute('rx', 0.25);
+    g.appendChild(r);
+
+    if (q.s >= 2) {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', q.x + q.s / 2);
+      t.setAttribute('y', q.y + q.s / 2);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'central');
+      t.setAttribute('font-size', Math.min(q.s * 0.42, 4));
+      t.textContent = q.s;
+      l.appendChild(t);
+    }
+  });
+})();
+
+
+/* =====================================================================
+   CONCEPT 1 — FibMerge
+   Tiles are stored as indices into SEQ. Two tiles merge when their
+   indices are adjacent (that is: consecutive Fibonacci numbers), plus
+   the 1+1=2 base case.
+   ===================================================================== */
+(function () {
+  const SEQ = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597];
+  const N = 4;
+  const board  = document.getElementById('g1-board');
+  const elScore = document.getElementById('g1-score');
+  const elBest  = document.getElementById('g1-best');
+  const overlay = document.getElementById('g1-over');
+  const elFinal = document.getElementById('g1-final');
+
+  let grid, score, tiles;
+
+  function canMerge(a, b) {
+    if (a === null || b === null) return false;
+    if (a === 0 && b === 0) return true;      // 1 + 1 = 2
+    return Math.abs(a - b) === 1;             // consecutive Fibonacci terms
+  }
+  function mergeTo(a, b) {
+    if (a === 0 && b === 0) return 1;
+    return Math.max(a, b) + 1;
+  }
+
+  function tint(idx) {
+    // pale gold -> deep amber as the ladder climbs
+    const t = Math.min(idx / 9, 1);
+    const h = 44 - t * 26;
+    const s = 72 + t * 12;
+    const li = 78 - t * 32;
+    return 'hsl(' + h + ' ' + s + '% ' + li + '%)';
+  }
+
+  function buildCells() {
+    board.innerHTML = '';
+    for (let i = 0; i < N * N; i++) {
+      const c = document.createElement('div');
+      c.className = 'cell';
+      board.appendChild(c);
+    }
+    tiles = document.createElement('div');
+    tiles.style.position = 'absolute';
+    tiles.style.inset = '0';
+    board.appendChild(tiles);
+  }
+
+  function render(flags) {
+    flags = flags || {};
+    const rect = board.getBoundingClientRect();
+    const pad = 7, gap = 7;
+    const size = (rect.width - pad * 2 - gap * (N - 1)) / N;
+    tiles.innerHTML = '';
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const idx = grid[r][c];
+        if (idx === null) continue;
+        const v = SEQ[idx];
+        const d = document.createElement('div');
+        d.className = 'tile';
+        const key = r + ',' + c;
+        if (flags.newAt === key) d.classList.add('new');
+        if (flags.merged && flags.merged.indexOf(key) > -1) d.classList.add('merged');
+        d.style.width = size + 'px';
+        d.style.height = size + 'px';
+        d.style.left = (pad + c * (size + gap)) + 'px';
+        d.style.top  = (pad + r * (size + gap)) + 'px';
+        d.style.background = tint(idx);
+        d.style.fontSize = (v < 10 ? 26 : v < 100 ? 22 : v < 1000 ? 17 : 14) + 'px';
+        d.textContent = v;
+        tiles.appendChild(d);
+      }
+    }
+    elScore.textContent = score;
+    let best = 0;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c] !== null) best = Math.max(best, grid[r][c]);
+    elBest.textContent = SEQ[best];
+  }
+
+  function emptyCells() {
+    const out = [];
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c] === null) out.push([r, c]);
+    return out;
+  }
+
+  function spawn() {
+    const cells = emptyCells();
+    if (!cells.length) return null;
+    const p = cells[Math.floor(Math.random() * cells.length)];
+    grid[p[0]][p[1]] = Math.random() < 0.85 ? 0 : 1;   // mostly 1s, sometimes a 2
+    return p[0] + ',' + p[1];
+  }
+
+  // Collapse one line (already stripped of nulls) toward index 0.
+  function collapse(line) {
+    const out = [], mergedPos = [];
+    let gained = 0, i = 0;
+    while (i < line.length) {
+      if (i + 1 < line.length && canMerge(line[i], line[i + 1])) {
+        const m = mergeTo(line[i], line[i + 1]);
+        mergedPos.push(out.length);
+        out.push(m);
+        gained += SEQ[m];
+        i += 2;
+      } else {
+        out.push(line[i]);
+        i++;
+      }
+    }
+    return { out: out, gained: gained, mergedPos: mergedPos };
+  }
+
+  function move(dir) {
+    // dir: 'l','r','u','d' — read each row/col in the direction of travel
+    let moved = false, gained = 0;
+    const mergedKeys = [];
+
+    for (let k = 0; k < N; k++) {
+      const coords = [];
+      for (let j = 0; j < N; j++) {
+        if (dir === 'l') coords.push([k, j]);
+        else if (dir === 'r') coords.push([k, N - 1 - j]);
+        else if (dir === 'u') coords.push([j, k]);
+        else coords.push([N - 1 - j, k]);
+      }
+      const before = coords.map(function (p) { return grid[p[0]][p[1]]; });
+      const packed = before.filter(function (v) { return v !== null; });
+      const res = collapse(packed);
+      gained += res.gained;
+      const after = res.out.slice();
+      while (after.length < N) after.push(null);
+
+      for (let j = 0; j < N; j++) {
+        if (before[j] !== after[j]) moved = true;
+        grid[coords[j][0]][coords[j][1]] = after[j];
+        if (res.mergedPos.indexOf(j) > -1) mergedKeys.push(coords[j][0] + ',' + coords[j][1]);
+      }
+    }
+
+    if (!moved) return;
+    score += gained;
+    const newAt = spawn();
+    render({ newAt: newAt, merged: mergedKeys });
+    if (!hasMove()) gameOver();
+  }
+
+  function hasMove() {
+    if (emptyCells().length) return true;
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        if (c + 1 < N && canMerge(grid[r][c], grid[r][c + 1])) return true;
+        if (r + 1 < N && canMerge(grid[r][c], grid[r + 1][c])) return true;
+      }
+    }
+    return false;
+  }
+
+  function gameOver() {
+    elFinal.textContent = score;
+    overlay.classList.add('show');
+  }
+
+  function reset() {
+    grid = [];
+    for (let r = 0; r < N; r++) grid.push([null, null, null, null]);
+    score = 0;
+    overlay.classList.remove('show');
+    spawn(); spawn();
+    render();
+  }
+
+  // --- input -----------------------------------------------------------
+  let sx = 0, sy = 0, tracking = false;
+
+  function start(x, y) { sx = x; sy = y; tracking = true; }
+  function end(x, y) {
+    if (!tracking) return;
+    tracking = false;
+    const dx = x - sx, dy = y - sy;
+    if (Math.abs(dx) < 22 && Math.abs(dy) < 22) return;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'r' : 'l');
+    else move(dy > 0 ? 'd' : 'u');
+  }
+
+  board.addEventListener('touchstart', function (e) {
+    start(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  board.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  board.addEventListener('touchend', function (e) {
+    const t = e.changedTouches[0];
+    end(t.clientX, t.clientY);
+  });
+  board.addEventListener('mousedown', function (e) { start(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', function (e) { end(e.clientX, e.clientY); });
+
+  const keys = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd' };
+  window.addEventListener('keydown', function (e) {
+    if (!keys[e.key]) return;
+    const r = board.getBoundingClientRect();
+    // only steal arrow keys while the board is on screen
+    if (r.bottom < 0 || r.top > window.innerHeight) return;
+    e.preventDefault();
+    if (!overlay.classList.contains('show')) move(keys[e.key]);
+  });
+
+  document.getElementById('g1-again').addEventListener('click', reset);
+  window.addEventListener('resize', function () { render(); });
+
+  buildCells();
+  reset();
+})();
+
+
+/* =====================================================================
+   CONCEPT 2 — Zeckendorf
+   Every n has exactly one representation as a sum of non-consecutive
+   Fibonacci numbers. Tiles adjacent to a picked tile lock out.
+   ===================================================================== */
+(function () {
+  const FIBS = [1, 2, 3, 5, 8, 13, 21, 34, 55];   // max reachable sum = 88
+  const elTarget = document.getElementById('g2-target');
+  const elSum    = document.getElementById('g2-sum');
+  const elTiles  = document.getElementById('g2-tiles');
+  const elScore  = document.getElementById('g2-score');
+  const elTime   = document.getElementById('g2-time');
+  const overlay  = document.getElementById('g2-over');
+
+  let picked, target, score, timeLeft, timer, running = false, celebrating = false;
+
+  const nodes = FIBS.map(function (v, i) {
+    const d = document.createElement('div');
+    d.className = 'fibtile';
+    d.textContent = v;
+    d.addEventListener('click', function () { tap(i); });
+    elTiles.appendChild(d);
+    return d;
+  });
+
+  function locked(i) {
+    return picked.indexOf(i - 1) > -1 || picked.indexOf(i + 1) > -1;
+  }
+  function sum() {
+    return picked.reduce(function (a, i) { return a + FIBS[i]; }, 0);
+  }
+
+  function paint() {
+    const s = sum();
+    nodes.forEach(function (n, i) {
+      const on = picked.indexOf(i) > -1;
+      n.classList.toggle('on', on);
+      n.classList.toggle('locked', !on && locked(i));
+      n.classList.toggle('over', !on && !locked(i) && s + FIBS[i] > target);
+    });
+    elSum.innerHTML = picked.length
+      ? picked.map(function (i) { return FIBS[i]; }).sort(function (a, b) { return b - a; }).join(' + ') +
+        ' = <b>' + s + '</b>'
+      : 'tap tiles to build the target';
+  }
+
+  function tap(i) {
+    if (!running || celebrating) return;
+    const at = picked.indexOf(i);
+    if (at > -1) { picked.splice(at, 1); paint(); return; }
+    if (locked(i)) { flash(nodes[i]); return; }
+    picked.push(i);
+    if (sum() === target) return solved();
+    if (sum() > target) flash(nodes[i]);
+    paint();
+  }
+
+  function flash(node) {
+    node.style.borderColor = 'var(--bad)';
+    setTimeout(function () { node.style.borderColor = ''; }, 220);
+  }
+
+  function solved() {
+    score++;
+    celebrating = true;              // ignore taps while the solve flashes
+    elScore.textContent = score;
+    paint();
+    elTarget.classList.add('ok');
+    setTimeout(function () {
+      elTarget.classList.remove('ok');
+      celebrating = false;
+      if (running) nextTarget();
+    }, 420);
+  }
+
+  function nextTarget() {
+    // 4..88 — every value in range has a unique Zeckendorf form over FIBS
+    target = 4 + Math.floor(Math.random() * 85);
+    picked = [];
+    elTarget.textContent = target;
+    paint();
+  }
+
+  function tick() {
+    timeLeft--;
+    elTime.textContent = timeLeft;
+    if (timeLeft <= 0) stop();
+  }
+
+  function stop() {
+    running = false;
+    clearInterval(timer);
+    overlay.querySelector('h3').textContent = 'Time';
+    overlay.querySelector('p').innerHTML =
+      '<span style="font-family:var(--mono);font-size:44px;color:var(--gold);display:block;line-height:1.2">' +
+      score + '</span>solved in 40 seconds';
+    overlay.querySelector('button').textContent = 'run again';
+    overlay.classList.add('show');
+  }
+
+  function start() {
+    score = 0; timeLeft = 40; running = true; celebrating = false;
+    elScore.textContent = 0; elTime.textContent = 40;
+    overlay.classList.remove('show');
+    nextTarget();
+    clearInterval(timer);
+    timer = setInterval(tick, 1000);
+  }
+
+  document.getElementById('g2-start').addEventListener('click', start);
+  document.getElementById('g2-clear').addEventListener('click', function () {
+    if (!running) return;
+    picked = [];
+    paint();
+  });
+
+  picked = []; target = 0;
+  paint();
+})();
+
+
+/* =====================================================================
+   CONCEPT 3 — Golden Rhythm
+   Gap between consecutive notes cycles through 1,1,2,3,5,8 beat units.
+   Note radius scales with the gap that follows it, so the pattern is
+   readable before you have to play it.
+   ===================================================================== */
+(function () {
+  const UNIT    = 150;    // ms per beat unit
+  const PATTERN = [1, 1, 2, 3, 5, 8];
+  const SPEED   = 0.17;   // px per ms
+  const HIT_X   = 55;     // hit line, px from lane left edge
+  const RUN_MS  = 30000;
+  const PERFECT = 55, GOOD = 115, MISS = 165;
+
+  const stage   = document.getElementById('g3-stage');
+  const lane    = document.getElementById('g3-lane');
+  const ring    = document.getElementById('g3-ring');
+  const elScore = document.getElementById('g3-score');
+  const elAcc   = document.getElementById('g3-acc');
+  const elJudge = document.getElementById('g3-judge');
+  const elCombo = document.getElementById('g3-combo').querySelector('b');
+  const overlay = document.getElementById('g3-over');
+
+  let notes = [], t0 = 0, raf = 0, running = false, pausedAt = 0;
+  let score = 0, combo = 0, hits = 0, judged = 0;
+
+  // The chart is driven by performance.now(), but rAF stalls in a hidden tab.
+  // Without this, coming back would flush every passed note as a miss at once.
+  document.addEventListener('visibilitychange', function () {
+    if (!running) return;
+    if (document.hidden) {
+      pausedAt = performance.now();
+      cancelAnimationFrame(raf);
+    } else {
+      t0 += performance.now() - pausedAt;   // shift the clock, keep notes aligned
+      raf = requestAnimationFrame(frame);
+    }
+  });
+
+  function buildChart() {
+    const out = [];
+    let t = 1400, i = 0;
+    while (t < RUN_MS - 400) {
+      const gap = PATTERN[i % PATTERN.length];
+      out.push({ t: t, gap: gap, el: null, done: false });
+      t += gap * UNIT;
+      i++;
+    }
+    return out;
+  }
+
+  function makeEl(n) {
+    const d = document.createElement('div');
+    d.className = 'note';
+    const r = 13 + n.gap * 2.6;        // bigger note = longer pause after it
+    d.style.width = r + 'px';
+    d.style.height = r + 'px';
+    d.style.marginTop = (-r / 2) + 'px';
+    d.style.marginLeft = (-r / 2) + 'px';
+    if (n.gap >= 3) d.textContent = n.gap;
+    lane.appendChild(d);
+    return d;
+  }
+
+  function judge(text, color) {
+    elJudge.textContent = text;
+    elJudge.style.color = color;
+    elJudge.style.opacity = 1;
+    clearTimeout(judge._t);
+    judge._t = setTimeout(function () { elJudge.style.opacity = 0; }, 320);
+  }
+
+  function updateAcc() {
+    elAcc.textContent = judged ? Math.round((hits / judged) * 100) + '%' : '—';
+  }
+
+  function frame() {
+    if (!running) return;
+    const now = performance.now() - t0;
+    const w = lane.clientWidth;
+
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.done) continue;
+      const x = HIT_X + (n.t - now) * SPEED;
+      if (x > w + 40) continue;
+      if (!n.el) n.el = makeEl(n);
+      n.el.style.transform = 'translateX(' + x + 'px)';
+      if (now - n.t > MISS) {
+        n.done = true;
+        n.el.remove();
+        combo = 0; judged++;
+        elCombo.textContent = 0;
+        updateAcc();
+        judge('miss', 'var(--bad)');
+      }
+    }
+
+    if (now > RUN_MS) return stop();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function tap() {
+    if (!running) return;
+    const now = performance.now() - t0;
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.done) continue;
+      const d = Math.abs(n.t - now);
+      if (d < bestD) { bestD = d; best = n; }
+    }
+    ring.style.transition = 'none';
+    ring.style.transform = 'scale(1.35)';
+    ring.style.borderColor = '#f2b53c';
+    setTimeout(function () {
+      ring.style.transition = 'transform .18s, border-color .3s';
+      ring.style.transform = 'scale(1)';
+      ring.style.borderColor = '#ffffff26';
+    }, 20);
+
+    if (!best || bestD > GOOD) { combo = 0; elCombo.textContent = 0; judge('—', 'var(--dim)'); return; }
+
+    best.done = true;
+    if (best.el) best.el.remove();
+    judged++; hits++;
+    combo++;
+    const mult = 1 + Math.min(combo, 30) * 0.1;
+    if (bestD <= PERFECT) { score += Math.round(100 * mult); judge('perfect', 'var(--cool)'); }
+    else { score += Math.round(50 * mult); judge('good', 'var(--gold)'); }
+    elScore.textContent = score;
+    elCombo.textContent = combo;
+    updateAcc();
+  }
+
+  function stop() {
+    running = false;
+    cancelAnimationFrame(raf);
+    notes.forEach(function (n) { if (n.el) n.el.remove(); });
+    overlay.querySelector('h3').textContent = 'Track complete';
+    overlay.querySelector('p').innerHTML =
+      '<span style="font-family:var(--mono);font-size:40px;color:var(--gold);display:block;line-height:1.2">' +
+      score + '</span>' + (judged ? Math.round((hits / judged) * 100) : 0) + '% accuracy · best combo ' + combo;
+    overlay.querySelector('button').textContent = 'again';
+    overlay.classList.add('show');
+  }
+
+  function start() {
+    notes.forEach(function (n) { if (n.el) n.el.remove(); });
+    notes = buildChart();
+    score = 0; combo = 0; hits = 0; judged = 0;
+    elScore.textContent = 0; elCombo.textContent = 0; elAcc.textContent = '—';
+    overlay.classList.remove('show');
+    running = true;
+    t0 = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+
+  stage.addEventListener('pointerdown', function (e) { e.preventDefault(); tap(); });
+  document.getElementById('g3-start').addEventListener('click', function (e) { e.stopPropagation(); start(); });
+})();
+
+
+/* =====================================================================
+   CONCEPT 4 — Rabbit Ranch
+   Fibonacci's original 1202 model:  A' = A + J,  J' = A
+   Total pairs each month is the next Fibonacci number.
+   ===================================================================== */
+(function () {
+  const GOAL = 144;
+  const elMonth = document.getElementById('g4-month');
+  const elTotal = document.getElementById('g4-total');
+  const elEq    = document.getElementById('g4-eq');
+  const pen     = document.getElementById('g4-pen');
+  const chart   = document.getElementById('g4-chart');
+  const overlay = document.getElementById('g4-over');
+  const btnNext = document.getElementById('g4-next');
+
+  let month, adults, juv, history;
+
+  function total() { return adults + juv; }
+
+  function drawPen() {
+    pen.innerHTML = '';
+    const cap = 200;
+    const showA = Math.min(adults, cap);
+    const showJ = Math.min(juv, Math.max(0, cap - showA));
+    for (let i = 0; i < showA; i++) {
+      const b = document.createElement('span');
+      b.className = 'bun'; b.textContent = '🐇';
+      pen.appendChild(b);
+    }
+    for (let i = 0; i < showJ; i++) {
+      const b = document.createElement('span');
+      b.className = 'bun juv'; b.textContent = '🐇';
+      pen.appendChild(b);
+    }
+  }
+
+  function drawChart() {
+    chart.innerHTML = '';
+    const max = Math.max.apply(null, history);
+    history.forEach(function (v) {
+      const i = document.createElement('i');
+      i.style.height = Math.max(2, (v / max) * 46) + 'px';
+      chart.appendChild(i);
+    });
+  }
+
+  function paint() {
+    elMonth.textContent = month;
+    elTotal.textContent = total();
+    elEq.innerHTML =
+      'mature pairs <b>' + adults + '</b> &nbsp;·&nbsp; juvenile pairs <b>' + juv + '</b><br>' +
+      'next month: <b>' + (adults + juv) + '</b> mature, <b>' + adults + '</b> juvenile → <b>' +
+      (adults * 2 + juv) + '</b> total';
+    drawPen();
+    drawChart();
+    btnNext.disabled = total() >= GOAL;
+    btnNext.style.opacity = total() >= GOAL ? .4 : 1;
+  }
+
+  function advance() {
+    const a = adults;
+    adults = adults + juv;   // juveniles mature, nobody dies
+    juv = a;                 // every previously-mature pair breeds one new pair
+    month++;
+    history.push(total());
+    paint();
+    if (total() >= GOAL) {
+      document.getElementById('g4-months').textContent = month;
+      setTimeout(function () { overlay.classList.add('show'); }, 500);
+    }
+  }
+
+  function reset() {
+    month = 0; adults = 0; juv = 1;
+    history = [1];
+    overlay.classList.remove('show');
+    paint();
+  }
+
+  btnNext.addEventListener('click', advance);
+  document.getElementById('g4-reset').addEventListener('click', reset);
+  document.getElementById('g4-again').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

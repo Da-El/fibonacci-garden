@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fibonacci — 3 simple game concepts</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg:      #0c0a08;
+    --panel:   #16120e;
+    --panel-2: #1f1913;
+    --line:    #2e2619;
+    --gold:    #f2b53c;
+    --amber:   #e78a3c;
+    --pale:    #f8e7c6;
+    --text:    #f4ece0;
+    --muted:   #a3978a;
+    --dim:     #6f665c;
+    --cool:    #5ec8c0;
+    --bad:     #e0664f;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1100px 560px at 12% -12%, #2a1f13 0%, transparent 62%),
+      radial-gradient(900px 500px at 92% 4%,  #1c1a2a 0%, transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 72px 0 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 18px;
+  }
+  h1 {
+    font-size: clamp(32px, 5.6vw, 56px); line-height: 1.05; margin: 0 0 20px;
+    letter-spacing: -.02em; font-weight: 620;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--gold), var(--amber) 60%, #d8654f);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lede { font-size: 17px; color: var(--muted); max-width: 60ch; margin: 0 0 20px; }
+  .lede strong { color: var(--pale); font-weight: 560; }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 44px; align-items: center; }
+  figure.diagram { margin: 0; }
+  figure.diagram svg { width: 100%; height: auto; display: block; }
+  figure.diagram figcaption {
+    font-family: var(--mono); font-size: 11px; color: var(--dim);
+    margin-top: 10px; text-align: center;
+  }
+
+  /* ---------- concept blocks ---------- */
+  .concept {
+    display: grid; grid-template-columns: 1fr 340px; gap: 52px;
+    padding: 56px 0; border-top: 1px solid var(--line); align-items: start;
+  }
+  .concept-num {
+    font-family: var(--mono); font-size: 12px; color: var(--gold);
+    letter-spacing: .16em; margin: 0 0 10px;
+  }
+  .concept h2 { font-size: 30px; margin: 0 0 6px; letter-spacing: -.015em; font-weight: 600; }
+  .tagline { color: var(--amber); font-size: 15px; margin: 0 0 22px; font-weight: 500; }
+  .concept p { color: var(--muted); margin: 0 0 16px; max-width: 58ch; }
+  .concept p strong { color: var(--pale); font-weight: 560; }
+
+  .rule {
+    background: linear-gradient(100deg, #f2b53c14, transparent);
+    border: 1px solid var(--line); border-left: 2px solid var(--gold);
+    border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 0 0 22px;
+  }
+  .rule h4 {
+    margin: 0 0 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--gold); font-weight: 500;
+  }
+  .rule p { margin: 0; font-size: 19px; color: var(--pale); max-width: none; line-height: 1.4; }
+
+  .gauge { display: flex; align-items: center; gap: 12px; margin: 0 0 22px; }
+  .gauge span {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .dots { display: flex; gap: 5px; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: #ffffff1a; }
+  .dots i.on { background: var(--cool); }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+  .tag {
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px; border-radius: 100px;
+    background: #ffffff0a; border: 1px solid var(--line); color: var(--muted);
+  }
+  .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 24px; margin-top: 24px; }
+  .meta div { border-top: 1px solid var(--line); padding-top: 10px; }
+  .meta dt {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 3px;
+  }
+  .meta dd { margin: 0; font-size: 13.5px; color: var(--text); }
+
+  /* ---------- phone ---------- */
+  .phone-col { position: sticky; top: 32px; }
+  .phone {
+    width: 320px; height: 620px; margin: 0 auto;
+    background: linear-gradient(160deg, #2b2620, #16130f);
+    border-radius: 42px; padding: 12px;
+    box-shadow: 0 0 0 1px #ffffff14, 0 30px 60px -20px #000000cc, inset 0 1px 0 #ffffff1a;
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    border-radius: 32px; background: #0a0806;
+    display: flex; flex-direction: column;
+    box-shadow: inset 0 0 0 1px #ffffff0f;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .notch {
+    position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+    width: 78px; height: 5px; border-radius: 100px; background: #ffffff1f; z-index: 30;
+  }
+  .hud { display: flex; align-items: center; gap: 10px; padding: 26px 18px 10px; flex: 0 0 auto; }
+  .hud-item { flex: 1; }
+  .hud-item.right { text-align: right; flex: 0 0 auto; }
+  .hud-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .hud-val { font-family: var(--mono); font-size: 20px; color: var(--pale); font-variant-numeric: tabular-nums; }
+  .stage { flex: 1 1 auto; position: relative; padding: 0 16px 16px; min-height: 0; }
+  .footnote {
+    text-align: center; font-family: var(--mono); font-size: 10px;
+    color: var(--dim); padding: 0 16px 18px; flex: 0 0 auto;
+  }
+  .phone-caption { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 16px; }
+  .phone-caption b { color: var(--gold); font-weight: 500; }
+
+  button.btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    background: #ffffff0f; color: var(--pale); border: 1px solid var(--line);
+    padding: 8px 14px; border-radius: 100px; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  button.btn:hover { background: #ffffff1c; border-color: #4a3d29; }
+  button.btn.primary {
+    background: linear-gradient(160deg, var(--gold), var(--amber));
+    color: #241705; border-color: transparent; font-weight: 600;
+  }
+  button.btn.primary:hover { filter: brightness(1.08); }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 20; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: #0a0806f2; backdrop-filter: blur(3px); border-radius: 32px; text-align: center; padding: 30px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h3 { margin: 0; font-size: 22px; font-weight: 600; }
+  .overlay p { margin: 0; font-size: 13px; color: var(--muted); }
+  .overlay .big {
+    font-family: var(--mono); font-size: 46px; color: var(--gold);
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- A: What comes next ---------- */
+  #a-seq {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    flex-wrap: wrap; min-height: 74px; margin-top: 6px;
+  }
+  #a-seq .n {
+    font-family: var(--mono); font-size: 17px; color: var(--dim);
+    font-variant-numeric: tabular-nums;
+  }
+  #a-seq .n.hi {
+    color: var(--gold); font-size: 22px;
+    text-shadow: 0 0 18px #f2b53c55;
+  }
+  #a-seq .plus { font-family: var(--mono); font-size: 15px; color: var(--amber); }
+  #a-seq .q {
+    font-family: var(--mono); font-size: 24px; color: var(--pale);
+    border: 1px dashed #6a5836; border-radius: 8px; padding: 1px 12px;
+  }
+  #a-hint {
+    text-align: center; font-family: var(--mono); font-size: 13px;
+    color: var(--cool); height: 20px; margin: 10px 0 2px; opacity: 0; transition: opacity .2s;
+  }
+  #a-hint.show { opacity: 1; }
+  #a-opts { display: grid; gap: 10px; margin-top: 14px; }
+  .opt {
+    padding: 15px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--pale);
+    font-family: var(--mono); font-size: 24px; text-align: center; cursor: pointer;
+    font-variant-numeric: tabular-nums; transition: transform .1s, background .15s, border-color .15s;
+  }
+  .opt:active { transform: scale(.97); }
+  .opt.right { background: linear-gradient(160deg, var(--cool), #3d9b95); color: #06231f; border-color: transparent; }
+  .opt.wrong { border-color: var(--bad); color: var(--bad); animation: shake .3s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0) } 25% { transform: translateX(-6px) }
+    75% { transform: translateX(6px) }
+  }
+
+  /* ---------- B: Bloom ---------- */
+  #b-stage { display: flex; flex-direction: column; }
+  #b-flower { flex: 1; display: flex; align-items: center; justify-content: center; }
+  #b-flower svg { width: 100%; height: auto; overflow: visible; }
+  @keyframes seedIn { from { opacity: 0; transform: scale(0) } to { opacity: 1; transform: scale(1) } }
+  #b-flower circle { transform-box: fill-box; transform-origin: center; }
+  #b-flower circle.fresh { animation: seedIn .4s ease-out backwards; }
+  #b-add {
+    text-align: center; font-family: var(--mono); font-size: 26px; color: var(--gold);
+    height: 34px; opacity: 0; transition: opacity .3s;
+  }
+  #b-add.show { opacity: 1; }
+  #b-tap {
+    margin-top: 6px; padding: 16px; border-radius: 14px; text-align: center; cursor: pointer;
+    background: linear-gradient(160deg, var(--gold), var(--amber)); color: #241705;
+    font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+    font-weight: 700; border: none; width: 100%; transition: transform .1s, filter .15s;
+  }
+  #b-tap:active { transform: scale(.97); }
+  #b-tap:disabled { opacity: .4; cursor: default; }
+  #b-fact {
+    text-align: center; font-family: var(--mono); font-size: 10.5px;
+    color: var(--dim); margin-top: 10px; height: 28px; line-height: 1.4;
+  }
+
+  /* ---------- C: Catch ---------- */
+  #c-stage { touch-action: none; cursor: pointer; overflow: hidden; }
+  #c-prompt {
+    text-align: center; font-family: var(--mono); font-size: 27px; color: var(--pale);
+    font-variant-numeric: tabular-nums; padding: 4px 0 8px;
+  }
+  #c-prompt b { color: var(--gold); font-weight: 500; }
+  #c-field {
+    position: absolute; left: 16px; right: 16px; top: 54px; bottom: 16px;
+    border-radius: 14px; background: linear-gradient(#ffffff06, transparent 60%);
+    border: 1px solid var(--line); overflow: hidden;
+  }
+  .falling {
+    position: absolute; font-family: var(--mono); font-size: 17px;
+    width: 42px; height: 42px; margin-left: -21px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #ffffff14; border: 1px solid #ffffff26; color: var(--pale);
+    font-variant-numeric: tabular-nums; will-change: transform;
+  }
+  #c-basket {
+    position: absolute; bottom: 8px; width: 74px; height: 20px; margin-left: -37px;
+    border-radius: 4px 4px 12px 12px;
+    background: linear-gradient(var(--gold), var(--amber));
+    box-shadow: 0 0 18px -4px #f2b53c88; will-change: transform;
+  }
+  #c-lives {
+    position: absolute; right: 12px; top: 8px; font-family: var(--mono);
+    font-size: 13px; letter-spacing: 2px; z-index: 5;
+  }
+
+  /* ---------- verdict ---------- */
+  .verdict { border-top: 1px solid var(--line); padding-top: 56px; }
+  .verdict h2 { font-size: 30px; margin: 0 0 8px; letter-spacing: -.015em; }
+  table { width: 100%; border-collapse: collapse; margin: 28px 0 34px; font-size: 14px; }
+  th, td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim); font-weight: 500; border-bottom-color: #3d3221;
+  }
+  td:first-child { color: var(--pale); font-weight: 560; white-space: nowrap; }
+  td.dim { color: var(--muted); }
+  .pick { color: var(--cool); font-family: var(--mono); font-size: 12px; }
+  .rec {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 24px; border-left: 2px solid var(--cool);
+  }
+  .rec h3 { margin: 0 0 8px; font-size: 17px; }
+  .rec p { margin: 0 0 12px; color: var(--muted); font-size: 14.5px; }
+  .rec p:last-child { margin: 0; }
+  .rec strong { color: var(--pale); font-weight: 560; }
+
+  @media (max-width: 900px) {
+    .hero-grid, .concept { grid-template-columns: 1fr; gap: 34px; }
+    figure.diagram { max-width: 460px; }
+    .phone-col { position: static; }
+    .concept { padding: 44px 0; }
+  }
+  @media (max-width: 420px) {
+    .wrap { padding: 0 16px 64px; }
+    .phone { width: 100%; max-width: 320px; height: 600px; }
+    .meta { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Round 2 · simpler concepts</p>
+        <h1>Three Fibonacci games with <em>one rule each</em></h1>
+        <p class="lede">
+          The last batch asked players to learn a theorem before they could play. These don't.
+          Each one has <strong>a single rule you can read in about four seconds</strong>, and none of them
+          require knowing what Fibonacci is — you just pick it up by playing.
+        </p>
+        <p class="lede" style="margin-bottom:0">
+          All three are playable in the phones below.
+        </p>
+      </div>
+
+      <figure class="diagram">
+        <svg viewBox="0 0 380 96" xmlns="http://www.w3.org/2000/svg" aria-label="Each number is the two before it added together">
+          <g font-family="ui-monospace, Menlo, monospace" text-anchor="middle">
+            <text x="14"  y="26" font-size="18" fill="#6f665c">1</text>
+            <text x="60"  y="26" font-size="18" fill="#6f665c">1</text>
+            <text x="106" y="26" font-size="18" fill="#6f665c">2</text>
+            <text x="152" y="26" font-size="21" fill="#f2b53c">3</text>
+            <text x="198" y="26" font-size="21" fill="#f2b53c">5</text>
+            <text x="244" y="26" font-size="21" fill="#5ec8c0">8</text>
+            <text x="290" y="26" font-size="18" fill="#6f665c">13</text>
+            <text x="340" y="26" font-size="18" fill="#6f665c">21</text>
+          </g>
+          <!-- brace under the two highlighted numbers -->
+          <path d="M152 40 V50 H198 V40" fill="none" stroke="#f2b53c" stroke-width="1.4" stroke-opacity=".8"/>
+          <!-- arrow from the brace up to the sum -->
+          <path d="M175 50 C 175 74, 244 74, 244 42" fill="none" stroke="#5ec8c0" stroke-width="1.4" stroke-opacity=".85"/>
+          <path d="M244 36 l -4.5 8 h 9 z" fill="#5ec8c0" fill-opacity=".85"/>
+          <text x="175" y="90" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
+                font-size="12" fill="#a3978a">3 + 5 = 8</text>
+        </svg>
+        <figcaption>that's the whole sequence — add the last two</figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <!-- ============ A ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT A</p>
+      <h2>What Comes Next?</h2>
+      <p class="tagline">The numbers are on screen. Tap the one that follows.</p>
+
+      <div class="rule">
+        <h4>The only rule</h4>
+        <p>Add the last two numbers. Tap the answer.</p>
+      </div>
+
+      <p>
+        The two numbers you need are <strong>always highlighted in gold with a <em>+</em> between them</strong>,
+        so the rule teaches itself on the very first turn — a player who has never heard of Fibonacci
+        just sees <code>3 + 5</code> and taps 8.
+      </p>
+      <p>
+        Difficulty comes free: the numbers grow, so by <code>144 + 233</code> you're doing real
+        mental arithmetic under streak pressure. No timer, no lives — <strong>get it wrong and it just
+        shows you the sum</strong> and your streak resets. Nothing to punish a beginner.
+      </p>
+
+      <div class="gauge">
+        <span>Rules to learn</span>
+        <div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+        <span>1 of 5</span>
+      </div>
+
+      <div class="tags">
+        <span class="tag">trivia / quiz</span><span class="tag">no fail state</span>
+        <span class="tag">one thumb</span><span class="tag">tiny build</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>1–3 min</dd></div>
+        <div><dt>Build effort</dt><dd>Lowest of all six concepts</dd></div>
+        <div><dt>Learns the rule in</dt><dd>One turn, without instructions</dd></div>
+        <div><dt>Risk</dt><dd>Closer to a quiz than a game</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Streak</div><div class="hud-val" id="a-streak">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Best</div><div class="hud-val" id="a-best">0</div></div>
+        </div>
+        <div class="stage">
+          <div id="a-seq"></div>
+          <div id="a-hint"></div>
+          <div id="a-opts"></div>
+        </div>
+        <div class="footnote">the gold numbers are the two to add</div>
+        <div class="overlay" id="a-over">
+          <h3>Sequence complete</h3>
+          <div class="big" id="a-final">0</div>
+          <p>You went the whole way up. The numbers reset, your best stays.</p>
+          <button class="btn primary" id="a-again">go again</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — just tap an answer</p>
+    </div>
+  </section>
+
+  <!-- ============ B ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT B</p>
+      <h2>Bloom</h2>
+      <p class="tagline">Tap to grow a sunflower. That's it.</p>
+
+      <div class="rule">
+        <h4>The only rule</h4>
+        <p>Tap. The flower grows.</p>
+      </div>
+
+      <p>
+        There is <strong>nothing to understand and nothing to lose</strong>. Each tap drops in the next batch of
+        seeds — 1, then 1, then 2, 3, 5, 8, 13 — and every seed lands at the
+        <strong>golden angle of 137.5°</strong> from the last one. Spiral arms appear on their own,
+        because that's genuinely how a real sunflower packs its seeds.
+      </p>
+      <p>
+        The first few taps look like almost nothing. Then around tap 8 it visibly explodes, which is the
+        entire emotional arc of exponential growth delivered without a single word of explanation.
+        The Fibonacci part isn't taught — <strong>it's just true, and you can see it</strong>.
+      </p>
+      <p>
+        As a shipped game this becomes a collection: different flowers, different seed colours, a garden
+        you fill up. The tap is the whole loop.
+      </p>
+
+      <div class="gauge">
+        <span>Rules to learn</span>
+        <div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+        <span>1 of 5</span>
+      </div>
+
+      <div class="tags">
+        <span class="tag">cozy / zen</span><span class="tag">zero fail</span>
+        <span class="tag">beautiful</span><span class="tag">all ages</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>30 s, endlessly repeatable</dd></div>
+        <div><dt>Build effort</dt><dd>Low — one maths formula, no rules engine</dd></div>
+        <div><dt>Learns the rule in</dt><dd>Zero turns. It's one button.</dd></div>
+        <div><dt>Risk</dt><dd>A toy, not a game — needs collection hooks</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Seeds</div><div class="hud-val" id="b-seeds">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Tap</div><div class="hud-val" id="b-stageN">0</div></div>
+        </div>
+        <div class="stage" id="b-stage">
+          <div id="b-flower">
+            <svg id="b-svg" viewBox="-120 -120 240 240"><g id="b-seedsG"></g></svg>
+          </div>
+          <div id="b-add"></div>
+          <button id="b-tap">tap to grow</button>
+          <div id="b-fact">every seed sits 137.5° from the one before</div>
+        </div>
+        <div class="overlay" id="b-over">
+          <h3>Fully bloomed</h3>
+          <div class="big" id="b-total">376</div>
+          <p>seeds, in 12 taps. Count the spiral arms — you'll find 34 one way and 55 the other.</p>
+          <button class="btn primary" id="b-again">plant another</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — one button, no way to lose</p>
+    </div>
+  </section>
+
+  <!-- ============ C ============ -->
+  <section class="concept">
+    <div>
+      <p class="concept-num">CONCEPT C</p>
+      <h2>Catch</h2>
+      <p class="tagline">Numbers fall. Catch the right one.</p>
+
+      <div class="rule">
+        <h4>The only rule</h4>
+        <p>Slide the basket. Catch the number that equals the sum.</p>
+      </div>
+
+      <p>
+        The sum you need is printed at the top of the screen — <code>5 + 3 = ?</code> — so there's
+        <strong>no hidden knowledge at all</strong>. It's addition you already know, with arcade pressure
+        to make it a game instead of a worksheet.
+      </p>
+      <p>
+        Catch right and the sum rolls forward to the next pair, which is where Fibonacci sneaks in:
+        the answer you just caught becomes part of the next question. Players notice the pattern
+        after a few rounds and start <strong>reaching for the answer before reading it</strong> — that's the moment
+        the sequence clicks.
+      </p>
+      <p>Three lives. Catching a wrong number or letting the right one fall costs one.</p>
+
+      <div class="gauge">
+        <span>Rules to learn</span>
+        <div class="dots"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+        <span>2 of 5</span>
+      </div>
+
+      <div class="tags">
+        <span class="tag">arcade</span><span class="tag">reflex + easy maths</span>
+        <span class="tag">kid friendly</span><span class="tag">short runs</span>
+      </div>
+
+      <dl class="meta">
+        <div><dt>Session length</dt><dd>45–90 s per run</dd></div>
+        <div><dt>Build effort</dt><dd>Low-medium — needs collision + tuning</dd></div>
+        <div><dt>Learns the rule in</dt><dd>One round; the sum is on screen</dd></div>
+        <div><dt>Risk</dt><dd>Feels like an education app if under-juiced</dd></div>
+      </dl>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone"><div class="screen">
+        <div class="notch"></div>
+        <div class="hud">
+          <div class="hud-item"><div class="hud-label">Caught</div><div class="hud-val" id="c-score">0</div></div>
+          <div class="hud-item right"><div class="hud-label">Round</div><div class="hud-val" id="c-round">1</div></div>
+        </div>
+        <div class="stage" id="c-stage">
+          <div id="c-prompt">—</div>
+          <div id="c-field">
+            <div id="c-lives">♥♥♥</div>
+            <div id="c-basket"></div>
+          </div>
+        </div>
+        <div class="footnote">drag anywhere to move the basket</div>
+        <div class="overlay show" id="c-over">
+          <h3>Catch</h3>
+          <p>The sum is at the top of the screen. Catch that number, dodge the rest.</p>
+          <button class="btn primary" id="c-start">start</button>
+        </div>
+      </div></div>
+      <p class="phone-caption"><b>Playable</b> — drag to move</p>
+    </div>
+  </section>
+
+  <!-- ============ VERDICT ============ -->
+  <section class="verdict">
+    <h2>Which one to build</h2>
+    <p class="lede" style="margin-bottom:0">All three are simpler than anything in the first batch.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Concept</th><th>Player action</th><th>Rules</th>
+          <th>Can you lose?</th><th>Build effort</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>What Comes Next?</td>
+          <td class="dim">Tap one of three answers</td>
+          <td class="pick">1</td>
+          <td class="dim">No — streak just resets</td>
+          <td class="dim">Lowest</td>
+        </tr>
+        <tr>
+          <td>Bloom</td>
+          <td class="dim">Tap one button</td>
+          <td class="pick">1</td>
+          <td class="dim">No, ever</td>
+          <td class="dim">Low</td>
+        </tr>
+        <tr>
+          <td>Catch</td>
+          <td class="dim">Drag a basket</td>
+          <td class="dim">2</td>
+          <td class="dim">Yes — 3 lives</td>
+          <td class="dim">Low-medium</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="rec">
+      <h3>Recommendation: Bloom</h3>
+      <p>
+        It's the only one of the six concepts so far where <strong>a player needs no instructions and cannot
+        fail</strong>. There's one button. The Fibonacci sequence isn't a puzzle to solve, it's just what makes
+        the flower look right — which is a much easier sell than "learn this sequence".
+      </p>
+      <p>
+        It's also the most distinctive. Number-tapping games and falling-object games both already exist by
+        the hundred; a <strong>tap-to-grow sunflower where the maths is genuinely why it's beautiful</strong> is
+        something people screenshot and send to a friend.
+      </p>
+      <p>
+        <strong>What Comes Next?</strong> is the fastest to build if you want something finished this week, and
+        pairs well as a mini-game inside a bigger app. <strong>Catch</strong> is the most game-like of the
+        three and the best fit if you want kids as the audience — but it needs the most tuning to feel good.
+      </p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   CONCEPT A — What Comes Next?
+   The two numbers to add are always highlighted, so the rule is
+   self-evident. Wrong answers teach rather than punish.
+   ===================================================================== */
+(function () {
+  const elSeq    = document.getElementById('a-seq');
+  const elOpts   = document.getElementById('a-opts');
+  const elHint   = document.getElementById('a-hint');
+  const elStreak = document.getElementById('a-streak');
+  const elBest   = document.getElementById('a-best');
+  const overlay  = document.getElementById('a-over');
+
+  let seq, streak = 0, best = 0, locked = false;
+
+  function drawSeq() {
+    // show at most the last 5 numbers so it never wraps awkwardly
+    const shown = seq.slice(-5);
+    elSeq.innerHTML = '';
+    shown.forEach(function (v, i) {
+      const isA = i === shown.length - 2;
+      const isB = i === shown.length - 1;
+      if (isB && shown.length > 1) {
+        const p = document.createElement('span');
+        p.className = 'plus'; p.textContent = '+';
+        elSeq.appendChild(p);
+      }
+      const n = document.createElement('span');
+      n.className = 'n' + (isA || isB ? ' hi' : '');
+      n.textContent = v;
+      elSeq.appendChild(n);
+    });
+    const q = document.createElement('span');
+    q.className = 'q'; q.textContent = '?';
+    elSeq.appendChild(q);
+  }
+
+  function distractors(correct, a, b) {
+    // Shuffled, or the wrong answers would be identical every playthrough and
+    // a player could win by pattern-matching instead of adding.
+    const pool = [
+      b * 2, a * 2, correct + b, correct + a, b, a,
+      correct + 1, correct - 1, correct + 3, correct * 2,
+      Math.round(correct * 1.5), correct - a
+    ];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    const out = [];
+    for (let i = 0; i < pool.length && out.length < 2; i++) {
+      const v = pool[i];
+      if (v > 0 && v !== correct && out.indexOf(v) === -1) out.push(v);
+    }
+    let n = correct + 5;
+    while (out.length < 2) { if (out.indexOf(n) === -1) out.push(n); n++; }
+    return out;
+  }
+
+  function nextRound() {
+    locked = false;
+    elHint.classList.remove('show');
+    drawSeq();
+    const a = seq[seq.length - 2], b = seq[seq.length - 1];
+    const correct = a + b;
+    const opts = distractors(correct, a, b).concat([correct]);
+    // shuffle
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = opts[i]; opts[i] = opts[j]; opts[j] = t;
+    }
+    elOpts.innerHTML = '';
+    opts.forEach(function (v) {
+      const d = document.createElement('div');
+      d.className = 'opt';
+      d.textContent = v;
+      d.addEventListener('click', function () { pick(d, v, correct, a, b); });
+      elOpts.appendChild(d);
+    });
+  }
+
+  function pick(node, v, correct, a, b) {
+    if (locked) return;
+    if (v !== correct) {
+      locked = true;
+      node.classList.add('wrong');
+      elHint.textContent = a + ' + ' + b + ' = ' + correct;
+      elHint.classList.add('show');
+      streak = 0;
+      elStreak.textContent = 0;
+      setTimeout(nextRound, 1400);
+      return;
+    }
+    locked = true;
+    node.classList.add('right');
+    streak++;
+    best = Math.max(best, streak);
+    elStreak.textContent = streak;
+    elBest.textContent = best;
+    seq.push(correct);
+    setTimeout(function () {
+      if (seq[seq.length - 1] > 1000) {
+        document.getElementById('a-final').textContent = streak;
+        overlay.classList.add('show');
+        return;
+      }
+      nextRound();
+    }, 380);
+  }
+
+  function reset() {
+    seq = [1, 1];
+    overlay.classList.remove('show');
+    nextRound();
+  }
+
+  document.getElementById('a-again').addEventListener('click', reset);
+  reset();
+})();
+
+
+/* =====================================================================
+   CONCEPT B — Bloom
+   Seeds are placed at the golden angle (137.507°) with radius
+   proportional to sqrt(index) — the real sunflower packing. Each tap
+   adds the next Fibonacci count of seeds.
+   ===================================================================== */
+(function () {
+  const GOLDEN = 137.5077640500378 * Math.PI / 180;
+  const BATCH  = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144];   // total 376
+  const TOTAL  = BATCH.reduce(function (a, b) { return a + b; }, 0);
+  const SCALE  = 110 / Math.sqrt(TOTAL);
+
+  const g        = document.getElementById('b-seedsG');
+  const elSeeds  = document.getElementById('b-seeds');
+  const elStageN = document.getElementById('b-stageN');
+  const elAdd    = document.getElementById('b-add');
+  const elFact   = document.getElementById('b-fact');
+  const btn      = document.getElementById('b-tap');
+  const overlay  = document.getElementById('b-over');
+
+  const FACTS = [
+    'every seed sits 137.5° from the one before',
+    'nothing is placed by hand — it is one formula',
+    'watch the spiral arms appear on their own',
+    'this is how a real sunflower packs its seeds',
+    'the arms you can count are Fibonacci numbers too'
+  ];
+
+  let placed = 0, stage = 0;
+
+  function addSeeds(count) {
+    for (let k = 0; k < count; k++) {
+      const i = placed + k;
+      const r = SCALE * Math.sqrt(i + 0.5);
+      const th = (i + 0.5) * GOLDEN;
+      const t = i / TOTAL;
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', (Math.cos(th) * r).toFixed(2));
+      c.setAttribute('cy', (Math.sin(th) * r).toFixed(2));
+      c.setAttribute('r', 3.4);
+      c.setAttribute('fill', 'hsl(' + (44 - t * 24) + ' ' + (82 - t * 8) + '% ' + (72 - t * 26) + '%)');
+      c.setAttribute('class', 'fresh');
+      c.style.animationDelay = (k * 0.012) + 's';
+      g.appendChild(c);
+    }
+    placed += count;
+  }
+
+  function grow() {
+    if (stage >= BATCH.length) return;
+    const n = BATCH[stage];
+    addSeeds(n);
+    stage++;
+    elSeeds.textContent = placed;
+    elStageN.textContent = stage;
+    elAdd.textContent = '+' + n + ' seed' + (n > 1 ? 's' : '');
+    elAdd.classList.add('show');
+    elFact.textContent = FACTS[Math.min(stage - 1, FACTS.length - 1)];
+
+    if (stage >= BATCH.length) {
+      btn.disabled = true;
+      btn.textContent = 'fully bloomed';
+      document.getElementById('b-total').textContent = placed;
+      setTimeout(function () { overlay.classList.add('show'); }, 900);
+    }
+  }
+
+  function reset() {
+    g.innerHTML = '';
+    placed = 0; stage = 0;
+    elSeeds.textContent = 0;
+    elStageN.textContent = 0;
+    elAdd.classList.remove('show');
+    elFact.textContent = FACTS[0];
+    btn.disabled = false;
+    btn.textContent = 'tap to grow';
+    overlay.classList.remove('show');
+  }
+
+  btn.addEventListener('click', grow);
+  document.getElementById('b-again').addEventListener('click', reset);
+  reset();
+})();
+
+
+/* =====================================================================
+   CONCEPT C — Catch
+   The needed sum is shown on screen. Catching the answer rolls the pair
+   forward, so the answers walk up the Fibonacci sequence.
+   ===================================================================== */
+(function () {
+  const stage   = document.getElementById('c-stage');
+  const field   = document.getElementById('c-field');
+  const basket  = document.getElementById('c-basket');
+  const elPrompt= document.getElementById('c-prompt');
+  const elScore = document.getElementById('c-score');
+  const elRound = document.getElementById('c-round');
+  const elLives = document.getElementById('c-lives');
+  const overlay = document.getElementById('c-over');
+
+  let a, b, items, lives, score, round, bx, raf = 0, running = false;
+  let last = 0, spawnTimer = 0, spawnEvery = 900, speed = 0.075, pausedAt = 0;
+
+  document.addEventListener('visibilitychange', function () {
+    if (!running) return;
+    if (document.hidden) { pausedAt = performance.now(); cancelAnimationFrame(raf); }
+    else { last += performance.now() - pausedAt; raf = requestAnimationFrame(frame); }
+  });
+
+  function setPrompt() {
+    elPrompt.innerHTML = '<b>' + a + '</b> + <b>' + b + '</b> = ?';
+  }
+
+  function wrongValue(correct) {
+    const opts = [correct + 1, correct - 1, correct + 2, correct - 2, a, b, a * 2, b * 2, correct + 3];
+    const pick = opts[Math.floor(Math.random() * opts.length)];
+    return (pick > 0 && pick !== correct) ? pick : correct + 4;
+  }
+
+  function spawn() {
+    const correct = a + b;
+    // guarantee the answer shows up regularly, mixed with decoys
+    const isCorrect = items.filter(function (i) { return i.correct; }).length === 0
+      ? true : Math.random() < 0.4;
+    const val = isCorrect ? correct : wrongValue(correct);
+    const w = field.clientWidth;
+    const el = document.createElement('div');
+    el.className = 'falling';
+    el.textContent = val;
+    field.appendChild(el);
+    items.push({
+      el: el, val: val, correct: val === correct,
+      x: 30 + Math.random() * Math.max(1, w - 60), y: -44
+    });
+  }
+
+  function clearItems() {
+    items.forEach(function (i) { i.el.remove(); });
+    items = [];
+  }
+
+  function loseLife() {
+    lives--;
+    elLives.textContent = '♥'.repeat(Math.max(0, lives));
+    elLives.style.color = lives <= 1 ? 'var(--bad)' : 'var(--gold)';
+    field.style.borderColor = 'var(--bad)';
+    setTimeout(function () { field.style.borderColor = ''; }, 220);
+    if (lives <= 0) stop();
+  }
+
+  function nextRound() {
+    const n = a + b;
+    a = b; b = n;
+    round++;
+    elRound.textContent = round;
+    speed = Math.min(0.075 + round * 0.006, 0.19);
+    spawnEvery = Math.max(420, 900 - round * 34);
+    clearItems();
+    setPrompt();
+  }
+
+  function frame(now) {
+    if (!running) return;
+    const dt = Math.min(now - last, 60);
+    last = now;
+
+    spawnTimer += dt;
+    if (spawnTimer > spawnEvery) { spawnTimer = 0; spawn(); }
+
+    const h = field.clientHeight;
+    const basketY = h - 28;
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      it.y += speed * dt;
+      it.el.style.transform = 'translate(' + it.x + 'px,' + it.y + 'px)';
+
+      // caught?
+      if (it.y + 21 >= basketY && it.y <= basketY + 20 && Math.abs(it.x - bx) < 46) {
+        it.el.remove(); items.splice(i, 1);
+        if (it.correct) {
+          score++; elScore.textContent = score;
+          nextRound();
+          return (raf = requestAnimationFrame(frame));
+        }
+        loseLife();
+        if (!running) return;
+        continue;
+      }
+      // hit the floor
+      if (it.y > h) {
+        it.el.remove(); items.splice(i, 1);
+        if (it.correct) {
+          loseLife();
+          if (!running) return;
+          nextRound();
+          return (raf = requestAnimationFrame(frame));
+        }
+      }
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    cancelAnimationFrame(raf);
+    clearItems();
+    overlay.querySelector('h3').textContent = 'Out of lives';
+    overlay.querySelector('p').innerHTML =
+      '<span style="font-family:var(--mono);font-size:44px;color:var(--gold);display:block;line-height:1.2">' +
+      score + '</span>caught · you reached ' + (a + b);
+    overlay.querySelector('button').textContent = 'play again';
+    overlay.classList.add('show');
+  }
+
+  function start() {
+    clearItems();
+    a = 1; b = 1; items = []; lives = 3; score = 0; round = 1;
+    speed = 0.075; spawnEvery = 900; spawnTimer = 0;
+    elScore.textContent = 0; elRound.textContent = 1;
+    elLives.textContent = '♥♥♥'; elLives.style.color = 'var(--gold)';
+    bx = field.clientWidth / 2;
+    basket.style.transform = 'translateX(' + bx + 'px)';
+    setPrompt();
+    overlay.classList.remove('show');
+    running = true;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function moveTo(clientX) {
+    const r = field.getBoundingClientRect();
+    bx = Math.max(38, Math.min(r.width - 38, clientX - r.left));
+    basket.style.transform = 'translateX(' + bx + 'px)';
+  }
+
+  let dragging = false;
+  stage.addEventListener('pointerdown', function (e) {
+    if (!running) return;
+    dragging = true; moveTo(e.clientX); e.preventDefault();
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!running || !dragging) return;
+    moveTo(e.clientX); e.preventDefault();
+  });
+  window.addEventListener('pointerup', function () { dragging = false; });
+
+  document.getElementById('c-start').addEventListener('click', function (e) {
+    e.stopPropagation(); start();
+  });
+
+  items = []; a = 1; b = 1; bx = 120;
+})();
+</script>
+</body>
+</html>

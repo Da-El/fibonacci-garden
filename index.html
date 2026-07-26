@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Fibonacci Garden</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg:      #0e120c;
+    --panel:   #171d13;
+    --panel-2: #1e2618;
+    --line:    #2c3722;
+    --gold:    #f2c53c;
+    --amber:   #e79a3c;
+    --water:   #57b6e8;
+    --leaf:    #6fbf5e;
+    --leaf-d:  #3f8a44;
+    --pale:    #f2f6e6;
+    --text:    #e8efdc;
+    --muted:   #9aa88c;
+    --dim:     #6a7860;
+    --bad:     #e0664f;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: var(--sans); color: var(--text);
+    background: #070906;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  #shell {
+    position: relative; width: 400px; height: 800px; max-height: 100vh;
+    background: linear-gradient(160deg, #2a2f24, #14180f);
+    border-radius: 46px; padding: 12px;
+    box-shadow: 0 0 0 1px #ffffff14, 0 40px 80px -24px #000, inset 0 1px 0 #ffffff1a;
+  }
+  #app {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    border-radius: 34px;
+    background: radial-gradient(120% 70% at 50% 0%, #1d2617 0%, transparent 60%), var(--bg);
+    display: flex; flex-direction: column;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  @media (max-width: 460px), (max-height: 820px) {
+    #shell { width: 100%; height: 100%; border-radius: 0; padding: 0; box-shadow: none; }
+    #app { border-radius: 0; }
+  }
+
+  /* ---------- top bar ---------- */
+  #top { flex: 0 0 auto; padding: 20px 18px 10px; display: flex; align-items: center; gap: 9px; }
+  .pill {
+    display: flex; align-items: center; gap: 6px;
+    background: #ffffff0d; border: 1px solid var(--line);
+    padding: 7px 12px; border-radius: 100px;
+    font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums;
+  }
+  .pill i { font-style: normal; font-size: 12px; }
+  #p-coins { color: var(--gold); }
+  #p-water { color: var(--water); }
+  #p-water.empty { color: var(--bad); border-color: #4a2a22; }
+  #wtimer {
+    font-size: 10px; color: var(--dim); margin-left: 2px; letter-spacing: .02em;
+  }
+  #top .grow { flex: 1; }
+  #brand { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  #brandsub { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+
+  /* ---------- views ---------- */
+  .view { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 4px 18px 16px; min-height: 0; }
+  .view::-webkit-scrollbar { width: 0; }
+  .view.hidden { display: none; }
+  .sectitle {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--dim); margin: 10px 0 10px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .sectitle span { color: var(--muted); letter-spacing: .04em; text-transform: none; font-size: 10px; }
+  .empty-note {
+    text-align: center; color: var(--dim); font-size: 13px; padding: 26px 10px; line-height: 1.6;
+  }
+
+  /* ---------- plots ---------- */
+  #plots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .plot {
+    aspect-ratio: .8; border-radius: 14px; border: 1px solid var(--line);
+    background: linear-gradient(#1c2317, #141a10);
+    display: flex; flex-direction: column; padding: 5px;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: transform .12s, border-color .2s, box-shadow .2s;
+  }
+  .plot:active { transform: scale(.96); }
+  .plot .art { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .plot .art svg { width: 100%; height: 100%; }
+  .plot .bar { height: 3px; border-radius: 2px; background: #ffffff14; overflow: hidden; margin: 3px 1px 2px; }
+  .plot .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--leaf), var(--gold)); }
+  .plot .lbl {
+    font-family: var(--mono); font-size: 8px; color: var(--muted); text-align: center;
+    letter-spacing: .02em; line-height: 1.3;
+  }
+  .plot.dirt { border-style: dashed; border-color: #35422a; background: #ffffff05; align-items: center; justify-content: center; }
+  .plot.dirt b { font-size: 20px; color: #46573a; font-weight: 400; }
+  .plot.dirt small { font-family: var(--mono); font-size: 8px; color: var(--dim); margin-top: 2px; }
+  .plot.ready {
+    border-color: var(--gold); box-shadow: 0 0 0 1px #f2c53c55, 0 0 22px -6px #f2c53c66;
+  }
+  .plot.ready .lbl { color: var(--gold); }
+  .plot.locked { border-style: dashed; border-color: #2a3320; background: #00000030; align-items: center; justify-content: center; cursor: default; }
+  .plot.locked b { font-size: 15px; color: #3a4630; }
+
+  /* ---------- generic rows ---------- */
+  .row-item {
+    display: flex; align-items: center; gap: 11px; padding: 10px;
+    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px;
+    background: var(--panel-2);
+  }
+  .row-item .thumb {
+    width: 44px; height: 44px; flex: 0 0 auto; border-radius: 10px;
+    background: #ffffff08; display: flex; align-items: center; justify-content: center;
+  }
+  .row-item .thumb svg { width: 100%; height: 100%; }
+  .row-item .info { flex: 1; min-width: 0; }
+  .row-item .info h4 { margin: 0; font-size: 13.5px; font-weight: 560; }
+  .row-item .info p { margin: 2px 0 0; font-family: var(--mono); font-size: 9.5px; color: var(--dim); line-height: 1.45; }
+  .row-item .actions { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; align-items: flex-end; }
+  .mini {
+    padding: 6px 11px; border-radius: 100px; border: 1px solid var(--line);
+    background: #ffffff0f; color: var(--pale); font-family: var(--mono); font-size: 10px;
+    letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap;
+  }
+  .mini:hover { background: #ffffff1e; }
+  .mini.gold { background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05; border-color: transparent; font-weight: 700; }
+  .mini.leafy { background: linear-gradient(160deg, var(--leaf), var(--leaf-d)); color: #06210a; border-color: transparent; font-weight: 700; }
+  .mini:disabled { opacity: .35; cursor: not-allowed; }
+  .badge {
+    font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 100px;
+    background: #ffffff10; color: var(--muted);
+  }
+  .badge.up { background: #6fbf5e26; color: var(--leaf); }
+  .badge.down { background: #e0664f26; color: var(--bad); }
+
+  /* ---------- grow overlay ---------- */
+  #grow { position: absolute; inset: 0; z-index: 15; background: var(--bg); display: none; flex-direction: column; }
+  #grow.show { display: flex; }
+  #grow-head { flex: 0 0 auto; padding: 20px 18px 4px; display: flex; align-items: flex-start; gap: 10px; }
+  #grow-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  #grow-head p { margin: 2px 0 0; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  .iconbtn {
+    width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%;
+    background: #ffffff0d; border: 1px solid var(--line); color: var(--muted);
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .iconbtn:hover { background: #ffffff18; color: var(--pale); }
+  #canvas { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 2px 14px; min-height: 0; cursor: pointer; }
+  #canvas svg { width: 100%; height: 100%; max-height: 100%; overflow: visible; }
+  @keyframes sprout { from { opacity: 0; transform: scale(.2) } to { opacity: 1; transform: scale(1) } }
+  #canvas .fresh { animation: sprout .45s cubic-bezier(.2,.9,.3,1) backwards; transform-box: fill-box; transform-origin: center; }
+  #grow-foot { flex: 0 0 auto; padding: 0 18px 20px; }
+  #addflash { text-align: center; font-family: var(--mono); font-size: 22px; color: var(--gold); height: 28px; opacity: 0; transition: opacity .35s; }
+  #addflash.show { opacity: 1; }
+  #dots { display: flex; gap: 4px; justify-content: center; margin-bottom: 12px; }
+  #dots i { flex: 1; max-width: 24px; height: 4px; border-radius: 2px; background: #ffffff14; transition: background .3s; }
+  #dots i.on { background: linear-gradient(90deg, var(--leaf), var(--gold)); }
+  #act {
+    width: 100%; padding: 16px; border: none; border-radius: 16px; cursor: pointer;
+    background: linear-gradient(160deg, var(--water), #2f7fae); color: #04222f;
+    font-family: var(--mono); font-size: 12.5px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; transition: transform .1s, filter .2s;
+  }
+  #act:active { transform: scale(.97); }
+  #act.harvest { background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05; }
+  #act:disabled { background: #26301f; color: #6a7860; cursor: not-allowed; }
+  #growfact { text-align: center; font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 11px; line-height: 1.5; min-height: 28px; }
+
+  /* ---------- tabs ---------- */
+  #tabs { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: #10140d; padding: 6px 8px 12px; }
+  .tab {
+    flex: 1; text-align: center; padding: 8px 3px; border-radius: 12px; cursor: pointer;
+    font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim); transition: color .15s, background .15s; position: relative;
+  }
+  .tab .ic { display: block; font-size: 16px; margin-bottom: 2px; filter: grayscale(1) opacity(.45); }
+  .tab.on { color: var(--pale); background: #ffffff0a; }
+  .tab.on .ic { filter: none; }
+  .tab .dot {
+    position: absolute; top: 5px; right: 50%; margin-right: -18px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--gold); display: none;
+  }
+  .tab .dot.on { display: block; }
+
+  /* ---------- modal ---------- */
+  #modal {
+    position: absolute; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; padding: 22px;
+    background: #05070499; backdrop-filter: blur(4px);
+  }
+  #modal.show { display: flex; }
+  #card {
+    width: 100%; max-height: 84%; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 20px; padding: 18px; box-shadow: 0 20px 50px -12px #000;
+  }
+  #card::-webkit-scrollbar { width: 0; }
+  #card h3 { margin: 0 0 3px; font-size: 17px; font-weight: 600; text-align: center; }
+  #card .sub { font-family: var(--mono); font-size: 10px; color: var(--gold); margin-bottom: 14px; text-align: center; }
+  #card .fact {
+    font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 12px 0 14px;
+    background: #ffffff07; border-radius: 10px; padding: 10px 12px; border-left: 2px solid var(--leaf);
+  }
+  #card .art { height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  #card .art svg { width: 100%; height: 100%; }
+  #card .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 14px; font-family: var(--mono); font-size: 11px; }
+  #card .stats div { background: #ffffff07; border-radius: 8px; padding: 7px 6px; }
+  #card .stats dt { color: var(--dim); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 2px; }
+  #card .stats dd { margin: 0; color: var(--pale); font-variant-numeric: tabular-nums; }
+  .btn {
+    width: 100%; padding: 12px; border-radius: 100px; cursor: pointer; border: 1px solid var(--line);
+    background: #ffffff0f; color: var(--pale); font-family: var(--mono);
+    font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  }
+  .btn:hover { background: #ffffff1c; }
+
+  /* ---------- prototype tools ---------- */
+  #devbox {
+    margin-top: 20px; border: 1px dashed #3a4630; border-radius: 12px; padding: 12px;
+    background: #00000030;
+  }
+  #devbox p { margin: 0 0 9px; font-family: var(--mono); font-size: 9px; color: var(--dim); line-height: 1.5; letter-spacing: .04em; }
+  #devbox .r { display: flex; gap: 7px; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: absolute; left: 50%; bottom: 88px; transform: translate(-50%, 14px);
+    background: #0d1109f2; border: 1px solid var(--line); color: var(--pale);
+    padding: 10px 16px; border-radius: 100px; font-family: var(--mono); font-size: 11px;
+    z-index: 40; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+    white-space: nowrap; max-width: 92%;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="app">
+
+    <div id="top">
+      <div class="grow">
+        <div id="brand">Fibonacci Garden</div>
+        <div id="brandsub">plant · water · harvest · sell</div>
+      </div>
+      <div class="pill" id="p-coins"><i>🪙</i><b id="coins">0</b></div>
+      <div class="pill" id="p-water"><i>💧</i><b id="water">0</b><span id="wtimer"></span></div>
+    </div>
+
+    <!-- GARDEN -->
+    <div class="view" id="v-garden">
+      <div class="sectitle">Plots <span id="plotinfo"></span></div>
+      <div id="plots"></div>
+      <div id="gardenhint" class="empty-note"></div>
+    </div>
+
+    <!-- MARKET -->
+    <div class="view hidden" id="v-market">
+      <div class="sectitle">Barn <span id="barninfo"></span></div>
+      <div id="barnlist"></div>
+      <div id="marketnote" class="empty-note" style="display:none">
+        Nothing harvested yet.<br>Grow a plant to full size, then harvest it.
+      </div>
+    </div>
+
+    <!-- SHOP -->
+    <div class="view hidden" id="v-shop">
+      <div class="sectitle">Watering can <span id="capinfo"></span></div>
+      <div id="canlist"></div>
+      <div class="sectitle">Land</div>
+      <div id="landlist"></div>
+      <div class="sectitle">Records</div>
+      <div id="records"></div>
+      <div id="devbox">
+        <p>Prototype tools — water normally takes real time to refill.
+           Remove this box before shipping.</p>
+        <div class="r">
+          <button class="mini" id="dev-30">skip 30 min</button>
+          <button class="mini" id="dev-day">skip a day</button>
+          <button class="mini" id="dev-reset">reset save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GROW -->
+    <div id="grow">
+      <div id="grow-head">
+        <div style="flex:1">
+          <h2 id="grow-name">—</h2>
+          <p id="grow-sub">—</p>
+        </div>
+        <div class="iconbtn" id="grow-close">✕</div>
+      </div>
+      <div id="canvas"></div>
+      <div id="grow-foot">
+        <div id="addflash"></div>
+        <div id="dots"></div>
+        <button id="act">water</button>
+        <div id="growfact"></div>
+      </div>
+    </div>
+
+    <div id="tabs">
+      <div class="tab on" data-v="garden"><span class="ic">🌿</span>garden<span class="dot" id="dot-garden"></span></div>
+      <div class="tab" data-v="market"><span class="ic">🪙</span>market<span class="dot" id="dot-market"></span></div>
+      <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
+    </div>
+
+    <div id="modal"><div id="card"></div></div>
+    <div id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Fibonacci Garden — idle planting / selling game
+
+   Growth batches follow the sequence 1,1,2,3,5,8,13,21,34...
+   Each species places its elements at a real phyllotactic
+   divergence angle: a Fibonacci fraction of a full turn.
+
+   Water is the time gate. One drop per WATER_REGEN_MS, capped.
+   Watering once advances a plant by one Fibonacci batch.
+   ============================================================ */
+
+const FIB    = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144];
+const GOLDEN = 137.5077640500378;
+
+const WATER_REGEN_MS = 90 * 1000;        // one drop every 90 seconds
+const DAY_MS         = 24 * 60 * 60 * 1000;
+const CAN_TIERS      = [13, 21, 34, 55, 89];        // Fibonacci, naturally
+const CAN_COSTS      = [80, 220, 520, 1200];        // to reach tier 1..4
+const PLOT_COSTS     = [60, 140, 300, 600, 1100, 1900];  // for plots 4..9
+const START_PLOTS    = 3;
+const MAX_PLOTS      = 9;
+
+/* ---- species -------------------------------------------------
+   frac  : [num, den] of a turn, or null for the golden angle
+   stages: taps to full growth == water it drinks
+   seed  : coins to plant
+   price : base coins when sold                                 */
+const SPECIES = [
+  {
+    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2],
+    stages: 6, seed: 4, price: 16, leafHue: 104, leafSat: 46,
+    fact: 'Elm leaves advance half a turn each time, so they simply alternate left and right. This is the crudest Fibonacci fraction — 1/2 — and the start of the whole ladder.'
+  },
+  {
+    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null,
+    stages: 9, seed: 8, price: 32, petals: 34, seedR: 2.6,
+    disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
+    fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
+  },
+  {
+    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5],
+    stages: 7, seed: 10, price: 32, leafHue: 128, leafSat: 34,
+    fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
+  },
+  {
+    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3],
+    stages: 7, seed: 14, price: 42, leafHue: 88, leafSat: 44,
+    fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
+  },
+  {
+    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null,
+    stages: 10, seed: 20, price: 70, petals: 21, seedR: 2.5,
+    disc: [44, 78, 50], petal: '#f7f4ea', leafHue: 100,
+    fact: 'Chamomile commonly carries 21 ray florets. Its domed centre uses the same golden angle as the sunflower, with fewer seeds to pack.'
+  },
+  {
+    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13],
+    stages: 7, seed: 26, price: 68, leafHue: 116, leafSat: 30,
+    fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
+  },
+  {
+    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8],
+    stages: 8, seed: 34, price: 90, leafHue: 94, leafSat: 42,
+    fact: 'Three eighths of a turn: walk up eight pear leaves and you have spiralled the twig exactly three times. Both numbers, again, are Fibonacci.'
+  },
+  {
+    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21],
+    stages: 9, seed: 48, price: 120, leafHue: 28, leafSat: 38,
+    fact: 'Eight twenty-firsts of a turn, 137.14°, almost the golden angle. On a real cone the scales fall into two sets of spirals — 8 running one way and 13 the other.'
+  },
+  {
+    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null,
+    stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
+    disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
+    fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
+  }
+];
+
+const byId = {};
+SPECIES.forEach(function (s, i) { byId[s.id] = s; s.idx = i; });
+
+function totalFor(sp) {
+  let t = 0;
+  for (let i = 0; i < sp.stages; i++) t += FIB[i];
+  return t;
+}
+function elementsAt(sp, stage) {
+  let t = 0;
+  for (let i = 0; i < stage; i++) t += FIB[i];
+  return t;
+}
+function angleOf(sp) { return sp.frac ? (sp.frac[0] / sp.frac[1]) * 360 : GOLDEN; }
+function fracLabel(sp) {
+  if (!sp.frac) return 'golden angle · ' + GOLDEN.toFixed(3) + '°';
+  return sp.frac[0] + '/' + sp.frac[1] + ' turn · ' + angleOf(sp).toFixed(2) + '°';
+}
+
+/* ============================================================
+   Plant rendering
+   ============================================================ */
+function leafPath(len, wid) {
+  return 'M0 0 Q ' + (len * .45) + ' ' + (-wid) + ' ' + len + ' 0 Q ' + (len * .45) + ' ' + wid + ' 0 0';
+}
+
+function renderDisc(sp, n, total, freshFrom) {
+  const maxR = 96, k = maxR / Math.sqrt(total);
+  const cur = k * Math.sqrt(Math.max(n, 1));
+  const ang = angleOf(sp) * Math.PI / 180, prog = n / total;
+  let s = '';
+  s += '<path d="M0 ' + (cur + 4) + ' C 6 ' + (cur + 60) + ', -6 ' + (cur + 100) + ', 0 ' + (cur + 150) +
+       '" stroke="hsl(' + sp.leafHue + ' 40% 34%)" stroke-width="7" fill="none" stroke-linecap="round"/>';
+  const petals = Math.max(0, Math.round(sp.petals * Math.min(1, prog * 1.15)));
+  for (let p = 0; p < petals; p++) {
+    const th = p * 360 / sp.petals, pl = cur * .62 + 10;
+    s += '<g transform="rotate(' + th.toFixed(2) + ')"><ellipse cx="' + (cur + pl * .52).toFixed(1) +
+         '" cy="0" rx="' + pl.toFixed(1) + '" ry="' + Math.max(3, cur * .11).toFixed(1) +
+         '" fill="' + sp.petal + '" opacity=".92"/></g>';
+  }
+  for (let i = 0; i < n; i++) {
+    const r = k * Math.sqrt(i + .5), th = (i + .5) * ang;
+    const t = total > 1 ? i / (total - 1) : 0;
+    s += '<circle cx="' + (Math.cos(th) * r).toFixed(1) + '" cy="' + (Math.sin(th) * r).toFixed(1) +
+         '" r="' + sp.seedR + '" fill="hsl(' + (sp.disc[0] - t * 22).toFixed(0) + ' ' +
+         (sp.disc[1] - t * 10).toFixed(0) + '% ' + (sp.disc[2] + 22 - t * 26).toFixed(0) + '%)"' +
+         (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .01).toFixed(3) + 's"' : '') + '/>';
+  }
+  return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
+}
+
+function renderRosette(sp, n, total, freshFrom) {
+  const ang = angleOf(sp) * Math.PI / 180, k = 118 / Math.sqrt(total);
+  const order = [];
+  for (let i = 0; i < n; i++) order.push(i);
+  order.sort(function (a, b) { return b - a; });
+  let s = '';
+  order.forEach(function (i) {
+    const len = Math.max(16, k * Math.sqrt(i + 1) * 1.5);
+    const th = i * ang * 180 / Math.PI;
+    const t = total > 1 ? i / (total - 1) : 0;
+    const li = 26 + t * 22, sat = (sp.leafSat || 36) + t * 10;
+    s += '<g transform="rotate(' + th.toFixed(2) + ')"><path d="' + leafPath(len, len * .3) +
+         '" fill="hsl(' + sp.leafHue + ' ' + sat.toFixed(0) + '% ' + li.toFixed(0) + '%)" stroke="hsl(' +
+         sp.leafHue + ' ' + sat.toFixed(0) + '% ' + (li + 14).toFixed(0) + '%)" stroke-width="1"' +
+         (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .03).toFixed(3) + 's"' : '') +
+         '/></g>';
+  });
+  return '<svg viewBox="-150 -150 300 300">' + s + '</svg>';
+}
+
+function renderStem(sp, n, total, freshFrom) {
+  const ang = angleOf(sp) * Math.PI / 180;
+  const bottom = 138, top = -132, step = (bottom - top) / (total + 1);
+  const grownTop = bottom - n * step - step;
+  let s = '<path d="M0 ' + bottom + ' L0 ' + Math.max(grownTop, top).toFixed(1) +
+          '" stroke="hsl(' + sp.leafHue + ' 30% 30%)" stroke-width="6" stroke-linecap="round" fill="none"/>';
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const th = i * ang;
+    items.push({ i: i, y: bottom - i * step - step, x: Math.cos(th), depth: Math.sin(th) });
+  }
+  items.sort(function (a, b) { return a.depth - b.depth; });
+  items.forEach(function (it) {
+    const dir = it.x >= 0 ? 1 : -1;
+    const scale = .58 + .42 * ((it.depth + 1) / 2);
+    const len = 62 * scale * (.5 + Math.abs(it.x) * .5);
+    const li = 22 + ((it.depth + 1) / 2) * 24;
+    const rot = dir > 0 ? -16 : 196;
+    s += '<g transform="translate(0 ' + it.y.toFixed(1) + ') rotate(' + rot + ')"><path d="' +
+         leafPath(len, len * .34) + '" fill="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 42) + '% ' +
+         li.toFixed(0) + '%)" stroke="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 42) + '% ' +
+         (li + 12).toFixed(0) + '%)" stroke-width="1"' +
+         (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .04).toFixed(3) + 's"' : '') +
+         '/></g>';
+  });
+  return '<svg viewBox="-150 -150 300 300">' + s + '</svg>';
+}
+
+function renderCone(sp, n, total, freshFrom) {
+  const ang = angleOf(sp) * Math.PI / 180;
+  const H = 226, top = -116, R = 74;
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i + .5) / total;
+    const prof = R * Math.pow(Math.sin(Math.PI * Math.min(t, .995)), .62);
+    const th = i * ang;
+    items.push({ i: i, y: top + t * H, x: Math.cos(th) * prof, depth: Math.sin(th) });
+  }
+  items.sort(function (a, b) { return a.depth - b.depth; });
+  let s = '<path d="M0 ' + (top + H - 6) + ' L0 ' + (top + H + 44) +
+          '" stroke="hsl(30 26% 26%)" stroke-width="9" stroke-linecap="round" fill="none"/>';
+  items.forEach(function (it) {
+    const scale = .6 + .4 * ((it.depth + 1) / 2);
+    const li = 20 + ((it.depth + 1) / 2) * 20;
+    s += '<ellipse cx="' + it.x.toFixed(1) + '" cy="' + it.y.toFixed(1) + '" rx="' + (24 * scale).toFixed(1) +
+         '" ry="' + (13 * scale).toFixed(1) + '" fill="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 38) + '% ' +
+         li.toFixed(0) + '%)" stroke="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 38) + '% ' +
+         (li + 14).toFixed(0) + '%)" stroke-width="1"' +
+         (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .02).toFixed(3) + 's"' : '') + '/>';
+  });
+  return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
+}
+
+function plantSVG(sp, n, freshFrom) {
+  const total = totalFor(sp);
+  if (freshFrom === undefined) freshFrom = Infinity;
+  if (sp.form === 'disc')    return renderDisc(sp, n, total, freshFrom);
+  if (sp.form === 'rosette') return renderRosette(sp, n, total, freshFrom);
+  if (sp.form === 'stem')    return renderStem(sp, n, total, freshFrom);
+  return renderCone(sp, n, total, freshFrom);
+}
+
+/* ============================================================
+   State + time
+   ============================================================ */
+const STORE = 'fibgarden.v2';
+
+function freshState() {
+  return {
+    coins: 20,
+    water: 13,
+    canTier: 0,
+    plotCount: START_PLOTS,
+    plots: [null, null, null],       // { s: speciesId, stage: n }
+    barn: {},                        // speciesId -> count
+    lastTick: Date.now(),
+    offset: 0,                       // prototype time-skip
+    harvested: 0,
+    earned: 0
+  };
+}
+
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p && Array.isArray(p.plots) && typeof p.coins === 'number') {
+        // repair plot array length against plotCount
+        p.plotCount = Math.max(START_PLOTS, Math.min(MAX_PLOTS, p.plotCount | 0));
+        while (p.plots.length < p.plotCount) p.plots.push(null);
+        p.plots.length = p.plotCount;
+        p.barn = p.barn || {};
+        p.offset = p.offset || 0;
+        p.canTier = Math.max(0, Math.min(CAN_TIERS.length - 1, p.canTier | 0));
+        return p;
+      }
+    }
+  } catch (e) { /* file:// or private mode — memory only */ }
+  return freshState();
+}
+function saveState() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+}
+
+function NOW()      { return Date.now() + state.offset; }
+function waterCap() { return CAN_TIERS[state.canTier]; }
+function dayIndex() { return Math.floor(NOW() / DAY_MS); }
+
+/* Spending your last coins on land or a can could otherwise leave you with
+   no plants, no stock and nothing affordable to plant — an unrecoverable
+   save. This also repairs saves already stuck that way. */
+const CHEAPEST_SEED = Math.min.apply(null, SPECIES.map(function (s) { return s.seed; }));
+function ensureSolvent() {
+  const noPlants  = state.plots.every(function (p) { return !p; });
+  const emptyBarn = Object.keys(state.barn).every(function (k) { return !state.barn[k]; });
+  if (noPlants && emptyBarn && state.coins < CHEAPEST_SEED) {
+    state.coins = CHEAPEST_SEED;
+    saveState();
+    return true;
+  }
+  return false;
+}
+
+/* market price drifts each day, but is stable within one day */
+function priceMult(sp) {
+  // every step forced back to unsigned: ^ yields a SIGNED int32 in JS, and a
+  // negative hash would push the multiplier below the intended floor.
+  let h = (dayIndex() * 2654435761 + (sp.idx + 1) * 40503) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = (h * 1274126177) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return 0.75 + (h % 1000) / 1000 * 0.7;         // 0.75 .. 1.45
+}
+function priceOf(sp) { return Math.max(1, Math.round(sp.price * priceMult(sp))); }
+
+/* water accrues on real time, including while the app is closed */
+function tickWater() {
+  const now = NOW();
+  if (state.water >= waterCap()) { state.lastTick = now; return; }
+  const gained = Math.floor((now - state.lastTick) / WATER_REGEN_MS);
+  if (gained > 0) {
+    state.water = Math.min(waterCap(), state.water + gained);
+    state.lastTick += gained * WATER_REGEN_MS;
+    if (state.water >= waterCap()) state.lastTick = now;
+    saveState();
+  }
+}
+function msToNextDrop() {
+  if (state.water >= waterCap()) return 0;
+  return Math.max(0, WATER_REGEN_MS - (NOW() - state.lastTick));
+}
+function fmtMS(ms) {
+  const s = Math.ceil(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function fmtLong(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+const $ = function (id) { return document.getElementById(id); };
+let curPlot = -1;         // plot index open in the grow view
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function () { t.classList.remove('show'); }, 1900);
+}
+
+function paintTop() {
+  $('coins').textContent = state.coins;
+  $('water').textContent = state.water + '/' + waterCap();
+  $('p-water').classList.toggle('empty', state.water === 0);
+  const ms = msToNextDrop();
+  $('wtimer').textContent = state.water >= waterCap() ? 'full' : fmtMS(ms);
+
+  // notification dots
+  const anyReady = state.plots.some(function (p) { return p && p.stage >= byId[p.s].stages; });
+  $('dot-garden').classList.toggle('on', anyReady);
+  const barnCount = Object.keys(state.barn).reduce(function (a, k) { return a + state.barn[k]; }, 0);
+  $('dot-market').classList.toggle('on', barnCount > 0);
+}
+
+function paintPlots() {
+  const wrap = $('plots');
+  wrap.innerHTML = '';
+  $('plotinfo').textContent = state.plotCount + ' of ' + MAX_PLOTS + ' owned';
+
+  for (let i = 0; i < state.plotCount; i++) {
+    const p = state.plots[i];
+    const d = document.createElement('div');
+    if (!p) {
+      d.className = 'plot dirt';
+      d.innerHTML = '<b>+</b><small>plant</small>';
+      d.addEventListener('click', function () { openPlanter(i); });
+    } else {
+      const sp = byId[p.s];
+      const done = p.stage >= sp.stages;
+      d.className = 'plot' + (done ? ' ready' : '');
+      d.innerHTML =
+        '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
+        '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
+        '<div class="lbl">' + (done ? 'ready · ' + priceOf(sp) + '🪙' : sp.name + '<br>' + p.stage + '/' + sp.stages + ' 💧') + '</div>';
+      d.addEventListener('click', function () { openGrow(i); });
+    }
+    wrap.appendChild(d);
+  }
+
+  // one locked slot to show there's more land to buy
+  if (state.plotCount < MAX_PLOTS) {
+    const l = document.createElement('div');
+    l.className = 'plot locked';
+    l.innerHTML = '<b>🔒</b>';
+    l.title = 'Buy more land in the shop';
+    wrap.appendChild(l);
+  }
+
+  const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+  const empty = state.plots.filter(function (p) { return !p; }).length;
+  $('gardenhint').innerHTML = ready
+    ? ready + (ready === 1 ? ' plant is' : ' plants are') + ' ready — tap to harvest.'
+    : (state.water === 0
+        ? 'Out of water. Next drop in ' + fmtMS(msToNextDrop()) + '.<br>A full can takes about ' +
+          fmtLong(waterCap() * WATER_REGEN_MS) + '.'
+        : (empty ? 'Tap an empty plot to plant something.' : 'Tap a plant to water it.'));
+}
+
+/* ---- planting ---- */
+function openPlanter(plotIdx) {
+  let rows = '';
+  SPECIES.forEach(function (sp) {
+    const afford = state.coins >= sp.seed;
+    const profit = priceOf(sp) - sp.seed;
+    rows +=
+      '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') + '">' +
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+        '<div class="info"><h4>' + sp.name + '</h4>' +
+          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙<br>' +
+          '+' + (profit / sp.stages).toFixed(1) + ' profit per 💧</p></div>' +
+        '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
+          (afford ? '' : ' disabled') + '>' + sp.seed + '🪙</button></div>' +
+      '</div>';
+  });
+  $('card').innerHTML =
+    '<h3>Plant a seed</h3><div class="sub">plot ' + (plotIdx + 1) + ' · you have ' + state.coins + '🪙</div>' +
+    rows + '<button class="btn" id="c-close">cancel</button>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+  $('card').querySelectorAll('button[data-sp]').forEach(function (b) {
+    b.addEventListener('click', function () { plant(plotIdx, b.dataset.sp); });
+  });
+}
+
+function plant(plotIdx, spId) {
+  const sp = byId[spId];
+  if (state.coins < sp.seed) return;
+  if (state.plots[plotIdx]) return;
+  state.coins -= sp.seed;
+  state.plots[plotIdx] = { s: spId, stage: 0 };
+  saveState(); closeCard(); paintTop(); paintPlots();
+  openGrow(plotIdx);
+}
+
+/* ---- grow view ---- */
+function openGrow(plotIdx) {
+  const p = state.plots[plotIdx];
+  if (!p) return;
+  curPlot = plotIdx;
+  const sp = byId[p.s];
+  $('grow-name').textContent = sp.name;
+  $('grow-sub').textContent = fracLabel(sp);
+  $('addflash').classList.remove('show');
+
+  const dots = $('dots');
+  dots.innerHTML = '';
+  for (let i = 0; i < sp.stages; i++) {
+    const d = document.createElement('i');
+    if (i < p.stage) d.className = 'on';
+    dots.appendChild(d);
+  }
+  $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), Infinity);
+  paintGrowFoot();
+  $('grow').classList.add('show');
+}
+
+function paintGrowFoot() {
+  if (curPlot < 0) return;
+  const p = state.plots[curPlot];
+  if (!p) return;
+  const sp = byId[p.s], act = $('act');
+  const done = p.stage >= sp.stages;
+
+  if (done) {
+    act.disabled = false;
+    act.className = 'harvest';
+    act.textContent = 'harvest · ' + priceOf(sp) + ' 🪙';
+    $('growfact').textContent = totalFor(sp) + ' elements at ' + fracLabel(sp);
+    return;
+  }
+  act.className = '';
+  if (state.water <= 0) {
+    act.disabled = true;
+    act.textContent = 'no water · ' + fmtMS(msToNextDrop());
+    $('growfact').textContent = 'One drop refills every ' + Math.round(WATER_REGEN_MS / 1000) +
+      's. Come back with a full can.';
+  } else {
+    act.disabled = false;
+    act.textContent = 'water · 1 💧';
+    const next = FIB[p.stage];
+    $('growfact').textContent = p.stage === 0
+      ? 'first watering puts down ' + next + ' — then each one adds the next Fibonacci number'
+      : elementsAt(sp, p.stage) + ' grown · next adds ' +
+        (p.stage > 1 ? FIB[p.stage - 1] + ' + ' + FIB[p.stage - 2] + ' = ' : '') + next;
+  }
+}
+
+function doAct() {
+  if (curPlot < 0) return;
+  const p = state.plots[curPlot];
+  if (!p) return;
+  const sp = byId[p.s];
+
+  if (p.stage >= sp.stages) return harvest();
+
+  tickWater();
+  if (state.water <= 0) { paintGrowFoot(); paintTop(); return toast('Out of water — ' + fmtMS(msToNextDrop())); }
+
+  const from = elementsAt(sp, p.stage);
+  state.water--;
+  if (state.water === waterCap() - 1) state.lastTick = NOW();   // start the refill clock
+  p.stage++;
+  saveState();
+
+  $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), from);
+  const dot = $('dots').children[p.stage - 1];
+  if (dot) dot.classList.add('on');
+  $('addflash').textContent = '+' + FIB[p.stage - 1];
+  $('addflash').classList.add('show');
+  paintGrowFoot(); paintTop();
+}
+
+function harvest() {
+  const p = state.plots[curPlot];
+  const sp = byId[p.s];
+  state.barn[sp.id] = (state.barn[sp.id] || 0) + 1;
+  state.plots[curPlot] = null;
+  state.harvested++;
+  saveState();
+  $('grow').classList.remove('show');
+  curPlot = -1;
+  paintTop(); paintPlots(); paintMarket();
+  toast('Harvested a ' + sp.name.toLowerCase() + ' → barn');
+}
+
+$('act').addEventListener('click', doAct);
+$('canvas').addEventListener('click', doAct);
+$('grow-close').addEventListener('click', function () {
+  $('grow').classList.remove('show');
+  curPlot = -1;
+  paintPlots();
+});
+
+/* ---- market ---- */
+function paintMarket() {
+  const list = $('barnlist');
+  const ids = Object.keys(state.barn).filter(function (k) { return state.barn[k] > 0; });
+  ids.sort(function (a, b) { return byId[a].idx - byId[b].idx; });
+
+  const count = ids.reduce(function (a, k) { return a + state.barn[k]; }, 0);
+  const value = ids.reduce(function (a, k) { return a + state.barn[k] * priceOf(byId[k]); }, 0);
+  $('barninfo').textContent = count ? count + ' held · worth ' + value + '🪙' : '';
+  $('marketnote').style.display = count ? 'none' : 'block';
+
+  list.innerHTML = '';
+  if (!count) return;
+
+  ids.forEach(function (id) {
+    const sp = byId[id], n = state.barn[id];
+    const mult = priceMult(sp);
+    const cls = mult > 1.08 ? 'up' : (mult < 0.92 ? 'down' : '');
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.innerHTML =
+      '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+      '<div class="info"><h4>' + sp.name + ' <span class="badge ' + cls + '">×' + mult.toFixed(2) + '</span></h4>' +
+      '<p>holding ' + n + ' · ' + priceOf(sp) + '🪙 each (base ' + sp.price + ')</p></div>' +
+      '<div class="actions">' +
+        '<button class="mini gold" data-sell="' + id + '">sell 1</button>' +
+        (n > 1 ? '<button class="mini" data-sellall="' + id + '">all ' + n + '</button>' : '') +
+      '</div>';
+    list.appendChild(row);
+  });
+
+  const all = document.createElement('button');
+  all.className = 'btn';
+  all.style.marginTop = '6px';
+  all.textContent = 'sell everything · ' + value + ' 🪙';
+  all.addEventListener('click', function () { sellAll(); });
+  list.appendChild(all);
+
+  list.querySelectorAll('button[data-sell]').forEach(function (b) {
+    b.addEventListener('click', function () { sell(b.dataset.sell, 1); });
+  });
+  list.querySelectorAll('button[data-sellall]').forEach(function (b) {
+    b.addEventListener('click', function () { sell(b.dataset.sellall, state.barn[b.dataset.sellall]); });
+  });
+}
+
+function sell(id, n) {
+  const sp = byId[id];
+  n = Math.min(n, state.barn[id] || 0);
+  if (n <= 0) return;
+  const gain = n * priceOf(sp);
+  state.barn[id] -= n;
+  if (state.barn[id] <= 0) delete state.barn[id];
+  state.coins += gain;
+  state.earned += gain;
+  saveState(); paintTop(); paintMarket(); paintShop();
+  toast('Sold ' + n + ' × ' + sp.name.toLowerCase() + ' · +' + gain + '🪙');
+}
+function sellAll() {
+  let gain = 0;
+  Object.keys(state.barn).forEach(function (id) {
+    gain += state.barn[id] * priceOf(byId[id]);
+  });
+  if (!gain) return;
+  state.barn = {};
+  state.coins += gain;
+  state.earned += gain;
+  saveState(); paintTop(); paintMarket(); paintShop();
+  toast('Sold the whole barn · +' + gain + '🪙');
+}
+
+/* ---- shop ---- */
+function paintShop() {
+  // watering can
+  const canWrap = $('canlist');
+  canWrap.innerHTML = '';
+  $('capinfo').textContent = 'holds ' + waterCap() + ' drops · full in ' + fmtLong(waterCap() * WATER_REGEN_MS);
+  if (state.canTier < CAN_TIERS.length - 1) {
+    const cost = CAN_COSTS[state.canTier];
+    const next = CAN_TIERS[state.canTier + 1];
+    const afford = state.coins >= cost;
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.innerHTML =
+      '<div class="thumb" style="font-size:20px">🪣</div>' +
+      '<div class="info"><h4>Bigger watering can</h4><p>capacity ' + waterCap() + ' → ' + next +
+      ' drops<br>every tier is a Fibonacci number</p></div>' +
+      '<div class="actions"><button class="mini gold" id="buycan"' + (afford ? '' : ' disabled') + '>' +
+      cost + '🪙</button></div>';
+    canWrap.appendChild(row);
+    $('buycan').addEventListener('click', buyCan);
+  } else {
+    canWrap.innerHTML = '<div class="empty-note">Largest can owned — ' + waterCap() + ' drops.</div>';
+  }
+
+  // land
+  const landWrap = $('landlist');
+  landWrap.innerHTML = '';
+  if (state.plotCount < MAX_PLOTS) {
+    const cost = PLOT_COSTS[state.plotCount - START_PLOTS];
+    const afford = state.coins >= cost;
+    const row = document.createElement('div');
+    row.className = 'row-item';
+    row.innerHTML =
+      '<div class="thumb" style="font-size:20px">🟫</div>' +
+      '<div class="info"><h4>Clear another plot</h4><p>' + state.plotCount + ' → ' +
+      (state.plotCount + 1) + ' plots<br>more plants growing at once</p></div>' +
+      '<div class="actions"><button class="mini gold" id="buyplot"' + (afford ? '' : ' disabled') + '>' +
+      cost + '🪙</button></div>';
+    landWrap.appendChild(row);
+    $('buyplot').addEventListener('click', buyPlot);
+  } else {
+    landWrap.innerHTML = '<div class="empty-note">All ' + MAX_PLOTS + ' plots cleared.</div>';
+  }
+
+  $('records').innerHTML =
+    '<div class="row-item"><div class="info">' +
+    '<p style="font-size:11px;line-height:1.9">' +
+    'plants harvested &nbsp;<b style="color:var(--pale)">' + state.harvested + '</b><br>' +
+    'coins earned &nbsp;<b style="color:var(--gold)">' + state.earned + '</b><br>' +
+    'species grown &nbsp;<b style="color:var(--pale)">' + SPECIES.length + '</b> available' +
+    '</p></div></div>';
+}
+
+function buyCan() {
+  const cost = CAN_COSTS[state.canTier];
+  if (state.coins < cost || state.canTier >= CAN_TIERS.length - 1) return;
+  state.coins -= cost;
+  state.canTier++;
+  const rescued = ensureSolvent();
+  saveState(); paintTop(); paintShop();
+  toast(rescued ? 'Can upgraded — a neighbour spotted you a seed'
+                : 'Can now holds ' + waterCap() + ' drops');
+}
+function buyPlot() {
+  if (state.plotCount >= MAX_PLOTS) return;
+  const cost = PLOT_COSTS[state.plotCount - START_PLOTS];
+  if (state.coins < cost) return;
+  state.coins -= cost;
+  state.plotCount++;
+  state.plots.push(null);
+  const rescued = ensureSolvent();
+  saveState(); paintTop(); paintShop(); paintPlots();
+  toast(rescued ? 'Plot ' + state.plotCount + ' cleared — a neighbour spotted you a seed'
+                : 'Plot ' + state.plotCount + ' cleared');
+}
+
+/* ---- plant info card (long-press free: from grow view header) ---- */
+$('grow-name').addEventListener('click', function () {
+  if (curPlot < 0) return;
+  const sp = byId[state.plots[curPlot].s];
+  const diff = Math.abs(angleOf(sp) - GOLDEN);
+  $('card').innerHTML =
+    '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+    '<h3>' + sp.name + '</h3><div class="sub">' + fracLabel(sp) + '</div>' +
+    '<div class="fact">' + sp.fact + '</div>' +
+    '<div class="stats">' +
+      '<div><dt>Elements</dt><dd>' + totalFor(sp) + '</dd></div>' +
+      '<div><dt>Water to grow</dt><dd>' + sp.stages + ' 💧</dd></div>' +
+      '<div><dt>Divergence</dt><dd>' + angleOf(sp).toFixed(2) + '°</dd></div>' +
+      '<div><dt>From golden</dt><dd>' + (diff < 0.001 ? 'exact' : diff.toFixed(2) + '°') + '</dd></div>' +
+    '</div><button class="btn" id="c-close">close</button>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+});
+
+function closeCard() { $('modal').classList.remove('show'); }
+$('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeCard(); });
+
+/* ---- tabs ---- */
+function GO(v) {
+  ['garden', 'market', 'shop'].forEach(function (name) {
+    $('v-' + name).classList.toggle('hidden', name !== v);
+  });
+  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
+  if (v === 'garden') paintPlots();
+  if (v === 'market') paintMarket();
+  if (v === 'shop')   paintShop();
+}
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () { GO(t.dataset.v); });
+});
+
+/* ---- prototype tools ---- */
+$('dev-30').addEventListener('click', function () {
+  state.offset += 30 * 60 * 1000;
+  tickWater(); saveState(); paintAll();
+  toast('+30 minutes — water refilled');
+});
+$('dev-day').addEventListener('click', function () {
+  state.offset += DAY_MS;
+  tickWater(); saveState(); paintAll();
+  toast('+1 day — market prices moved');
+});
+$('dev-reset').addEventListener('click', function () {
+  state = freshState(); saveState(); paintAll(); GO('garden');
+  toast('Save reset');
+});
+
+/* ---- loop ---- */
+function paintAll() { paintTop(); paintPlots(); paintMarket(); paintShop(); paintGrowFoot(); }
+
+tickWater();
+ensureSolvent();          // also un-sticks any save left stranded by an older build
+paintAll();
+GO('garden');
+
+setInterval(function () {
+  const before = state.water;
+  tickWater();
+  paintTop();
+  if (state.water !== before) { paintPlots(); paintGrowFoot(); }
+  else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
+}, 1000);
+</script>
+</body>
+</html>
