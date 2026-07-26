@@ -114,6 +114,88 @@
   .plot.locked { border-style: dashed; border-color: #2a3320; background: #00000030; align-items: center; justify-content: center; cursor: default; }
   .plot.locked b { font-size: 15px; color: #3a4630; }
 
+  /* ---------- sky (day/night from the real clock) ---------- */
+  #sky {
+    position: relative; height: 52px; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--line); margin-bottom: 10px;
+    transition: background 2s;
+  }
+  #sky.day   { background: linear-gradient(#5f9ed1, #a8cfe8 78%, #d8e8d0); }
+  #sky.dusk  { background: linear-gradient(#3d4b7a, #b06a4e 82%, #d19a5a); }
+  #sky.night { background: linear-gradient(#070b1c, #131a33 85%, #1a2030); }
+  #sky .stars { position: absolute; inset: 0; opacity: 0; transition: opacity 1.5s; background-image:
+    radial-gradient(1px 1px at 12% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 28% 62%, #fffa, transparent),
+    radial-gradient(1.5px 1.5px at 43% 22%, #fff, transparent),
+    radial-gradient(1px 1px at 61% 48%, #fffc, transparent),
+    radial-gradient(1px 1px at 74% 26%, #fff9, transparent),
+    radial-gradient(1.5px 1.5px at 88% 55%, #fff, transparent),
+    radial-gradient(1px 1px at 52% 74%, #fff8, transparent);
+  }
+  #sky.night .stars { opacity: 1; }
+  #sky .orb {
+    position: absolute; top: 50%; font-size: 19px; line-height: 1;
+    transform: translate(-50%, -50%); transition: left 3s linear;
+    filter: drop-shadow(0 0 8px #ffd97066);
+  }
+  #sky .skylabel {
+    position: absolute; right: 10px; bottom: 5px;
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: #ffffffc9; text-shadow: 0 1px 3px #0008;
+  }
+  #sky .cloud {
+    position: absolute; font-size: 15px; opacity: .8;
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    from { transform: translateX(-30px); }
+    to   { transform: translateX(360px); }
+  }
+
+  /* ---------- plant life ---------- */
+  @keyframes sway {
+    0%, 100% { transform: rotate(-1.2deg); }
+    50%      { transform: rotate(1.2deg); }
+  }
+  .plot .art svg, #canvas svg { animation: sway 5s ease-in-out infinite; transform-origin: 50% 92%; }
+  @keyframes readypulse {
+    0%, 100% { box-shadow: 0 0 0 1px #f2c53c55, 0 0 18px -6px #f2c53c66; }
+    50%      { box-shadow: 0 0 0 1px #f2c53caa, 0 0 26px -4px #f2c53caa; }
+  }
+  .plot.ready { animation: readypulse 2.2s ease-in-out infinite; }
+
+  /* ---------- particles ---------- */
+  .particle {
+    position: absolute; z-index: 25; pointer-events: none; font-size: 15px;
+    animation: partfly .9s ease-out forwards;
+  }
+  @keyframes partfly {
+    0%   { opacity: 0; transform: translate(0, 0) scale(.6); }
+    15%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.15); }
+  }
+
+  /* ---------- quality / care ---------- */
+  .stars { color: var(--gold); letter-spacing: 1px; }
+  .prefbadge {
+    font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 100px;
+    background: #ffffff10; color: var(--muted); white-space: nowrap;
+  }
+  .prefbadge.match { background: #f2c53c26; color: var(--gold); }
+  #carebar { display: flex; align-items: center; justify-content: center; gap: 7px; margin-bottom: 10px;
+    font-family: var(--mono); font-size: 10px; color: var(--dim); min-height: 16px; }
+  #carebar .stars { font-size: 12px; }
+  #actrow { display: flex; gap: 8px; }
+  #actrow #act { flex: 1; }
+  #compostBtn {
+    flex: 0 0 auto; padding: 0 16px; border: none; border-radius: 16px; cursor: pointer;
+    background: linear-gradient(160deg, #8a6a42, #5c4227); color: #f5e8d5;
+    font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    transition: transform .1s, filter .15s;
+  }
+  #compostBtn:active { transform: scale(.95); }
+  #compostBtn:disabled { opacity: .35; cursor: not-allowed; }
+
   /* ---------- generic rows ---------- */
   .row-item {
     display: flex; align-items: center; gap: 11px; padding: 10px;
@@ -260,6 +342,11 @@
 
     <!-- GARDEN -->
     <div class="view" id="v-garden">
+      <div id="sky">
+        <div class="stars"></div>
+        <span class="orb" id="orb">☀️</span>
+        <span class="skylabel" id="skylabel"></span>
+      </div>
       <div class="sectitle">Plots <span id="plotinfo"></span></div>
       <div id="plots"></div>
       <div id="gardenhint" class="empty-note"></div>
@@ -305,8 +392,12 @@
       <div id="canvas"></div>
       <div id="grow-foot">
         <div id="addflash"></div>
+        <div id="carebar"></div>
         <div id="dots"></div>
-        <button id="act">water</button>
+        <div id="actrow">
+          <button id="act">water</button>
+          <button id="compostBtn">🪱</button>
+        </div>
         <div id="growfact"></div>
       </div>
     </div>
@@ -350,51 +441,53 @@ const MAX_PLOTS      = 9;
    stages: taps to full growth == water it drinks
    seed  : coins to plant
    price : base coins when sold                                 */
+/* pref: 'day' | 'night' | 'any' — watering during a species' preferred time
+   earns a care point; care points decide the harvest's star quality. */
 const SPECIES = [
   {
-    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2],
+    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any',
     stages: 6, seed: 4, price: 16, leafHue: 104, leafSat: 46,
     fact: 'Elm leaves advance half a turn each time, so they simply alternate left and right. This is the crudest Fibonacci fraction — 1/2 — and the start of the whole ladder.'
   },
   {
-    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null,
+    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day',
     stages: 9, seed: 8, price: 32, petals: 34, seedR: 2.6,
     disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
     fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
   },
   {
-    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5],
+    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day',
     stages: 7, seed: 10, price: 32, leafHue: 128, leafSat: 34,
     fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
   },
   {
-    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3],
+    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night',
     stages: 7, seed: 14, price: 42, leafHue: 88, leafSat: 44,
     fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
   },
   {
-    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null,
+    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day',
     stages: 10, seed: 20, price: 70, petals: 21, seedR: 2.5,
     disc: [44, 78, 50], petal: '#f7f4ea', leafHue: 100,
     fact: 'Chamomile commonly carries 21 ray florets. Its domed centre uses the same golden angle as the sunflower, with fewer seeds to pack.'
   },
   {
-    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13],
+    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night',
     stages: 7, seed: 26, price: 68, leafHue: 116, leafSat: 30,
     fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
   },
   {
-    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8],
+    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day',
     stages: 8, seed: 34, price: 90, leafHue: 94, leafSat: 42,
     fact: 'Three eighths of a turn: walk up eight pear leaves and you have spiralled the twig exactly three times. Both numbers, again, are Fibonacci.'
   },
   {
-    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21],
+    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night',
     stages: 9, seed: 48, price: 120, leafHue: 28, leafSat: 38,
     fact: 'Eight twenty-firsts of a turn, 137.14°, almost the golden angle. On a real cone the scales fall into two sets of spirals — 8 running one way and 13 the other.'
   },
   {
-    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null,
+    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day',
     stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
     disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
     fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
@@ -545,8 +638,10 @@ function freshState() {
     water: 13,
     canTier: 0,
     plotCount: START_PLOTS,
-    plots: [null, null, null],       // { s: speciesId, stage: n }
-    barn: {},                        // speciesId -> count
+    plots: [null, null, null],       // { s: speciesId, stage: n, q: carePoints }
+    barn: {},                        // speciesId -> { starTier: count }
+    compost: 0,                      // stage-advances that need no water
+    discovered: {},                  // speciesId -> true once harvested
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -569,6 +664,14 @@ function loadState() {
         p.barn = p.barn || {};
         p.offset = p.offset || 0;
         p.canTier = Math.max(0, Math.min(CAN_TIERS.length - 1, p.canTier | 0));
+        // v2 -> v3 migration: barn held plain counts (no quality yet) — treat
+        // old stock as 2★; growing plants gain a care-point counter.
+        Object.keys(p.barn).forEach(function (k) {
+          if (typeof p.barn[k] === 'number') p.barn[k] = { 2: p.barn[k] };
+        });
+        p.plots.forEach(function (pl) { if (pl && typeof pl.q !== 'number') pl.q = 0; });
+        p.compost = p.compost | 0;
+        p.discovered = p.discovered || {};
         return p;
       }
     }
@@ -589,7 +692,7 @@ function dayIndex() { return Math.floor(NOW() / DAY_MS); }
 const CHEAPEST_SEED = Math.min.apply(null, SPECIES.map(function (s) { return s.seed; }));
 function ensureSolvent() {
   const noPlants  = state.plots.every(function (p) { return !p; });
-  const emptyBarn = Object.keys(state.barn).every(function (k) { return !state.barn[k]; });
+  const emptyBarn = barnCountAll() === 0;
   if (noPlants && emptyBarn && state.coins < CHEAPEST_SEED) {
     state.coins = CHEAPEST_SEED;
     saveState();
@@ -609,6 +712,44 @@ function priceMult(sp) {
   return 0.75 + (h % 1000) / 1000 * 0.7;         // 0.75 .. 1.45
 }
 function priceOf(sp) { return Math.max(1, Math.round(sp.price * priceMult(sp))); }
+
+/* ---- day / night ------------------------------------------------
+   Species prefer a time of day; watering during it earns a care
+   point, and care points set the harvest's star quality.          */
+function hourNow() { return new Date(NOW()).getHours(); }
+function isDay()   { const h = hourNow(); return h >= 6 && h < 18; }
+function isDusk()  { const h = hourNow(); return h === 5 || h === 18; }
+function prefMatch(sp) {
+  return sp.pref === 'any' || (sp.pref === 'day') === isDay();
+}
+function prefIcon(sp) { return sp.pref === 'day' ? '☀️' : sp.pref === 'night' ? '🌙' : '✦'; }
+function prefWord(sp) { return sp.pref === 'day' ? 'loves daytime' : sp.pref === 'night' ? 'loves the night' : 'easygoing'; }
+
+/* care points -> stars. Thresholds at 1/3 and 2/3 of the waterings. */
+function starsFor(sp, q) {
+  if (q >= Math.ceil(sp.stages * 2 / 3)) return 3;
+  if (q >= Math.ceil(sp.stages / 3)) return 2;
+  return 1;
+}
+const STAR_MULT = { 1: 1.0, 2: 1.3, 3: 1.6 };
+function starStr(n) { return '★'.repeat(n); }
+function priceOfQ(sp, stars) { return Math.max(1, Math.round(priceOf(sp) * STAR_MULT[stars])); }
+function barnCountAll() {
+  let n = 0;
+  Object.keys(state.barn).forEach(function (id) {
+    Object.keys(state.barn[id]).forEach(function (t) { n += state.barn[id][t]; });
+  });
+  return n;
+}
+function barnValueAll() {
+  let v = 0;
+  Object.keys(state.barn).forEach(function (id) {
+    Object.keys(state.barn[id]).forEach(function (t) {
+      v += state.barn[id][t] * priceOfQ(byId[id], +t);
+    });
+  });
+  return v;
+}
 
 /* water accrues on real time, including while the app is closed */
 function tickWater() {
@@ -660,11 +801,64 @@ function paintTop() {
   // notification dots
   const anyReady = state.plots.some(function (p) { return p && p.stage >= byId[p.s].stages; });
   $('dot-garden').classList.toggle('on', anyReady);
-  const barnCount = Object.keys(state.barn).reduce(function (a, k) { return a + state.barn[k]; }, 0);
-  $('dot-market').classList.toggle('on', barnCount > 0);
+  $('dot-market').classList.toggle('on', barnCountAll() > 0);
+}
+
+/* ---- sky strip ---- */
+function paintSky() {
+  const sky = $('sky');
+  if (!sky) return;
+  const h = hourNow(), m = new Date(NOW()).getMinutes();
+  const phase = isDusk() ? 'dusk' : (isDay() ? 'day' : 'night');
+  sky.className = phase;
+  const frac = isDay()
+    ? ((h - 6) * 60 + m) / (12 * 60)              // sun sweeps 6:00 -> 18:00
+    : ((((h + 24 - 18) % 24) * 60 + m) / (12 * 60));  // moon sweeps 18:00 -> 6:00
+  $('orb').textContent = isDay() ? '☀️' : '🌙';
+  $('orb').style.left = (8 + frac * 84) + '%';
+  $('orb').style.top = (58 - Math.sin(frac * Math.PI) * 26) + '%';
+  $('skylabel').textContent = (isDay() ? 'day' : 'night') +
+    ' · ' + (isDay() ? '☀️' : '🌙') + ' plants earn care now';
+  // a couple of drifting clouds by day
+  let clouds = sky.querySelectorAll('.cloud');
+  if (isDay() && clouds.length === 0) {
+    for (let i = 0; i < 2; i++) {
+      const c = document.createElement('span');
+      c.className = 'cloud';
+      c.textContent = '☁️';
+      c.style.top = (12 + i * 38) + '%';
+      c.style.animationDuration = (34 + i * 21) + 's';
+      c.style.animationDelay = (-i * 13) + 's';
+      sky.appendChild(c);
+    }
+  } else if (!isDay()) {
+    clouds.forEach(function (c) { c.remove(); });
+  }
+}
+
+/* ---- particles ---- */
+function burst(container, glyphs, cx, cy) {
+  for (let i = 0; i < glyphs.length; i++) {
+    const s = document.createElement('span');
+    s.className = 'particle';
+    s.textContent = glyphs[i];
+    const a = (i / glyphs.length) * Math.PI * 2 + Math.random() * .8;
+    s.style.setProperty('--dx', (Math.cos(a) * (26 + Math.random() * 34)).toFixed(0) + 'px');
+    s.style.setProperty('--dy', (-22 - Math.random() * 46).toFixed(0) + 'px');
+    s.style.left = cx + 'px';
+    s.style.top = cy + 'px';
+    s.style.animationDelay = (Math.random() * .12).toFixed(2) + 's';
+    container.appendChild(s);
+    s.addEventListener('animationend', function () { s.remove(); });
+  }
+}
+function burstCenter(el, glyphs) {
+  const r = el.getBoundingClientRect(), rr = el.offsetParent ? el.offsetParent.getBoundingClientRect() : r;
+  burst(el.offsetParent || el, glyphs, r.left - rr.left + r.width / 2, r.top - rr.top + r.height / 2);
 }
 
 function paintPlots() {
+  paintSky();
   const wrap = $('plots');
   wrap.innerHTML = '';
   $('plotinfo').textContent = state.plotCount + ' of ' + MAX_PLOTS + ' owned';
@@ -683,7 +877,9 @@ function paintPlots() {
       d.innerHTML =
         '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
         '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
-        '<div class="lbl">' + (done ? 'ready · ' + priceOf(sp) + '🪙' : sp.name + '<br>' + p.stage + '/' + sp.stages + ' 💧') + '</div>';
+        '<div class="lbl">' + (done
+          ? 'ready <span class="stars">' + starStr(starsFor(sp, p.q)) + '</span> · ' + priceOfQ(sp, starsFor(sp, p.q)) + '🪙'
+          : prefIcon(sp) + ' ' + sp.name + '<br>' + p.stage + '/' + sp.stages + ' 💧') + '</div>';
       d.addEventListener('click', function () { openGrow(i); });
     }
     wrap.appendChild(d);
@@ -714,12 +910,14 @@ function openPlanter(plotIdx) {
   SPECIES.forEach(function (sp) {
     const afford = state.coins >= sp.seed;
     const profit = priceOf(sp) - sp.seed;
+    const match = prefMatch(sp);
     rows +=
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
-        '<div class="info"><h4>' + sp.name + '</h4>' +
-          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙<br>' +
-          '+' + (profit / sp.stages).toFixed(1) + ' profit per 💧</p></div>' +
+        '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
+          '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span></h4>' +
+          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙 base<br>' +
+          '+' + (profit / sp.stages).toFixed(1) + '/💧 · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
         '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
           (afford ? '' : ' disabled') + '>' + sp.seed + '🪙</button></div>' +
       '</div>';
@@ -739,7 +937,7 @@ function plant(plotIdx, spId) {
   if (state.coins < sp.seed) return;
   if (state.plots[plotIdx]) return;
   state.coins -= sp.seed;
-  state.plots[plotIdx] = { s: spId, stage: 0 };
+  state.plots[plotIdx] = { s: spId, stage: 0, q: 0 };
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
 }
@@ -770,13 +968,28 @@ function paintGrowFoot() {
   if (curPlot < 0) return;
   const p = state.plots[curPlot];
   if (!p) return;
-  const sp = byId[p.s], act = $('act');
+  const sp = byId[p.s], act = $('act'), cb = $('compostBtn');
   const done = p.stage >= sp.stages;
+  const stars = starsFor(sp, p.q);
+
+  // care bar: projected quality + whether now is a good time to water
+  const match = prefMatch(sp);
+  $('carebar').innerHTML = done
+    ? 'quality <span class="stars">' + starStr(stars) + '</span> · sells ' + priceOfQ(sp, stars) + '🪙'
+    : '<span class="stars">' + starStr(stars) + '</span> ' + p.q + ' care · ' +
+      '<span class="prefbadge' + (match ? ' match' : '') + '">' + prefIcon(sp) + ' ' + prefWord(sp) +
+      (sp.pref === 'any' ? '' : (match ? ' — now!' : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark'))) +
+      '</span>';
+
+  cb.style.display = done ? 'none' : '';
+  cb.disabled = state.compost <= 0;
+  cb.textContent = '🪱 ' + state.compost;
+  cb.title = 'Compost: grow one stage without water (no care point)';
 
   if (done) {
     act.disabled = false;
     act.className = 'harvest';
-    act.textContent = 'harvest · ' + priceOf(sp) + ' 🪙';
+    act.textContent = 'harvest · ' + priceOfQ(sp, stars) + ' 🪙';
     $('growfact').textContent = totalFor(sp) + ' elements at ' + fracLabel(sp);
     return;
   }
@@ -785,16 +998,43 @@ function paintGrowFoot() {
     act.disabled = true;
     act.textContent = 'no water · ' + fmtMS(msToNextDrop());
     $('growfact').textContent = 'One drop refills every ' + Math.round(WATER_REGEN_MS / 1000) +
-      's. Come back with a full can.';
+      's — or spend a compost 🪱.';
   } else {
     act.disabled = false;
-    act.textContent = 'water · 1 💧';
+    act.textContent = 'water · 1 💧' + (match && sp.pref !== 'any' ? ' · +care' : '');
     const next = FIB[p.stage];
     $('growfact').textContent = p.stage === 0
       ? 'first watering puts down ' + next + ' — then each one adds the next Fibonacci number'
       : elementsAt(sp, p.stage) + ' grown · next adds ' +
         (p.stage > 1 ? FIB[p.stage - 1] + ' + ' + FIB[p.stage - 2] + ' = ' : '') + next;
   }
+}
+
+/* advance one stage; via==='water' spends a drop and can earn care,
+   via==='compost' spends a compost and earns none */
+function advanceStage(via) {
+  const p = state.plots[curPlot];
+  const sp = byId[p.s];
+  const from = elementsAt(sp, p.stage);
+
+  if (via === 'water') {
+    state.water--;
+    if (state.water === waterCap() - 1) state.lastTick = NOW();
+    if (prefMatch(sp)) p.q++;
+  } else {
+    state.compost--;
+  }
+  p.stage++;
+  saveState();
+
+  $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), from);
+  const dot = $('dots').children[p.stage - 1];
+  if (dot) dot.classList.add('on');
+  $('addflash').textContent = '+' + FIB[p.stage - 1] +
+    (via === 'water' && prefMatch(sp) && sp.pref !== 'any' ? ' · +care ' + prefIcon(sp) : '');
+  $('addflash').classList.add('show');
+  burstCenter($('canvas'), via === 'water' ? ['💧', '💧', '✨', '💧'] : ['🪱', '✨', '🍂']);
+  paintGrowFoot(); paintTop();
 }
 
 function doAct() {
@@ -807,35 +1047,44 @@ function doAct() {
 
   tickWater();
   if (state.water <= 0) { paintGrowFoot(); paintTop(); return toast('Out of water — ' + fmtMS(msToNextDrop())); }
+  advanceStage('water');
+}
 
-  const from = elementsAt(sp, p.stage);
-  state.water--;
-  if (state.water === waterCap() - 1) state.lastTick = NOW();   // start the refill clock
-  p.stage++;
-  saveState();
-
-  $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), from);
-  const dot = $('dots').children[p.stage - 1];
-  if (dot) dot.classList.add('on');
-  $('addflash').textContent = '+' + FIB[p.stage - 1];
-  $('addflash').classList.add('show');
-  paintGrowFoot(); paintTop();
+function doCompost() {
+  if (curPlot < 0) return;
+  const p = state.plots[curPlot];
+  if (!p || p.stage >= byId[p.s].stages) return;
+  if (state.compost <= 0) return toast('No compost — buy some in the shop');
+  advanceStage('compost');
 }
 
 function harvest() {
   const p = state.plots[curPlot];
   const sp = byId[p.s];
-  state.barn[sp.id] = (state.barn[sp.id] || 0) + 1;
+  const stars = starsFor(sp, p.q);
+  if (!state.barn[sp.id]) state.barn[sp.id] = {};
+  state.barn[sp.id][stars] = (state.barn[sp.id][stars] || 0) + 1;
   state.plots[curPlot] = null;
   state.harvested++;
+
+  // first-of-species botanist bonus
+  let bonus = 0;
+  if (!state.discovered[sp.id]) {
+    state.discovered[sp.id] = true;
+    bonus = Math.round(sp.price / 2);
+    state.coins += bonus;
+    state.earned += bonus;
+  }
   saveState();
   $('grow').classList.remove('show');
   curPlot = -1;
   paintTop(); paintPlots(); paintMarket();
-  toast('Harvested a ' + sp.name.toLowerCase() + ' → barn');
+  toast('Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() +
+        (bonus ? ' · new species +' + bonus + '🪙' : ' → barn'));
 }
 
 $('act').addEventListener('click', doAct);
+$('compostBtn').addEventListener('click', doCompost);
 $('canvas').addEventListener('click', doAct);
 $('grow-close').addEventListener('click', function () {
   $('grow').classList.remove('show');
@@ -846,32 +1095,37 @@ $('grow-close').addEventListener('click', function () {
 /* ---- market ---- */
 function paintMarket() {
   const list = $('barnlist');
-  const ids = Object.keys(state.barn).filter(function (k) { return state.barn[k] > 0; });
-  ids.sort(function (a, b) { return byId[a].idx - byId[b].idx; });
-
-  const count = ids.reduce(function (a, k) { return a + state.barn[k]; }, 0);
-  const value = ids.reduce(function (a, k) { return a + state.barn[k] * priceOf(byId[k]); }, 0);
+  const count = barnCountAll();
+  const value = barnValueAll();
   $('barninfo').textContent = count ? count + ' held · worth ' + value + '🪙' : '';
   $('marketnote').style.display = count ? 'none' : 'block';
 
   list.innerHTML = '';
   if (!count) return;
 
+  const ids = Object.keys(state.barn).sort(function (a, b) { return byId[a].idx - byId[b].idx; });
   ids.forEach(function (id) {
-    const sp = byId[id], n = state.barn[id];
+    const sp = byId[id];
     const mult = priceMult(sp);
     const cls = mult > 1.08 ? 'up' : (mult < 0.92 ? 'down' : '');
-    const row = document.createElement('div');
-    row.className = 'row-item';
-    row.innerHTML =
-      '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
-      '<div class="info"><h4>' + sp.name + ' <span class="badge ' + cls + '">×' + mult.toFixed(2) + '</span></h4>' +
-      '<p>holding ' + n + ' · ' + priceOf(sp) + '🪙 each (base ' + sp.price + ')</p></div>' +
-      '<div class="actions">' +
-        '<button class="mini gold" data-sell="' + id + '">sell 1</button>' +
-        (n > 1 ? '<button class="mini" data-sellall="' + id + '">all ' + n + '</button>' : '') +
-      '</div>';
-    list.appendChild(row);
+    [3, 2, 1].forEach(function (tier) {
+      const n = state.barn[id][tier] || 0;
+      if (!n) return;
+      const each = priceOfQ(sp, tier);
+      const row = document.createElement('div');
+      row.className = 'row-item';
+      row.innerHTML =
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+        '<div class="info"><h4>' + sp.name + ' <span class="stars">' + starStr(tier) + '</span> ' +
+        '<span class="badge ' + cls + '">×' + mult.toFixed(2) + '</span></h4>' +
+        '<p>holding ' + n + ' · ' + each + '🪙 each' +
+        (tier > 1 ? ' (quality ×' + STAR_MULT[tier] + ')' : '') + '</p></div>' +
+        '<div class="actions">' +
+          '<button class="mini gold" data-sell="' + id + ':' + tier + '">sell 1</button>' +
+          (n > 1 ? '<button class="mini" data-sellall="' + id + ':' + tier + '">all ' + n + '</button>' : '') +
+        '</div>';
+      list.appendChild(row);
+    });
   });
 
   const all = document.createElement('button');
@@ -882,30 +1136,35 @@ function paintMarket() {
   list.appendChild(all);
 
   list.querySelectorAll('button[data-sell]').forEach(function (b) {
-    b.addEventListener('click', function () { sell(b.dataset.sell, 1); });
+    b.addEventListener('click', function () {
+      const kv = b.dataset.sell.split(':');
+      sell(kv[0], +kv[1], 1);
+    });
   });
   list.querySelectorAll('button[data-sellall]').forEach(function (b) {
-    b.addEventListener('click', function () { sell(b.dataset.sellall, state.barn[b.dataset.sellall]); });
+    b.addEventListener('click', function () {
+      const kv = b.dataset.sellall.split(':');
+      sell(kv[0], +kv[1], state.barn[kv[0]][kv[1]] || 0);
+    });
   });
 }
 
-function sell(id, n) {
+function sell(id, tier, n) {
   const sp = byId[id];
-  n = Math.min(n, state.barn[id] || 0);
+  const have = (state.barn[id] && state.barn[id][tier]) || 0;
+  n = Math.min(n, have);
   if (n <= 0) return;
-  const gain = n * priceOf(sp);
-  state.barn[id] -= n;
-  if (state.barn[id] <= 0) delete state.barn[id];
+  const gain = n * priceOfQ(sp, tier);
+  state.barn[id][tier] -= n;
+  if (state.barn[id][tier] <= 0) delete state.barn[id][tier];
+  if (Object.keys(state.barn[id]).length === 0) delete state.barn[id];
   state.coins += gain;
   state.earned += gain;
   saveState(); paintTop(); paintMarket(); paintShop();
-  toast('Sold ' + n + ' × ' + sp.name.toLowerCase() + ' · +' + gain + '🪙');
+  toast('Sold ' + n + ' × ' + starStr(tier) + ' ' + sp.name.toLowerCase() + ' · +' + gain + '🪙');
 }
 function sellAll() {
-  let gain = 0;
-  Object.keys(state.barn).forEach(function (id) {
-    gain += state.barn[id] * priceOf(byId[id]);
-  });
+  const gain = barnValueAll();
   if (!gain) return;
   state.barn = {};
   state.coins += gain;
@@ -937,6 +1196,26 @@ function paintShop() {
   } else {
     canWrap.innerHTML = '<div class="empty-note">Largest can owned — ' + waterCap() + ' drops.</div>';
   }
+
+  // compost — turns coins into growth when the can is dry
+  const canWrap2 = $('canlist');
+  const cRow = document.createElement('div');
+  cRow.className = 'row-item';
+  const cAfford = state.coins >= 45;
+  cRow.innerHTML =
+    '<div class="thumb" style="font-size:20px">🪱</div>' +
+    '<div class="info"><h4>Compost ×3</h4><p>each 🪱 grows one stage without water<br>' +
+    'no care point — watering with love beats shortcuts</p></div>' +
+    '<div class="actions"><span class="badge">have ' + state.compost + '</span>' +
+    '<button class="mini gold" id="buycompost"' + (cAfford ? '' : ' disabled') + '>45🪙</button></div>';
+  canWrap2.appendChild(cRow);
+  $('buycompost').addEventListener('click', function () {
+    if (state.coins < 45) return;
+    state.coins -= 45;
+    state.compost += 3;
+    saveState(); paintTop(); paintShop(); paintGrowFoot();
+    toast('+3 compost 🪱');
+  });
 
   // land
   const landWrap = $('landlist');
@@ -1054,6 +1333,7 @@ setInterval(function () {
   const before = state.water;
   tickWater();
   paintTop();
+  paintSky();
   if (state.water !== before) { paintPlots(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
 }, 1000);
