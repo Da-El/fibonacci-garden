@@ -177,6 +177,50 @@
   .discount { color: var(--leaf); }
   .markup { color: var(--bad); }
 
+  /* ---------- pests & wilt ---------- */
+  .plot .bugtag {
+    position: absolute; top: 5px; right: 6px; font-size: 14px; z-index: 3;
+    animation: bugjig .9s ease-in-out infinite;
+  }
+  @keyframes bugjig { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg) translateY(-1px); } }
+  .wilttag { color: var(--bad); }
+  #bugBtn {
+    position: absolute; top: 12px; right: 22px; z-index: 16;
+    font-size: 26px; background: #00000055; border: 1px solid var(--line);
+    border-radius: 50%; width: 52px; height: 52px; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    animation: bugjig .9s ease-in-out infinite;
+  }
+  #bugBtn.show { display: flex; }
+
+  /* ---------- golden / prestige ---------- */
+  #p-golden { color: #ffd97a; display: none; }
+  #p-golden.show { display: flex; }
+  .goldcard {
+    border: 1px solid #6a5322; border-radius: 14px; padding: 14px;
+    background: linear-gradient(160deg, #2a220f, #171208); margin-bottom: 9px;
+  }
+  .goldcard h4 { margin: 0 0 4px; font-size: 14px; color: #ffd97a; }
+  .goldcard p { margin: 0 0 10px; font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.6; }
+  .goldcard .btn.gold {
+    background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05;
+    border-color: transparent; font-weight: 700;
+  }
+  .goldcard .btn.gold:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ---------- almanac ---------- */
+  #alcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .alcard {
+    aspect-ratio: .8; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--panel-2); display: flex; flex-direction: column;
+    padding: 6px; cursor: pointer; overflow: hidden;
+  }
+  .alcard .art { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .alcard .art svg { width: 100%; height: 100%; }
+  .alcard.unknown .art svg { filter: grayscale(1) brightness(.35); }
+  .alcard .nm { font-family: var(--mono); font-size: 8.5px; color: var(--muted); text-align: center; line-height: 1.3; }
+  .alcard .nm .stars { font-size: 9px; }
+
   /* ---------- plant life ---------- */
   @keyframes sway {
     0%, 100% { transform: rotate(-1.2deg); }
@@ -361,6 +405,7 @@
         <div id="brand">Fibonacci Garden</div>
         <div id="brandsub">plant · water · harvest · sell</div>
       </div>
+      <div class="pill" id="p-golden"><i>✨</i><b id="golden">0</b></div>
       <div class="pill" id="p-weather"><i id="wxicon">☁️</i></div>
       <div class="pill" id="p-coins"><i>🪙</i><b id="coins">0</b></div>
       <div class="pill" id="p-water"><i>💧</i><b id="water">0</b><span id="wtimer"></span></div>
@@ -390,8 +435,18 @@
       </div>
     </div>
 
+    <!-- ALMANAC -->
+    <div class="view hidden" id="v-almanac">
+      <div class="sectitle">Botanist's almanac <span id="alinfo"></span></div>
+      <div id="alcards"></div>
+      <div class="empty-note" style="padding-top:14px">
+        Harvest every species at ★★★ to earn a golden seed.
+      </div>
+    </div>
+
     <!-- SHOP -->
     <div class="view hidden" id="v-shop">
+      <div id="goldwrap"></div>
       <div class="sectitle">Watering can <span id="capinfo"></span></div>
       <div id="canlist"></div>
       <div class="sectitle">Land</div>
@@ -419,6 +474,7 @@
         <div class="iconbtn" id="grow-close">✕</div>
       </div>
       <div id="canvas"></div>
+      <button id="bugBtn" title="Squash the aphids!">🐛</button>
       <div id="grow-foot">
         <div id="addflash"></div>
         <div id="carebar"></div>
@@ -434,6 +490,7 @@
     <div id="tabs">
       <div class="tab on" data-v="garden"><span class="ic">🌿</span>garden<span class="dot" id="dot-garden"></span></div>
       <div class="tab" data-v="market"><span class="ic">🪙</span>market<span class="dot" id="dot-market"></span></div>
+      <div class="tab" data-v="almanac"><span class="ic">📖</span>almanac</div>
       <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
     </div>
 
@@ -673,6 +730,11 @@ function freshState() {
     discovered: {},                  // speciesId -> true once harvested
     orders: [],                      // customer orders awaiting delivery
     orderN: 0,                       // deterministic order counter
+    golden: 0,                       // prestige currency: permanent φ bonus
+    runEarned: 0,                    // coins earned since last replant
+    prestiges: 0,
+    almanac: {},                     // speciesId -> best star quality
+    almanacRewarded: false,
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -705,6 +767,15 @@ function loadState() {
         p.discovered = p.discovered || {};
         p.orders = Array.isArray(p.orders) ? p.orders : [];
         p.orderN = p.orderN | 0;
+        p.golden = p.golden | 0;
+        p.runEarned = typeof p.runEarned === 'number' ? p.runEarned : (p.earned | 0);
+        p.prestiges = p.prestiges | 0;
+        p.almanac = p.almanac || {};
+        p.almanacRewarded = !!p.almanacRewarded;
+        // ripe plants from older saves get a fresh ripeness clock
+        p.plots.forEach(function (pl) {
+          if (pl && pl.stage >= (byId[pl.s] ? byId[pl.s].stages : 99) && !pl.ripeAt) pl.ripeAt = Date.now();
+        });
         return p;
       }
     }
@@ -749,8 +820,83 @@ function priceMult(sp) {
   const h = hash32((dayIndex() * 2654435761 + (sp.idx + 1) * 40503) >>> 0);
   return 0.75 + (h % 1000) / 1000 * 0.7;         // 0.75 .. 1.45
 }
+/* every golden seed is worth +6.18% — a hundredth of φ−1 — forever */
+const PHI_BONUS = 0.0618;
+function goldenMult() { return 1 + state.golden * PHI_BONUS; }
+
 function priceOf(sp) {
-  return Math.max(1, Math.round(sp.price * priceMult(sp) * weatherNow().sell));
+  return Math.max(1, Math.round(sp.price * priceMult(sp) * weatherNow().sell * goldenMult()));
+}
+
+/* ---- prestige ---------------------------------------------------
+   Replant the garden: everything resets except the almanac and
+   golden seeds. One golden seed per 1500 coins earned this run.   */
+const PRESTIGE_UNIT = 1500;
+function claimableGolden() { return Math.floor(state.runEarned / PRESTIGE_UNIT); }
+function doPrestige() {
+  const claim = claimableGolden();
+  if (claim < 1) return;
+  const keep = {
+    golden: state.golden + claim,
+    prestiges: state.prestiges + 1,
+    almanac: state.almanac,
+    almanacRewarded: state.almanacRewarded,
+    discovered: state.discovered,
+    earned: state.earned,
+    harvested: state.harvested,
+    offset: state.offset
+  };
+  state = freshState();
+  Object.keys(keep).forEach(function (k) { state[k] = keep[k]; });
+  state.lastTick = Date.now();
+  saveState();
+  closeCard();
+  paintAll(); GO('garden');
+  toast('Replanted · +' + claim + ' golden seed' + (claim > 1 ? 's' : '') + ' ✨');
+}
+
+/* ---- pests ------------------------------------------------------
+   Aphids roll once per 10-minute slot per plot, deterministically.
+   While a plant has aphids, watering is wasted — squash them first. */
+const BUG_SLOT_MS = 10 * 60 * 1000;
+const BUG_CHANCE = 12;                       // % per slot per growing plant
+function bugSlot() { return Math.floor(NOW() / BUG_SLOT_MS); }
+function bugTick() {
+  const slot = bugSlot();
+  let changed = false;
+  state.plots.forEach(function (p, i) {
+    if (!p || p.bug) return;
+    const sp = byId[p.s];
+    if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
+    if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
+    p.bugSlot = slot;
+    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < BUG_CHANCE) p.bug = true;
+    changed = true;
+  });
+  if (changed) saveState();
+}
+function squashBug() {
+  if (curPlot < 0) return;
+  const p = state.plots[curPlot];
+  if (!p || !p.bug) return;
+  p.bug = false;
+  p.bugSlot = bugSlot();                                 // no instant respawn
+  saveState();
+  $('bugBtn').classList.remove('show');
+  burstCenter($('canvas'), ['💥', '🐛', '✨']);
+  toast('Aphids squashed!');
+  paintGrowFoot();
+}
+
+/* ---- wilt -------------------------------------------------------
+   A ripe plant left standing loses one star per full day.         */
+const WILT_MS = 24 * 3600 * 1000;
+function wiltPenalty(p) {
+  if (!p.ripeAt) return 0;
+  return Math.floor(Math.max(0, NOW() - p.ripeAt) / WILT_MS);
+}
+function harvestStars(sp, p) {
+  return Math.max(1, starsFor(sp, p.q) - wiltPenalty(p));
 }
 
 /* seed prices drift on their own daily cycle — buy low, plant cheap */
@@ -869,6 +1015,7 @@ function deliverOrder(idx) {
   if (Object.keys(state.barn[o.s] || {}).length === 0) delete state.barn[o.s];
   state.coins += o.pay;
   state.earned += o.pay;
+  state.runEarned += o.pay;
   state.orders.splice(idx, 1);
   ensureOrders();
   saveState(); paintTop(); paintMarket(); paintShop();
@@ -920,6 +1067,9 @@ function toast(msg) {
 
 function paintTop() {
   $('coins').textContent = state.coins;
+  $('golden').textContent = state.golden;
+  $('p-golden').classList.toggle('show', state.golden > 0);
+  $('p-golden').title = state.golden + ' golden seeds · all sale prices ×' + goldenMult().toFixed(3);
   $('water').textContent = state.water + '/' + waterCap();
   $('p-water').classList.toggle('empty', state.water === 0);
   const ms = msToNextDrop();
@@ -1003,12 +1153,16 @@ function paintPlots() {
     } else {
       const sp = byId[p.s];
       const done = p.stage >= sp.stages;
+      const wilting = done && wiltPenalty(p) > 0;
+      const st = harvestStars(sp, p);
       d.className = 'plot' + (done ? ' ready' : '');
       d.innerHTML =
+        (p.bug ? '<span class="bugtag">🐛</span>' : '') +
         '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
         '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
         '<div class="lbl">' + (done
-          ? 'ready <span class="stars">' + starStr(starsFor(sp, p.q)) + '</span> · ' + priceOfQ(sp, starsFor(sp, p.q)) + '🪙'
+          ? (wilting ? '<span class="wilttag">wilting! </span>' : 'ready ') +
+            '<span class="stars">' + starStr(st) + '</span> · ' + priceOfQ(sp, st) + '🪙'
           : prefIcon(sp) + ' ' + sp.name + '<br>' + p.stage + '/' + sp.stages + ' 💧') + '</div>';
       d.addEventListener('click', function () { openGrow(i); });
     }
@@ -1095,6 +1249,7 @@ function openGrow(plotIdx) {
     dots.appendChild(d);
   }
   $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), Infinity);
+  $('bugBtn').classList.toggle('show', !!p.bug);
   paintGrowFoot();
   $('grow').classList.add('show');
 }
@@ -1105,12 +1260,15 @@ function paintGrowFoot() {
   if (!p) return;
   const sp = byId[p.s], act = $('act'), cb = $('compostBtn');
   const done = p.stage >= sp.stages;
-  const stars = starsFor(sp, p.q);
+  const stars = harvestStars(sp, p);
+  $('bugBtn').classList.toggle('show', !!p.bug);
 
   // care bar: projected quality + whether now is a good time to water
   const match = prefMatch(sp);
   $('carebar').innerHTML = done
-    ? 'quality <span class="stars">' + starStr(stars) + '</span> · sells ' + priceOfQ(sp, stars) + '🪙'
+    ? 'quality <span class="stars">' + starStr(stars) + '</span> · sells ' + priceOfQ(sp, stars) + '🪙' +
+      (wiltPenalty(p) > 0 ? ' · <span class="wilttag">wilting — harvest!</span>'
+        : ' · wilts in ' + fmtLong(p.ripeAt + WILT_MS - NOW()))
     : '<span class="stars">' + starStr(stars) + '</span> ' + p.q + ' care · ' +
       '<span class="prefbadge' + (match ? ' match' : '') + '">' + prefIcon(sp) + ' ' + prefWord(sp) +
       (sp.pref === 'any' ? '' : (match ? ' — now!' : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark'))) +
@@ -1160,6 +1318,7 @@ function advanceStage(via) {
     state.compost--;
   }
   p.stage++;
+  if (p.stage >= sp.stages) p.ripeAt = NOW();   // the wilt clock starts now
   saveState();
 
   $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), from);
@@ -1182,6 +1341,16 @@ function doAct() {
 
   tickWater();
   if (state.water <= 0) { paintGrowFoot(); paintTop(); return toast('Out of water — ' + fmtMS(msToNextDrop())); }
+
+  // aphids drink the drop before the plant can
+  if (p.bug) {
+    state.water--;
+    if (state.water === waterCap() - 1) state.lastTick = NOW();
+    saveState();
+    burstCenter($('canvas'), ['🐛', '💧', '😋']);
+    paintGrowFoot(); paintTop();
+    return toast('The aphids drank it! Squash them first 🐛');
+  }
   advanceStage('water');
 }
 
@@ -1196,11 +1365,22 @@ function doCompost() {
 function harvest() {
   const p = state.plots[curPlot];
   const sp = byId[p.s];
-  const stars = starsFor(sp, p.q);
+  const wilted = wiltPenalty(p) > 0;
+  const stars = harvestStars(sp, p);
   if (!state.barn[sp.id]) state.barn[sp.id] = {};
   state.barn[sp.id][stars] = (state.barn[sp.id][stars] || 0) + 1;
   state.plots[curPlot] = null;
   state.harvested++;
+
+  // almanac: remember the best quality ever grown
+  if (!state.almanac[sp.id] || stars > state.almanac[sp.id]) state.almanac[sp.id] = stars;
+  let goldenNote = '';
+  if (!state.almanacRewarded &&
+      SPECIES.every(function (s) { return state.almanac[s.id] === 3; })) {
+    state.almanacRewarded = true;
+    state.golden++;
+    goldenNote = ' · almanac complete! +1 ✨';
+  }
 
   // first-of-species botanist bonus
   let bonus = 0;
@@ -1209,17 +1389,20 @@ function harvest() {
     bonus = Math.round(sp.price / 2);
     state.coins += bonus;
     state.earned += bonus;
+    state.runEarned += bonus;
   }
   saveState();
   $('grow').classList.remove('show');
   curPlot = -1;
   paintTop(); paintPlots(); paintMarket();
   toast('Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() +
-        (bonus ? ' · new species +' + bonus + '🪙' : ' → barn'));
+        (wilted ? ' (wilted)' : '') +
+        (bonus ? ' · new species +' + bonus + '🪙' : '') + goldenNote);
 }
 
 $('act').addEventListener('click', doAct);
 $('compostBtn').addEventListener('click', doCompost);
+$('bugBtn').addEventListener('click', squashBug);
 $('canvas').addEventListener('click', doAct);
 $('grow-close').addEventListener('click', function () {
   $('grow').classList.remove('show');
@@ -1324,6 +1507,7 @@ function sell(id, tier, n) {
   if (Object.keys(state.barn[id]).length === 0) delete state.barn[id];
   state.coins += gain;
   state.earned += gain;
+  state.runEarned += gain;
   saveState(); paintTop(); paintMarket(); paintShop();
   toast('Sold ' + n + ' × ' + starStr(tier) + ' ' + sp.name.toLowerCase() + ' · +' + gain + '🪙');
 }
@@ -1333,12 +1517,79 @@ function sellAll() {
   state.barn = {};
   state.coins += gain;
   state.earned += gain;
+  state.runEarned += gain;
   saveState(); paintTop(); paintMarket(); paintShop();
   toast('Sold the whole barn · +' + gain + '🪙');
 }
 
+/* ---- almanac ---- */
+function paintAlmanac() {
+  const wrap = $('alcards');
+  wrap.innerHTML = '';
+  let found = 0, mastered = 0;
+  SPECIES.forEach(function (sp) {
+    const best = state.almanac[sp.id] || 0;
+    if (best) found++;
+    if (best === 3) mastered++;
+    const d = document.createElement('div');
+    d.className = 'alcard' + (best ? '' : ' unknown');
+    d.innerHTML =
+      '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+      '<div class="nm">' + (best ? sp.name + '<br><span class="stars">' + starStr(best) + '</span>'
+                                 : '???<br><span style="color:#3a4630">not yet grown</span>') + '</div>';
+    if (best) {
+      d.addEventListener('click', function () {
+        const diff = Math.abs(angleOf(sp) - GOLDEN);
+        $('card').innerHTML =
+          '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+          '<h3>' + sp.name + '</h3><div class="sub">' + fracLabel(sp) +
+          ' · best <span class="stars">' + starStr(best) + '</span></div>' +
+          '<div class="fact">' + sp.fact + '</div>' +
+          '<div class="stats">' +
+            '<div><dt>Elements</dt><dd>' + totalFor(sp) + '</dd></div>' +
+            '<div><dt>Water to grow</dt><dd>' + sp.stages + ' 💧</dd></div>' +
+            '<div><dt>Divergence</dt><dd>' + angleOf(sp).toFixed(2) + '°</dd></div>' +
+            '<div><dt>From golden</dt><dd>' + (diff < 0.001 ? 'exact' : diff.toFixed(2) + '°') + '</dd></div>' +
+          '</div><button class="btn" id="c-close">close</button>';
+        $('modal').classList.add('show');
+        $('c-close').addEventListener('click', closeCard);
+      });
+    }
+    wrap.appendChild(d);
+  });
+  $('alinfo').textContent = found + '/' + SPECIES.length + ' grown · ' +
+    mastered + '/' + SPECIES.length + ' at ★★★' + (state.almanacRewarded ? ' · ✨ earned' : '');
+}
+
 /* ---- shop ---- */
 function paintShop() {
+  // golden spiral / prestige
+  const gWrap = $('goldwrap');
+  const claim = claimableGolden();
+  gWrap.innerHTML =
+    '<div class="goldcard"><h4>✨ The Golden Spiral</h4>' +
+    '<p>Golden seeds: <b style="color:#ffd97a">' + state.golden + '</b> · all prices ×' +
+    goldenMult().toFixed(3) + ' (+6.18% each — a hundredth of φ−1)<br>' +
+    'Earned this garden: ' + state.runEarned + '🪙 · ' +
+    (claim >= 1
+      ? '<b style="color:#ffd97a">' + claim + ' golden seed' + (claim > 1 ? 's' : '') + ' ready</b>'
+      : 'next seed at ' + (PRESTIGE_UNIT - state.runEarned % PRESTIGE_UNIT) + '🪙 more') +
+    '<br>Replanting resets coins, plots, barn and upgrades. The almanac and golden seeds stay.</p>' +
+    '<button class="btn gold" id="prestigeBtn"' + (claim >= 1 ? '' : ' disabled') +
+    '>replant garden · claim ' + claim + ' ✨</button></div>';
+  $('prestigeBtn').addEventListener('click', function () {
+    if (claimableGolden() < 1) return;
+    $('card').innerHTML =
+      '<h3>Replant the garden?</h3>' +
+      '<div class="sub">+' + claimableGolden() + ' golden seed' + (claimableGolden() > 1 ? 's' : '') + ' ✨</div>' +
+      '<div class="fact">Coins, plots, barn, orders, watering can and land all reset to a fresh garden. ' +
+      'Your almanac, records and golden seeds are permanent. Every golden seed raises all sale prices by 6.18%, forever.</div>' +
+      '<div class="row"><button class="btn" id="c-close">not yet</button>' +
+      '<button class="btn gold" id="c-go" style="background:linear-gradient(160deg,var(--gold),var(--amber));color:#2a1d05;border-color:transparent;font-weight:700">replant ✨</button></div>';
+    $('modal').classList.add('show');
+    $('c-close').addEventListener('click', closeCard);
+    $('c-go').addEventListener('click', doPrestige);
+  });
   // watering can
   const canWrap = $('canlist');
   canWrap.innerHTML = '';
@@ -1457,13 +1708,14 @@ $('modal').addEventListener('click', function (e) { if (e.target === $('modal'))
 
 /* ---- tabs ---- */
 function GO(v) {
-  ['garden', 'market', 'shop'].forEach(function (name) {
+  ['garden', 'market', 'almanac', 'shop'].forEach(function (name) {
     $('v-' + name).classList.toggle('hidden', name !== v);
   });
   document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
-  if (v === 'garden') paintPlots();
-  if (v === 'market') paintMarket();
-  if (v === 'shop')   paintShop();
+  if (v === 'garden')  paintPlots();
+  if (v === 'market')  paintMarket();
+  if (v === 'almanac') paintAlmanac();
+  if (v === 'shop')    paintShop();
 }
 document.querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () { GO(t.dataset.v); });
@@ -1486,9 +1738,10 @@ $('dev-reset').addEventListener('click', function () {
 });
 
 /* ---- loop ---- */
-function paintAll() { paintTop(); paintPlots(); paintMarket(); paintShop(); paintGrowFoot(); }
+function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); paintShop(); paintGrowFoot(); }
 
 tickWater();
+bugTick();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 paintAll();
 GO('garden');
@@ -1496,11 +1749,15 @@ GO('garden');
 let tickN = 0;
 setInterval(function () {
   const before = state.water;
+  const bugsBefore = state.plots.filter(function (p) { return p && p.bug; }).length;
   tickWater();
+  bugTick();
   paintTop();
   paintSky();
-  if (state.water !== before) { paintPlots(); paintGrowFoot(); }
+  const bugsNow = state.plots.filter(function (p) { return p && p.bug; }).length;
+  if (state.water !== before || bugsNow !== bugsBefore) { paintPlots(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
+  if (bugsNow > bugsBefore) toast('Aphids! 🐛 tap the plant and squash them');
   // keep order countdowns honest while the market is open
   if (++tickN % 30 === 0 && !$('v-market').classList.contains('hidden')) paintMarket();
 }, 1000);
