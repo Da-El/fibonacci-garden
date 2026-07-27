@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-801 checks. Each one loads the game's inline `<script>` into a headless harness and
+821 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -70,6 +70,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `buttons-check.js` | every button pressed three times, on a state that should refuse it |
 | `screens-check.js` | every secondary screen opened and read against what the game knows |
 | `world-check.js` | two gardens on the same day see the same sky, and no amount of play bends it |
 | `boon-check.js` | the ladybird and the compost: what the free things are really worth |
@@ -116,6 +117,11 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**A button can always be pressed again.** The daily gift had no guard of its own, because
+closing the card hides the button without destroying it. Every purchase, claim and
+confirmation in this game is a button, and none of them had ever been pressed twice by
+anything until 219 of them were pressed three times each.
 
 **Bound both ends, not the one you were worried about.** Iteration 56 measured fever and
 asserted a careless player is not living in it. Nothing ever asked the same of a precise

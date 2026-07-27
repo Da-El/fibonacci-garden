@@ -315,7 +315,34 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
     ['and the streak does not build while fever is already running',
       html.indexOf('if (!feverActive()) state.combo++;') > -1],
     ['late money still has somewhere to go',
-      /hiveLevel/.test(html) && !/hiveLevel >= \d+/.test(html)]
+      /hiveLevel/.test(html) && !/hiveLevel >= \d+/.test(html)],
+
+    /* ---- iterations 74-77 ---- */
+    ['the daily gift does not hand out the permanent bonus',
+      E('GIFTS').every(function (x) { return !(x.golden | 0); })],
+    ['and its seventh day is still worth coming back for',
+      !!E('GIFTS')[E('GIFTS').length - 1].fillCan],
+    ['and it cannot be claimed twice in a day',
+      html.indexOf('if (state.lastGiftDay === today) return;') > -1],
+    ['a ladybird cannot be farmed by hoarding the barn',
+      html.indexOf('Math.max(60, Math.round(best * 3))') > -1],
+    ['and its water never comes to nothing on a full can',
+      html.indexOf('const spare = 5 - drops;') > -1],
+    ['compost still earns no care, as the shop says',
+      html.indexOf('no care point') > -1 &&
+      html.indexOf("if (via === 'water') {") > -1],
+    ['the Daily can set any wild species, not just the first half',
+      (function () {
+        const seen = {};
+        for (let d = 0; d < 365; d++) seen[E('dailySpec')(E('dayIndex()') + d).sp.id] = 1;
+        return Object.keys(seen).length === E('BASE_SPECIES').length;
+      })()],
+    ['every shared roll takes the calendar and nothing off the save',
+      html.indexOf('function dailySpec(day)') > -1 &&
+      html.indexOf('const pool = BASE_SPECIES;') > -1],
+    ['coins over ten thousand are shortened wherever they are shown',
+      html.indexOf('fmtCoins(state.coins)') > -1 &&
+      html.indexOf('fmtCoins(value)') > -1]
   ];
   let wrong = 0;
   claims.forEach(function (c) {
