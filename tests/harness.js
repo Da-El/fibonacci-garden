@@ -67,8 +67,34 @@ function makeEl(tag) {
   return el;
 }
 
+/* The game reads the wall clock — NOW() is Date.now() plus an offset — so
+   handing it the real Date made every run start at a different moment. The day
+   index, the weather slots, the season, the dry spell and the Daily all shift
+   with it, which meant no simulation was reproducible and every balance number
+   carried an uncontrolled variable. Runs now start from a fixed instant.
+
+   Chosen to be a Monday at 09:00 UTC, well clear of a week boundary, so a
+   21-day run covers three whole seasons and several dry spells. */
+const EPOCH = Date.UTC(2026, 0, 5, 9, 0, 0);
+function makeFixedDate(epoch) {
+  function FixedDate(a, b, c, d, e, f, g) {
+    if (!(this instanceof FixedDate)) return new Date(epoch).toString();
+    switch (arguments.length) {
+      case 0: return new Date(epoch);
+      case 1: return new Date(a);
+      default: return new Date(a, b, c || 1, d || 0, e || 0, f || 0, g || 0);
+    }
+  }
+  FixedDate.now = function () { return epoch; };
+  FixedDate.UTC = Date.UTC;
+  FixedDate.parse = Date.parse;
+  FixedDate.prototype = Date.prototype;
+  return FixedDate;
+}
+
 function build(opts) {
   opts = opts || {};
+  const FixedDate = makeFixedDate(opts.epoch || EPOCH);
   const html = fs.readFileSync(GAME, 'utf8');
   const m = html.match(/<script>([\s\S]*)<\/script>/);
   if (!m) throw new Error('no <script> block found');
@@ -154,7 +180,7 @@ function build(opts) {
     setInterval: win.setInterval, clearInterval: win.clearInterval,
     getComputedStyle: win.getComputedStyle,
     matchMedia: win.matchMedia, alert: win.alert, confirm: win.confirm, prompt: win.prompt,
-    Math: Math, JSON: JSON, Date: Date, console: console,
+    Math: Math, JSON: JSON, Date: FixedDate, console: console,
     Object: Object, Array: Array, String: String, Number: Number, Boolean: Boolean,
     Map: Map, Set: Set, Promise: Promise, Error: Error, RegExp: RegExp,
     isNaN: isNaN, isFinite: isFinite, parseInt: parseInt, parseFloat: parseFloat,

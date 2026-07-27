@@ -156,7 +156,14 @@ saw it coming makes money out of a drought.
 
 ## Mastery
 
-XP comes from everything you do. **Levels 1–8 unlock the nine species**, and levels
+XP comes from everything you do, and a level costs **one Fibonacci step every two
+levels** — φ at half rate. A full step per level climbed faster than income ever could:
+the top of the shelf cost 27,912 XP against a committed three weeks earning about 6,700,
+so four of the fifteen species could not be reached by anybody. Now a once-a-day gardener
+ends three weeks around level 10 with a third of the shelf still ahead, and a committed
+one reaches 15 — one unlock short of the last crop, which is where you want to be left.
+
+**Levels 1–8 unlock the nine species**, and levels
 3, 5, 7, 9, 12 and 15 each offer a permanent **choice of two perks**.
 
 Each draft pits like against like, and the pairings are set from measurement rather than
@@ -216,7 +223,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 230 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 237 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

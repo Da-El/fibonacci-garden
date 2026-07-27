@@ -24,7 +24,8 @@ const FILES = [
   ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning'],
   ['breed-check',   'the mediant, the price cap, and every rung reachable'],
   ['wheel-check',   "the gamble's expected value, its odds, and its worst outcome"],
-  ['perk-check',    'every perk draft measured — is either side the obvious pick?']
+  ['perk-check',    'every perk draft measured — is either side the obvious pick?'],
+  ['level-check',   'the XP curve against three weeks of real play']
 ];
 
 let pass = 0, fail = 0, broken = [];

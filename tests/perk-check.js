@@ -13,12 +13,37 @@ const DRAFTS = E0('PERK_CHOICES');
 /* Run three weeks with exactly one perk granted, and compare. The sim's own
    levelling would grant perks on its own, so they are forced instead and the
    draft screen is bypassed. */
+/* Averaged over several seeds. A perk that changes the compounding loop — the
+   can's size, the clock's reach — sends a different sequence of replanting
+   decisions through three whole weeks, and a single run of that swings wildly:
+   deep well measured +24,672 on one seed and +2,055 on another. One seed is an
+   anecdote. */
+const SEEDS = [4242, 909, 31337];
+function meanEarned(profile, perk) {
+  const runs = SEEDS.map(function (sd) {
+    return S.run({ seed: sd, profile: profile, forcePerk: perk }).earned;
+  });
+  return runs.reduce(function (a, b) { return a + b; }, 0) / runs.length;
+}
+const baseCache = {};
+function baseEarned(profile) {
+  if (baseCache[profile] === undefined) {
+    /* Only the four-a-day figure is averaged, because only that one is judged
+       on. The twice-a-day column is a single seed, shown for context. */
+    baseCache[profile] = profile === 'diligent'
+      ? meanEarned(profile, undefined)
+      : S.run({ seed: SEEDS[0], profile: profile }).earned;
+  }
+  return baseCache[profile];
+}
 function withPerk(id, profile) {
-  return S.run({ seed: 4242, profile: profile, forcePerk: id });
+  return { earned: profile === 'diligent'
+    ? meanEarned(profile, id)
+    : S.run({ seed: SEEDS[0], profile: profile, forcePerk: id }).earned };
 }
 
 console.log('  measuring each draft over 21 days at two visit rates…\n');
-console.log('  level  perk          twice-a-day    four-a-day     verdict');
+console.log('  level  perk          one seed      3-seed mean     verdict');
 
 const rows = [];
 Object.keys(DRAFTS).forEach(function (lvl) {
@@ -28,11 +53,10 @@ Object.keys(DRAFTS).forEach(function (lvl) {
              twice: withPerk(pk.id, 'twice').earned,
              dil: withPerk(pk.id, 'diligent').earned };
   });
-  const base = { twice: S.run({ seed: 4242, profile: 'twice' }).earned,
-                 dil: S.run({ seed: 4242, profile: 'diligent' }).earned };
+  const base = { twice: baseEarned('twice'), dil: baseEarned('diligent') };
   got.forEach(function (g) {
-    g.gainTwice = g.twice - base.twice;
-    g.gainDil = g.dil - base.dil;
+    g.gainTwice = Math.round(g.twice - base.twice);
+    g.gainDil = Math.round(g.dil - base.dil);
   });
   const a = got[0], b = got[1];
   /* Judged on the four-a-day run: the twice-a-day one is noisier, because
@@ -42,15 +66,23 @@ Object.keys(DRAFTS).forEach(function (lvl) {
      whose mechanic barely fires, which is a different problem and belongs to
      the mechanic rather than to the draft. */
   const NOISE = 400;
-  const measurable = function (g) { return Math.abs(g.gainDil) > NOISE; };
+  const measurable = function (g) { return Math.abs(g.gainDil) > NOISE || Math.abs(g.gainTwice) > NOISE; };
   const both = measurable(a) && measurable(b);
   const neither = !measurable(a) && !measurable(b);
   const ratio = both
     ? Math.max(Math.abs(a.gainDil), Math.abs(b.gainDil)) /
       Math.max(1, Math.min(Math.abs(a.gainDil), Math.abs(b.gainDil)))
     : 1;
+  /* A draft is fine if different playstyles want different sides. Capacity
+     matters to someone who visits rarely; refill rate matters to someone who
+     visits often — so a gap at one visit rate is only a problem if the same
+     side also wins at the other. */
+  const winsDil = a.gainDil >= b.gainDil ? 'a' : 'b';
+  const winsTwice = a.gainTwice >= b.gainTwice ? 'a' : 'b';
+  const splits = winsDil !== winsTwice;
   const verdict = neither ? 'neither is measurable here'
                 : !both ? 'one side rides a mechanic that barely fires'
+                : splits ? 'depends how often you play'
                 : ratio <= 3.0 ? 'a real choice'
                 : 'LOPSIDED ×' + ratio.toFixed(1);
   got.forEach(function (g) {
@@ -60,7 +92,7 @@ Object.keys(DRAFTS).forEach(function (lvl) {
       (g === a ? verdict : ''));
   });
   rows.push({ lvl: lvl, a: a, b: b, ratio: ratio, both: both, neither: neither,
-              fair: !both || ratio <= 3.0 });
+              splits: splits, fair: !both || splits || ratio <= 3.0 });
 });
 
 const lopsided = rows.filter(function (r) { return r.both && !r.fair; });

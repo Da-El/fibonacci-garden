@@ -2501,10 +2501,18 @@ function harvestReveal(sp, stars, isGolden, value) {
 /* The curve is Fibonacci up to the cap, then keeps climbing gently so
    the deep species (levels 9-16) are a real journey rather than a
    formality once the sequence runs out of terms. */
+/* One Fibonacci step every two levels. The curve used to take a whole step
+   per level, so it climbed at the golden ratio while income did not: level 16
+   cost 27,912 XP against a committed three weeks earning about 6,700, and four
+   of the fifteen species — better than a quarter of the shelf — could not be
+   reached by anybody. Half the rate is the square root of phi per level, which
+   is the same number wearing a smaller coat, and it puts the whole shelf inside
+   reach of someone who plays a lot while still leaving a third of it ahead of
+   someone who visits once a day. */
+const XP_BASE = 33;
+const XP_STEP = Math.sqrt(1.6180339887);      // one Fibonacci step per two levels
 function xpForNext() {
-  const i = state.level + 2;
-  if (i < FIB.length) return FIB[i] * 10;
-  return Math.round(FIB[FIB.length - 1] * 10 * (1 + (i - FIB.length + 1) * 0.35));
+  return Math.round(XP_BASE * Math.pow(XP_STEP, state.level - 1));
 }
 function hasPerk(id) { return !!state.perks[id]; }
 /* Each draft pits like against like. They used to be paired arbitrarily, and

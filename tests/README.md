@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-230 checks. Each one loads the game's inline `<script>` into a headless harness and
+237 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -50,6 +50,7 @@ if you add a system, add the counter that proves it fires.
 | `breed-check.js` | the mediant is really the mediant, the price cap holds, every rung is reachable |
 | `wheel-check.js` | the gamble's expected value, its odds, and that losing cannot kill a save |
 | `perk-check.js` | every perk draft measured at two visit rates — neither side may dominate |
+| `level-check.js` | the XP curve against three weeks of real play, and how much shelf is reachable |
 | `sound-check.js` | every sound defined, triggered, and mixed within a sane range |
 | `a11y-check.js` | colour, motion, screen readers, tap targets |
 | `audit.js` | the sweep: which ledger events never fire, stated-vs-actual, drawing weight |
@@ -63,6 +64,12 @@ worth it), `prestige-check.js` (the golden-seed curve).
 **A green suite only covers what it exercises.** The pour crash hid because nothing had
 ever driven `startPour` → `lockPour` end to end, and `performance.now()` was frozen so
 the minigame could never resolve.
+
+**The harness fixes the clock.** The game reads `Date.now()`, so runs used to start at
+whatever moment you happened to run them — shifting the day index, the weather, the
+season, the dry spell and the Daily. Nothing was reproducible and every balance number
+carried an uncontrolled variable. Runs now start from a fixed instant, and three
+identical calls give three identical answers.
 
 **Several "failures" here were the test's fault, not the game's** — a shared clock
 drifting across species, a synthetic save missing `state.ach` so achievements paid out on
