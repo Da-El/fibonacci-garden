@@ -26,7 +26,8 @@ const FILES = [
   ['wheel-check',   "the gamble's expected value, its odds, and its worst outcome"],
   ['perk-check',    'every perk draft measured — is either side the obvious pick?'],
   ['level-check',   'the XP curve against three weeks of real play'],
-  ['quiet-check',   'the mechanics that barely fire — wilt, weeds, aphids, storms']
+  ['quiet-check',   'the mechanics that barely fire — wilt, weeds, aphids, storms'],
+  ['postcard-check','the postcard: draws for every garden, and stays inside the picture']
 ];
 
 let pass = 0, fail = 0, broken = [];

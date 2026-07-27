@@ -5272,7 +5272,7 @@ function paintShop() {
   if (nameEl && !nameEl._wired) {
     nameEl._wired = true;
     nameEl.addEventListener('input', function () {
-      state.gardenName = nameEl.value.slice(0, 28);
+      state.gardenName = nameEl.value.slice(0, GARDEN_NAME_MAX);
       saveState();
     });
     nameEl.addEventListener('blur', function () { paintTop(); });
@@ -6818,8 +6818,15 @@ function paintDecos() {
     });
   });
 }
+const GARDEN_NAME_MAX = 28;
 function gardenName() {
-  return (state.gardenName && state.gardenName.trim()) || 'Fibonacci Garden';
+  /* Capped here rather than only at the input, because the input is not the
+     only way a name gets into the save — an imported code carries whatever it
+     was given. Twenty-eight characters is what fits the postcard's title at
+     27px; sixty-nine would run a third of the way off the card, and nobody
+     would find out until they had sent the picture to somebody. */
+  const raw = (state.gardenName && state.gardenName.trim()) || '';
+  return raw ? raw.slice(0, GARDEN_NAME_MAX) : 'Fibonacci Garden';
 }
 
 /* ---- the postcard ---- */

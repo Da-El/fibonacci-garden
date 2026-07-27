@@ -52,6 +52,7 @@ if you add a system, add the counter that proves it fires.
 | `perk-check.js` | every perk draft measured at two visit rates — neither side may dominate |
 | `level-check.js` | the XP curve against three weeks of real play, and how much shelf is reachable |
 | `quiet-check.js` | the mechanics that barely fire — each must be real or be removed |
+| `postcard-check.js` | the postcard draws for every garden state and nothing runs off the card |
 | `sound-check.js` | every sound defined, triggered, and mixed within a sane range |
 | `a11y-check.js` | colour, motion, screen readers, tap targets |
 | `audit.js` | the sweep: which ledger events never fire, stated-vs-actual, drawing weight |

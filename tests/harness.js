@@ -15,6 +15,45 @@ function makeStyle() {
   return s;
 }
 
+/* A canvas that records what was drawn on it instead of drawing. The postcard
+   is the only artefact that leaves the app, and the PNG bytes are the
+   browser's job — but whether the game's drawing code throws, and whether the
+   text it writes stays inside the picture, is the game's job and was never
+   checked. */
+function makeCanvasContext(el) {
+  const ops = [];
+  const noop = function (name) {
+    return function () {
+      ops.push({ op: name, args: Array.prototype.slice.call(arguments) });
+    };
+  };
+  const ctx = {
+    _ops: ops,
+    canvas: el,
+    fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: '',
+    textBaseline: '', globalAlpha: 1, lineCap: '', lineJoin: '', shadowBlur: 0,
+    shadowColor: '', globalCompositeOperation: '',
+    fillRect: noop('fillRect'), strokeRect: noop('strokeRect'),
+    clearRect: noop('clearRect'), beginPath: noop('beginPath'),
+    closePath: noop('closePath'), moveTo: noop('moveTo'), lineTo: noop('lineTo'),
+    arc: noop('arc'), ellipse: noop('ellipse'), rect: noop('rect'),
+    quadraticCurveTo: noop('quadraticCurveTo'), bezierCurveTo: noop('bezierCurveTo'),
+    fill: noop('fill'), stroke: noop('stroke'), clip: noop('clip'),
+    save: noop('save'), restore: noop('restore'), translate: noop('translate'),
+    rotate: noop('rotate'), scale: noop('scale'), setTransform: noop('setTransform'),
+    drawImage: noop('drawImage'), setLineDash: noop('setLineDash'),
+    fillText: function (t, x, y) { ops.push({ op: 'fillText', text: String(t), x: x, y: y, font: ctx.font }); },
+    strokeText: function (t, x, y) { ops.push({ op: 'strokeText', text: String(t), x: x, y: y }); },
+    measureText: function (t) { return { width: String(t).length * 6 }; },
+    createLinearGradient: function () {
+      return { addColorStop: function () {} };
+    },
+    createRadialGradient: function () { return { addColorStop: function () {} }; },
+    createPattern: function () { return null; }
+  };
+  return ctx;
+}
+
 function makeEl(tag) {
   const el = {
     tagName: (tag || 'div').toUpperCase(),
@@ -47,7 +86,14 @@ function makeEl(tag) {
     closest: function () { return null; },
     contains: function () { return false; },
     scrollIntoView: function () {},
-    _setCls: function (s) { this._cls = {}; String(s).split(/\s+/).forEach(function (c) { if (c) this._cls[c] = 1; }, this); }
+    _setCls: function (s) { this._cls = {}; String(s).split(/\s+/).forEach(function (c) { if (c) this._cls[c] = 1; }, this); },
+    getContext: function (kind) {
+      if (kind !== '2d') return null;
+      if (!this._ctx) this._ctx = makeCanvasContext(this);
+      return this._ctx;
+    },
+    toBlob: function (cb) { if (cb) cb({ size: 1, type: 'image/png' }); },
+    toDataURL: function () { return 'data:image/png;base64,'; }
   };
   el.classList = {
     add: function () { for (let i = 0; i < arguments.length; i++) el._cls[arguments[i]] = 1; },
