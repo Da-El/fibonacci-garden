@@ -1199,47 +1199,151 @@ function leafPath(len, wid) {
   return 'M0 0 Q ' + (len * .45) + ' ' + (-wid) + ' ' + len + ' 0 Q ' + (len * .45) + ' ' + wid + ' 0 0';
 }
 
+/* ---- botanical illustration helpers --------------------------------
+   Shared gradients and shapes so plants read as drawn things rather
+   than scatter plots. Every id is namespaced per species so two
+   plants on screen can't fight over the same <defs>.               */
+let gradSeq = 0;
+/* Detail level. A 44px thumbnail cannot show a leaf vein, so at low
+   detail we skip veins, highlights and side-strokes — the same plant,
+   a third of the paths. Set by plantSVG, read by the renderers. */
+let LOD = 'high';
+function hiDetail() { return LOD === 'high'; }
+function defsFor(sp, uid) {
+  const h = sp.leafHue, s = sp.leafSat || 38;
+  const d = sp.disc || [44, 76, 48];
+  return '<defs>' +
+    // leaf body: lit from upper-left
+    '<linearGradient id="lf' + uid + '" x1="0" y1="0" x2="0.35" y2="1">' +
+      '<stop offset="0" stop-color="hsl(' + h + ' ' + (s + 8) + '% 46%)"/>' +
+      '<stop offset="1" stop-color="hsl(' + (h - 6) + ' ' + s + '% 24%)"/>' +
+    '</linearGradient>' +
+    // petal: pale at the tip, saturated at the throat
+    '<linearGradient id="pt' + uid + '" x1="1" y1="0" x2="0" y2="0">' +
+      '<stop offset="0" stop-color="' + (sp.petal || '#f4f1e2') + '"/>' +
+      '<stop offset="1" stop-color="hsl(' + d[0] + ' ' + Math.min(96, d[1] + 10) + '% ' +
+        Math.max(30, d[2] - 6) + '%)"/>' +
+    '</linearGradient>' +
+    // the seed disc darkens toward the middle, as real ones do
+    '<radialGradient id="dc' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
+      '<stop offset="0" stop-color="hsl(' + (d[0] - 18) + ' ' + d[1] + '% ' + Math.max(12, d[2] - 30) + '%)"/>' +
+      '<stop offset="1" stop-color="hsl(' + d[0] + ' ' + d[1] + '% ' + Math.max(18, d[2] - 16) + '%)"/>' +
+    '</radialGradient>' +
+    '<linearGradient id="st' + uid + '" x1="0" y1="0" x2="1" y2="0">' +
+      '<stop offset="0" stop-color="hsl(' + h + ' ' + s + '% 20%)"/>' +
+      '<stop offset="0.45" stop-color="hsl(' + h + ' ' + (s + 6) + '% 38%)"/>' +
+      '<stop offset="1" stop-color="hsl(' + h + ' ' + s + '% 22%)"/>' +
+    '</linearGradient>' +
+  '</defs>';
+}
+/* a tapered stem drawn as a filled outline rather than a stroke, so
+   it narrows toward the tip like a real one */
+function stemShape(x0, y0, x1, y1, w0, w1, bow, uid) {
+  const mx = (x0 + x1) / 2 + bow, my = (y0 + y1) / 2;
+  return '<path d="M' + (x0 - w0) + ' ' + y0 +
+    ' Q ' + (mx - w0 * .6) + ' ' + my + ' ' + (x1 - w1) + ' ' + y1 +
+    ' L ' + (x1 + w1) + ' ' + y1 +
+    ' Q ' + (mx + w0 * .6) + ' ' + my + ' ' + (x0 + w0) + ' ' + y0 + ' Z" fill="url(#st' + uid + ')"/>';
+}
+/* a leaf with a midrib, rotated into place */
+function drawLeaf(x, y, len, wid, rot, uid, sp, flip) {
+  const h = sp.leafHue, s = sp.leafSat || 38;
+  return '<g transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')' +
+         (flip ? ' scale(1,-1)' : '') + '">' +
+    '<path d="' + leafPath(len, wid) + '" fill="url(#lf' + uid + ')" ' +
+      'stroke="hsl(' + h + ' ' + s + '% 18%)" stroke-width="' + (len * .035).toFixed(2) + '" stroke-opacity=".5"/>' +
+    '<path d="M0 0 Q ' + (len * .5) + ' ' + (-wid * .18) + ' ' + (len * .94) + ' 0" ' +
+      'fill="none" stroke="hsl(' + h + ' ' + (s + 12) + '% 62%)" ' +
+      'stroke-width="' + (len * .028).toFixed(2) + '" stroke-opacity=".55"/>' +
+  '</g>';
+}
+
 function renderDisc(sp, n, total, freshFrom) {
   const maxR = 96, k = maxR / Math.sqrt(total);
   const cur = k * Math.sqrt(Math.max(n, 1));
   const ang = angleOf(sp) * Math.PI / 180, prog = n / total;
-  let s = '';
-  s += '<path d="M0 ' + (cur + 4) + ' C 6 ' + (cur + 60) + ', -6 ' + (cur + 100) + ', 0 ' + (cur + 150) +
-       '" stroke="hsl(' + sp.leafHue + ' 40% 34%)" stroke-width="7" fill="none" stroke-linecap="round"/>';
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const hue = sp.leafHue, sat = sp.leafSat || 40;
+  let s = defsFor(sp, uid);
+
+  // a stem that leans, tapering from base to the flower's neck
+  const baseY = cur + 152, neckY = cur + 6;
+  s += stemShape(0, baseY, 0, neckY, 5.2, 3.0, 7, uid);
+  // a pair of leaves partway up, sized to the plant
+  const lf = 30 + prog * 44;
+  s += drawLeaf(-1.5, baseY - 48, lf, lf * .34, 158, uid, sp, false);
+  s += drawLeaf(1.5, baseY - 84, lf * .86, lf * .30, 24, uid, sp, false);
+
+  // ray florets, opening as the bloom fills out
   const petals = Math.max(0, Math.round(sp.petals * Math.min(1, prog * 1.15)));
+  const pl = cur * .66 + 11, pw = Math.max(3.4, cur * .115);
   for (let p = 0; p < petals; p++) {
-    const th = p * 360 / sp.petals, pl = cur * .62 + 10;
-    s += '<g transform="rotate(' + th.toFixed(2) + ')"><ellipse cx="' + (cur + pl * .52).toFixed(1) +
-         '" cy="0" rx="' + pl.toFixed(1) + '" ry="' + Math.max(3, cur * .11).toFixed(1) +
-         '" fill="' + sp.petal + '" opacity=".92"/></g>';
+    const th = p * 360 / sp.petals;
+    // back petals sit slightly darker so the whorl has depth
+    const back = (p % 2 === 1);
+    s += '<g transform="rotate(' + th.toFixed(2) + ')">' +
+      '<path d="M' + (cur * .55).toFixed(1) + ' 0' +
+        ' C ' + (cur * .55 + pl * .30).toFixed(1) + ' ' + (-pw).toFixed(1) +
+        ', ' + (cur * .55 + pl * .78).toFixed(1) + ' ' + (-pw * .82).toFixed(1) +
+        ', ' + (cur * .55 + pl).toFixed(1) + ' 0' +
+        ' C ' + (cur * .55 + pl * .78).toFixed(1) + ' ' + (pw * .82).toFixed(1) +
+        ', ' + (cur * .55 + pl * .30).toFixed(1) + ' ' + pw.toFixed(1) +
+        ', ' + (cur * .55).toFixed(1) + ' 0 Z" ' +
+      'fill="url(#pt' + uid + ')" opacity="' + (back ? .78 : .97) + '"/></g>';
   }
+  // receptacle behind the seeds
+  s += '<circle cx="0" cy="0" r="' + (cur * 1.06 + 2).toFixed(1) +
+       '" fill="hsl(' + hue + ' ' + sat + '% 26%)" opacity=".55"/>';
+  s += '<circle cx="0" cy="0" r="' + Math.max(2, cur).toFixed(1) + '" fill="url(#dc' + uid + ')"/>';
+
+  // the seeds themselves — the actual phyllotaxis, unchanged
   for (let i = 0; i < n; i++) {
     const r = k * Math.sqrt(i + .5), th = (i + .5) * ang;
     const t = total > 1 ? i / (total - 1) : 0;
-    s += '<circle cx="' + (Math.cos(th) * r).toFixed(1) + '" cy="' + (Math.sin(th) * r).toFixed(1) +
+    const x = Math.cos(th) * r, y = Math.sin(th) * r;
+    s += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) +
          '" r="' + sp.seedR + '" fill="hsl(' + (sp.disc[0] - t * 22).toFixed(0) + ' ' +
          (sp.disc[1] - t * 10).toFixed(0) + '% ' + (sp.disc[2] + 22 - t * 26).toFixed(0) + '%)"' +
          (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .01).toFixed(3) + 's"' : '') + '/>';
+    // a tiny highlight on the outer seeds catches the light
+    if (hiDetail() && t > .55)
+      s += '<circle cx="' + (x - sp.seedR * .3).toFixed(1) + '" cy="' + (y - sp.seedR * .3).toFixed(1) +
+        '" r="' + (sp.seedR * .34).toFixed(2) + '" fill="#fff" opacity=".22"/>';
   }
   return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
 }
 
 function renderRosette(sp, n, total, freshFrom) {
   const ang = angleOf(sp) * Math.PI / 180, k = 118 / Math.sqrt(total);
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const hue = sp.leafHue;
   const order = [];
   for (let i = 0; i < n; i++) order.push(i);
-  order.sort(function (a, b) { return b - a; });
-  let s = '';
+  order.sort(function (a, b) { return b - a; });   // outer/older behind
+  let s = defsFor(sp, uid);
+  // soil shadow so the rosette sits in the ground rather than floating
+  s += '<ellipse cx="0" cy="14" rx="' + (k * Math.sqrt(n + 1) * 1.5).toFixed(1) +
+       '" ry="' + (k * Math.sqrt(n + 1) * .45).toFixed(1) + '" fill="#000" opacity=".22"/>';
   order.forEach(function (i) {
     const len = Math.max(16, k * Math.sqrt(i + 1) * 1.5);
     const th = i * ang * 180 / Math.PI;
     const t = total > 1 ? i / (total - 1) : 0;
-    const li = 26 + t * 22, sat = (sp.leafSat || 36) + t * 10;
-    s += '<g transform="rotate(' + th.toFixed(2) + ')"><path d="' + leafPath(len, len * .3) +
-         '" fill="hsl(' + sp.leafHue + ' ' + sat.toFixed(0) + '% ' + li.toFixed(0) + '%)" stroke="hsl(' +
-         sp.leafHue + ' ' + sat.toFixed(0) + '% ' + (li + 14).toFixed(0) + '%)" stroke-width="1"' +
-         (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .03).toFixed(3) + 's"' : '') +
-         '/></g>';
+    const li = 24 + t * 24, sat = (sp.leafSat || 36) + t * 12;
+    const wid = len * .32;
+    s += '<g transform="rotate(' + th.toFixed(2) + ')"' +
+      (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .03).toFixed(3) + 's"' : '') + '>' +
+      // succulent leaf: fleshy body with a lit upper edge and a midrib
+      '<path d="' + leafPath(len, wid) + '" fill="hsl(' + hue + ' ' + sat.toFixed(0) + '% ' + li.toFixed(0) + '%)" ' +
+        'stroke="hsl(' + hue + ' ' + sat.toFixed(0) + '% ' + (li - 10).toFixed(0) + '%)" stroke-width="1.1"/>' +
+      (hiDetail()
+        ? '<path d="M0 0 Q ' + (len * .5).toFixed(1) + ' ' + (-wid * .55).toFixed(1) + ' ' + (len * .96).toFixed(1) + ' 0" ' +
+            'fill="none" stroke="hsl(' + hue + ' ' + (sat + 14).toFixed(0) + '% ' + (li + 22).toFixed(0) + '%)" ' +
+            'stroke-width="' + (len * .05).toFixed(2) + '" stroke-opacity=".5"/>' +
+          // a blushed tip, as houseleeks and sedums have
+          '<circle cx="' + (len * .93).toFixed(1) + '" cy="0" r="' + (wid * .3).toFixed(1) +
+            '" fill="hsl(' + (hue - 70) + ' 45% ' + (li + 16).toFixed(0) + '%)" opacity=".45"/>'
+        : '') +
+      '</g>';
   });
   return '<svg viewBox="-150 -150 300 300">' + s + '</svg>';
 }
@@ -1248,26 +1352,49 @@ function renderStem(sp, n, total, freshFrom) {
   const ang = angleOf(sp) * Math.PI / 180;
   const bottom = 138, top = -132, step = (bottom - top) / (total + 1);
   const grownTop = bottom - n * step - step;
-  let s = '<path d="M0 ' + bottom + ' L0 ' + Math.max(grownTop, top).toFixed(1) +
-          '" stroke="hsl(' + sp.leafHue + ' 30% 30%)" stroke-width="6" stroke-linecap="round" fill="none"/>';
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const hue = sp.leafHue, sat = sp.leafSat || 42;
+  const tipY = Math.max(grownTop, top);
+  let s = defsFor(sp, uid);
+  // a twig that tapers and bows, rather than a straight line
+  s += stemShape(0, bottom, 0, tipY, 4.6, 1.8, 5, uid);
+  // a bud at the growing tip
+  s += '<ellipse cx="1.5" cy="' + (tipY + 2).toFixed(1) + '" rx="3.2" ry="5.4" ' +
+       'fill="hsl(' + hue + ' ' + (sat + 10) + '% 40%)" transform="rotate(-12 1.5 ' + tipY.toFixed(1) + ')"/>';
+
   const items = [];
   for (let i = 0; i < n; i++) {
     const th = i * ang;
     items.push({ i: i, y: bottom - i * step - step, x: Math.cos(th), depth: Math.sin(th) });
   }
-  items.sort(function (a, b) { return a.depth - b.depth; });
+  items.sort(function (a, b) { return a.depth - b.depth; });   // back leaves first
   items.forEach(function (it) {
     const dir = it.x >= 0 ? 1 : -1;
     const scale = .58 + .42 * ((it.depth + 1) / 2);
     const len = 62 * scale * (.5 + Math.abs(it.x) * .5);
-    const li = 22 + ((it.depth + 1) / 2) * 24;
+    const wid = len * .36;
+    const li = 20 + ((it.depth + 1) / 2) * 26;
     const rot = dir > 0 ? -16 : 196;
-    s += '<g transform="translate(0 ' + it.y.toFixed(1) + ') rotate(' + rot + ')"><path d="' +
-         leafPath(len, len * .34) + '" fill="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 42) + '% ' +
-         li.toFixed(0) + '%)" stroke="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 42) + '% ' +
-         (li + 12).toFixed(0) + '%)" stroke-width="1"' +
-         (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .04).toFixed(3) + 's"' : '') +
-         '/></g>';
+    s += '<g transform="translate(0 ' + it.y.toFixed(1) + ') rotate(' + rot + ')"' +
+      (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .04).toFixed(3) + 's"' : '') + '>' +
+      // short petiole joining leaf to twig
+      '<path d="M0 0 L' + (len * .16).toFixed(1) + ' 0" stroke="hsl(' + hue + ' ' + sat + '% ' +
+        Math.max(14, li - 8).toFixed(0) + '%)" stroke-width="' + (wid * .18).toFixed(2) + '" stroke-linecap="round"/>' +
+      '<path d="' + leafPath(len, wid) + '" fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)" ' +
+        'stroke="hsl(' + hue + ' ' + sat + '% ' + Math.max(12, li - 12).toFixed(0) + '%)" stroke-width="1"/>' +
+      // midrib plus a couple of side veins — invisible on a thumbnail
+      (hiDetail()
+        ? '<path d="M' + (len * .16).toFixed(1) + ' 0 Q ' + (len * .55).toFixed(1) + ' ' + (-wid * .16).toFixed(1) +
+            ' ' + (len * .95).toFixed(1) + ' 0" fill="none" stroke="hsl(' + hue + ' ' + (sat + 14) + '% ' +
+            (li + 20).toFixed(0) + '%)" stroke-width="' + (len * .026).toFixed(2) + '" stroke-opacity=".55"/>' +
+          '<path d="M' + (len * .42).toFixed(1) + ' ' + (-wid * .06).toFixed(1) +
+            ' L' + (len * .62).toFixed(1) + ' ' + (-wid * .55).toFixed(1) + '" fill="none" stroke="hsl(' + hue +
+            ' ' + (sat + 10) + '% ' + (li + 14).toFixed(0) + '%)" stroke-width="' + (len * .018).toFixed(2) + '" stroke-opacity=".4"/>' +
+          '<path d="M' + (len * .42).toFixed(1) + ' ' + (wid * .06).toFixed(1) +
+            ' L' + (len * .62).toFixed(1) + ' ' + (wid * .55).toFixed(1) + '" fill="none" stroke="hsl(' + hue +
+            ' ' + (sat + 10) + '% ' + (li + 14).toFixed(0) + '%)" stroke-width="' + (len * .018).toFixed(2) + '" stroke-opacity=".4"/>'
+        : '') +
+      '</g>';
   });
   return '<svg viewBox="-150 -150 300 300">' + s + '</svg>';
 }
@@ -1283,16 +1410,34 @@ function renderCone(sp, n, total, freshFrom) {
     items.push({ i: i, y: top + t * H, x: Math.cos(th) * prof, depth: Math.sin(th) });
   }
   items.sort(function (a, b) { return a.depth - b.depth; });
-  let s = '<path d="M0 ' + (top + H - 6) + ' L0 ' + (top + H + 44) +
-          '" stroke="hsl(30 26% 26%)" stroke-width="9" stroke-linecap="round" fill="none"/>';
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const hue = sp.leafHue, sat = sp.leafSat || 38;
+  let s = defsFor(sp, uid);
+  // woody stalk
+  s += stemShape(0, top + H + 46, 0, top + H - 8, 5.5, 4.2, 2, uid);
+  // the cone's own soft body behind the scales, so gaps read as shadow
+  s += '<ellipse cx="0" cy="' + (top + H * .5).toFixed(1) + '" rx="' + (R * .92).toFixed(1) +
+       '" ry="' + (H * .48).toFixed(1) + '" fill="hsl(' + hue + ' ' + sat + '% 12%)" opacity=".75"/>';
   items.forEach(function (it) {
     const scale = .6 + .4 * ((it.depth + 1) / 2);
-    const li = 20 + ((it.depth + 1) / 2) * 20;
-    s += '<ellipse cx="' + it.x.toFixed(1) + '" cy="' + it.y.toFixed(1) + '" rx="' + (24 * scale).toFixed(1) +
-         '" ry="' + (13 * scale).toFixed(1) + '" fill="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 38) + '% ' +
-         li.toFixed(0) + '%)" stroke="hsl(' + sp.leafHue + ' ' + (sp.leafSat || 38) + '% ' +
-         (li + 14).toFixed(0) + '%)" stroke-width="1"' +
-         (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .02).toFixed(3) + 's"' : '') + '/>';
+    const li = 18 + ((it.depth + 1) / 2) * 22;
+    const w = 25 * scale, h = 14 * scale;
+    // each scale is a rounded wedge with a lit lower lip
+    s += '<g transform="translate(' + it.x.toFixed(1) + ' ' + it.y.toFixed(1) + ')"' +
+      (it.i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((it.i - freshFrom) * .02).toFixed(3) + 's"' : '') + '>' +
+      '<path d="M' + (-w).toFixed(1) + ' 0 Q ' + (-w * .5).toFixed(1) + ' ' + (-h).toFixed(1) +
+        ' 0 ' + (-h * .85).toFixed(1) + ' Q ' + (w * .5).toFixed(1) + ' ' + (-h).toFixed(1) + ' ' + w.toFixed(1) + ' 0' +
+        ' Q ' + (w * .5).toFixed(1) + ' ' + (h * .95).toFixed(1) + ' 0 ' + h.toFixed(1) +
+        ' Q ' + (-w * .5).toFixed(1) + ' ' + (h * .95).toFixed(1) + ' ' + (-w).toFixed(1) + ' 0 Z" ' +
+        'fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)" ' +
+        'stroke="hsl(' + hue + ' ' + sat + '% ' + Math.max(8, li - 12).toFixed(0) + '%)" stroke-width="1"/>' +
+      (hiDetail()
+        ? '<path d="M' + (-w * .72).toFixed(1) + ' ' + (h * .32).toFixed(1) + ' Q 0 ' + (h * .86).toFixed(1) +
+          ' ' + (w * .72).toFixed(1) + ' ' + (h * .32).toFixed(1) + '" fill="none" ' +
+          'stroke="hsl(' + (hue + 8) + ' ' + (sat + 16) + '% ' + (li + 26).toFixed(0) + '%)" ' +
+          'stroke-width="' + (h * .2).toFixed(2) + '" stroke-opacity=".5"/>'
+        : '') +
+      '</g>';
   });
   return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
 }
@@ -1302,10 +1447,11 @@ function renderCone(sp, n, total, freshFrom) {
    species+count, which is the overwhelming majority of them. */
 const svgCache = {};
 let svgCacheHits = 0, svgCacheMiss = 0;
-function plantSVG(sp, n, freshFrom) {
+function plantSVG(sp, n, freshFrom, lod) {
   const total = totalFor(sp);
+  LOD = lod === 'low' ? 'low' : 'high';
   const cacheable = freshFrom === undefined || freshFrom === Infinity;
-  const key = cacheable ? sp.id + '|' + n : null;
+  const key = cacheable ? sp.id + '|' + n + '|' + LOD : null;
   if (key && svgCache[key] !== undefined) { svgCacheHits++; return svgCache[key]; }
   svgCacheMiss++;
   if (freshFrom === undefined) freshFrom = Infinity;
@@ -2742,7 +2888,7 @@ function openPlanter(plotIdx) {
     rows +=
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') +
         (want.length ? ';border-color:#6a5322' : '') + '">' +
-        '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
           '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
@@ -3148,7 +3294,7 @@ function paintOrders() {
     const row = document.createElement('div');
     row.className = 'row-item';
     row.innerHTML =
-      '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+      '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
       '<div class="info"><h4>' + o.qty + '× ' + sp.name +
         ' <span class="stars">' + starStr(o.stars) + (o.stars < 3 ? '+' : '') + '</span></h4>' +
         '<p>have ' + avail + ' of ' + o.qty +
@@ -3190,7 +3336,7 @@ function paintMarket() {
       const row = document.createElement('div');
       row.className = 'row-item';
       row.innerHTML =
-        '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="stars">' + tierLabel(tier) + '</span>' +
         ' <span class="badge ' + cls + '">×' + eff.toFixed(2) + seasonTag + '</span></h4>' +
         '<p>holding ' + n + ' · ' + each + '🪙 each' +
@@ -3274,7 +3420,7 @@ function paintAlmanac() {
     const d = document.createElement('div');
     d.className = 'alcard' + (best ? '' : ' unknown');
     d.innerHTML =
-      '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+      '<div class="art">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
       '<div class="nm">' + (best ? (sp.hybrid ? '🧬 ' : '') + sp.name +
                                    '<br><span class="stars">' + starStr(best) + '</span>'
                                  : '???<br><span style="color:#3a4630">not yet grown</span>') + '</div>';
@@ -4334,7 +4480,7 @@ function renderBreeder() {
         return '<div data-pick="' + side + ':' + s.id + '" style="flex:0 0 auto;width:52px;cursor:pointer;' +
           'border:1px solid ' + (s.id === cur ? 'var(--gold)' : 'var(--line)') + ';border-radius:10px;padding:3px;' +
           'background:' + (s.id === cur ? '#f2c53c1a' : 'var(--panel-2)') + '">' +
-          '<div style="height:38px">' + plantSVG(s, totalFor(s)) + '</div>' +
+          '<div style="height:38px">' + plantSVG(s, totalFor(s), Infinity, 'low') + '</div>' +
           '<div style="font-family:var(--mono);font-size:6.5px;text-align:center;color:var(--muted);' +
           'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + s.name + '</div></div>';
       }).join('') + '</div></div>';
