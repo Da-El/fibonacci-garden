@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-889 checks. Each one loads the game's inline `<script>` into a headless harness and
+899 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -127,6 +127,11 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**A perk measured by a bot that never uses the mechanic reads as worthless.** perk-check
+reported long fever at exactly +0 and called it unmeasurable, while fever-check — which
+drives the real pour path — read it at +61,272 coins. Before calling something dead,
+check whether anything else already measures it.
 
 **A one per cent effect needs more than one run.** The simulation is chaotic: change any
 setting and both runs draw different numbers from then on, so a seeded pair with one flag

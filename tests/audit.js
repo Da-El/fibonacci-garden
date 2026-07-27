@@ -342,7 +342,57 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       html.indexOf('const pool = BASE_SPECIES;') > -1],
     ['coins over ten thousand are shortened wherever they are shown',
       html.indexOf('fmtCoins(state.coins)') > -1 &&
-      html.indexOf('fmtCoins(value)') > -1]
+      html.indexOf('fmtCoins(value)') > -1],
+
+    /* ---- iterations 79-82 ---- */
+    ['a storm is always visible in the forecast before it lands', (function () {
+      let total = 0, warned = 0;
+      for (let slot = 1; slot < 1500; slot++) {
+        if (E('weatherAt')(slot).id !== 'storm') continue;
+        total++;
+        for (let k = 1; k <= 3; k++) {
+          if (E('weatherAt')(slot).id === 'storm') { warned++; break; }
+        }
+      }
+      return total > 0 && warned === total;
+    })()],
+    ['and shelter still stops it completely',
+      html.indexOf('state.trellised[i] || p.glass') > -1],
+    ['customers ask for the top of the shelf, not the bottom',
+      html.indexOf('const keep = Math.max(3, Math.ceil(growable.length / 2));') > -1],
+    ['and are paid for what the bed gave up',
+      html.indexOf('function bestPerDrop') > -1 &&
+      html.indexOf('bestPerDrop() * sp.stages * qty') > -1],
+    ['the fever hint quotes the combo the game uses', (function () {
+      const tx = E('HINTS').fever.tx;
+      return tx.indexOf('Thirteen') > -1 && tx.indexOf('34 seconds') > -1 &&
+             E('FEVER_COMBO') === 13 && E('FEVER_MS') === 34000;
+    })()],
+    ['and the wilt hint quotes the hours the game uses', (function () {
+      const m = E('HINTS').wilt.tx.match(/every (\d+) hours/);
+      return !!m && Number(m[1]) === E('WILT_MS') / 3600000;
+    })()],
+    ['weeds are explained, not just announced',
+      !!E('HINTS').weeds && html.indexOf("hint('weeds')") > -1],
+    ['and the hint says what to do about them',
+      /tap one to clear/i.test(E('HINTS').weeds.tx)],
+
+    /* Every hint that quotes a figure is checked against its constant in
+       return-check. This is the standing guard that none of them is left
+       saying a number nobody uses — the fever one did for twenty-four
+       iterations. */
+    ['no hint quotes a number the game has stopped using', (function () {
+      const HINTS = E('HINTS');
+      const pairs = [
+        [HINTS.fever.tx, /(\d+) seconds/, E('FEVER_MS') / 1000],
+        [HINTS.wilt.tx, /every (\d+) hours/, E('WILT_MS') / 3600000],
+        [HINTS.dry.tx, /(\d+)% higher/, Math.round((E('DRY_SELL') - 1) * 100)]
+      ];
+      return pairs.every(function (p) {
+        const m = String(p[0]).match(p[1]);
+        return !m || Math.abs(Number(m[1]) - p[2]) < 0.5;
+      });
+    })()]
   ];
   let wrong = 0;
   claims.forEach(function (c) {

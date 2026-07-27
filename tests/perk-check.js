@@ -117,9 +117,27 @@ check('at least half the drafts are measurably balanced', measured.length >= 3,
       if (Math.abs(g.gainDil) <= NOISE) blocked.push(g.pk.id);
     });
   });
-  console.log('\n  perks whose mechanic barely fires, so their worth cannot be read:');
-  console.log('    ' + (blocked.join(', ') || 'none'));
+  /* Not all of these are unmeasurable — some are simply unmeasurable *here*.
+     This bot pours through advanceStage rather than the real minigame, so
+     combos never build and fever never fires, and any perk that rides fever
+     comes out at exactly zero. fever-check drives the real pour path and
+     reads long fever at +61,272 coins across three weeks. Naming a perk
+     unmeasurable when another file measures it is the sort of thing that
+     leaves a system looking dead for twenty iterations. */
+  const MEASURED_ELSEWHERE = { longfever: 'fever-check, driving the real pour' };
+  const stillDark = blocked.filter(function (id) { return !MEASURED_ELSEWHERE[id]; });
+  console.log('\n  perks this bot cannot read, because it does not use the mechanic:');
+  console.log('    ' + (stillDark.join(', ') || 'none'));
+  Object.keys(MEASURED_ELSEWHERE).forEach(function (id) {
+    if (blocked.indexOf(id) > -1) {
+      console.log('    ' + id + ' — measured in ' + MEASURED_ELSEWHERE[id]);
+    }
+  });
   check('the unmeasurable perks are named rather than assumed fine', true);
+  /* And the list must not quietly grow. Four of thirteen dark is the most
+     that can be tolerated before the drafts stop being checkable at all. */
+  check('most perks are measurable by something',
+        stillDark.length <= 4, stillDark.length + ' of ' + (rows.length * 2) + ' dark');
 }
 
 console.log('\nPASS ' + ok.length + ' / FAIL ' + bugs.length);
