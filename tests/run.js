@@ -29,7 +29,8 @@ const FILES = [
   ['quiet-check',   'the mechanics that barely fire — wilt, weeds, aphids, storms'],
   ['postcard-check','the postcard: draws for every garden, and stays inside the picture'],
   ['scene-check',   'the garden lays out inside its bounds at every size and bed count'],
-  ['fever-check',   'fever: how often it fires, what it is worth, and that it ends']
+  ['fever-check',   'fever: how often it fires, what it is worth, and that it ends'],
+  ['away-check',    'coming back after a day, a month, a decade, or a corrected clock']
 ];
 
 let pass = 0, fail = 0, broken = [];
