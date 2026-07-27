@@ -165,13 +165,15 @@ function run(cfg) {
       if (!sown) break;
     }
 
-    // sell the barn
-    const before = S().coins;
-    guardCall('sellAll', function () { E('sellAll()'); return true; });
-    log.earned += Math.max(0, S().coins - before);
-    log.sold++;
+    /* Deliver first, then sell what is left.
 
-    // deliver any order we can
+       These were the other way round, so every run emptied the barn and then
+       looked for something in it to fulfil an order with. Three weeks of
+       simulated play reported zero orders delivered for dozens of iterations,
+       and every judgement made about the order board was made against a
+       player who structurally could not deliver one. An order pays a premium
+       over the market, so delivering first is also simply what anyone would
+       do. */
     for (let k = 0; k < 6; k++) {
       const orders = S().orders || [];
       let did = false;
@@ -182,6 +184,12 @@ function run(cfg) {
       }
       if (!did) break;
     }
+
+    // then sell whatever the customers did not want
+    const before = S().coins;
+    guardCall('sellAll', function () { E('sellAll()'); return true; });
+    log.earned += Math.max(0, S().coins - before);
+    log.sold++;
 
     // reinvest: plots, then can, then seeds
     const s2 = S();
@@ -255,6 +263,9 @@ function run(cfg) {
     goldenSeeds: s.goldenSeeds || 0,
     qualityMix: s.qualityMix || {}, speciesGrown: s.speciesGrown || {},
     canTier: s.canTier, coins: s.coins,
+    /* which achievements a real run actually earns — nothing had ever
+       reported this, so the achievement audit was reading undefined */
+    ach: Object.assign({}, s.ach),
     errs: errs,
     days: log.days
   };
