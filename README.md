@@ -123,10 +123,30 @@ seed), **15 achievements**, and a daily-gift streak whose seventh day pays a gol
 The concept pages are kept because they're playable prototypes in their own right and
 document how the design arrived where it did.
 
-## Progress is saved locally
+## Bees
 
-The game stores your garden in `localStorage`, per browser. It is **not** synced
-between devices — playing on a laptop and a phone gives you two separate gardens.
+Buy a hive and bees work the garden for you: each sortie pollinates a growing plant
+for a free care point, and a 🍯 pollinated bloom sells for a premium. They **favour
+flowers over sprigs**, so what you keep in the ground decides how much they help.
+Upgrading the hive adds bees and raises the honey bonus.
+
+## Sound
+
+Every sound is **synthesized at runtime** with the Web Audio API — there isn't a
+single audio file. The perfect-pour chime climbs in pitch with your combo, fever
+sweeps, the wheel ratchets and slows, and the garden has birdsong by day, crickets at
+night and rainfall when it rains. Sound, ambience, vibration and motion each have
+their own switch behind the ⚙ gear.
+
+## Moving your garden between computers
+
+The game saves to `localStorage`, so a garden lives on one browser. To move it:
+**⚙ → move garden** exports a `FIBGDN1…` code you can copy or download, and paste
+into the game on another machine. Codes are checksummed, so a truncated paste is
+refused rather than half-loaded over a real save.
+
+**⚙ → postcard** renders your actual garden — real phyllotaxis, your level and best
+blooms — as a PNG worth sharing.
 
 ## Before shipping this for real
 

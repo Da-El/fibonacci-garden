@@ -670,6 +670,29 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- bees ---------- */
+  .bee {
+    position: absolute; z-index: 8; font-size: 15px; pointer-events: none;
+    filter: drop-shadow(0 2px 3px #0007);
+    transition: left 2.6s cubic-bezier(.4,0,.5,1), top 2.6s cubic-bezier(.4,0,.5,1);
+  }
+  .bee.flip { transform: scaleX(-1); }
+  @keyframes beehover { 0%,100% { margin-top: 0; } 50% { margin-top: -5px; } }
+  .bee { animation: beehover .5s ease-in-out infinite; }
+  .plot .pollen {
+    position: absolute; bottom: 4px; right: 6px; font-size: 11px; z-index: 3;
+    filter: drop-shadow(0 0 5px #f2c53c88);
+  }
+  #hivebar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    padding: 9px 12px; border-radius: 12px;
+    background: linear-gradient(100deg, #2a220f, #1a1a10);
+    border: 1px solid #5c4a22;
+  }
+  #hivebar .hicon { font-size: 18px; }
+  #hivebar .htext { flex: 1; font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.6; }
+  #hivebar .htext b { color: var(--gold); }
+
   /* ---------- save codes & postcard ---------- */
   #savecode {
     width: 100%; height: 96px; resize: none; margin-bottom: 10px;
@@ -720,6 +743,10 @@
         <span class="orb" id="orb">☀️</span>
         <span class="skylabel" id="skylabel"></span>
         <div id="forecast"><span class="fclabel">next</span></div>
+      </div>
+      <div id="hivebar" style="display:none">
+        <span class="hicon">🍯</span>
+        <span class="htext" id="hivetext"></span>
       </div>
       <div class="sectitle">Plots <span id="plotinfo"></span></div>
       <div id="plots"></div>
@@ -1086,6 +1113,10 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    hive: false,                     // bees pollinate growing plants
+    hiveLevel: 0,
+    pollenSlot: 0,
+    pollinatedSold: 0,
     lastSeen: Date.now(),            // for the welcome-back digest
     xp: 0,                           // progress into the current level
     level: 1,                        // gardener level — gates species
@@ -1145,6 +1176,10 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.hive = !!p.hive;
+        p.hiveLevel = p.hiveLevel | 0;
+        p.pollenSlot = p.pollenSlot | 0;
+        p.pollinatedSold = p.pollinatedSold | 0;
         if (typeof p.lastSeen !== 'number') p.lastSeen = Date.now();
         p.xp = p.xp | 0;
         p.level = Math.max(1, p.level | 0);
@@ -2036,7 +2071,20 @@ function barnCountAll() {
 function tierPrice(sp, t) {
   if (t === 'g') return goldPriceOf(sp);
   if (t === 'p') return priceOfQ(sp, 3) * 2;
+  if (typeof t === 'string' && t.charAt(0) === 'h')      // honeyed: pollinated by a bee
+    return Math.round(priceOfQ(sp, +t.slice(1)) * honeyBonus());
   return priceOfQ(sp, +t);
+}
+function tierLabel(t) {
+  if (t === 'g') return '✨ golden';
+  if (t === 'p') return '💎 pristine';
+  if (typeof t === 'string' && t.charAt(0) === 'h') return '🍯 ' + starStr(+t.slice(1));
+  return starStr(+t);
+}
+function tierStars(t) {
+  if (t === 'g' || t === 'p') return 3;
+  if (typeof t === 'string' && t.charAt(0) === 'h') return +t.slice(1);
+  return +t;
 }
 function barnValueAll() {
   let v = 0;
@@ -2084,7 +2132,8 @@ function ensureOrders() {
 function qualifyingTiers(minStars) {
   const t = [];
   for (let s = minStars; s <= 3; s++) t.push(String(s));
-  t.push('p', 'g');
+  for (let s = minStars; s <= 3; s++) t.push('h' + s);   // honeyed count, spent after plain
+  t.push('p', 'g');                                       // premium last of all
   return t;
 }
 function orderAvail(o) {
@@ -2263,6 +2312,15 @@ function burstCenter(el, glyphs) {
 
 function paintPlots() {
   paintSky();
+  const hb = $('hivebar');
+  hb.style.display = hasHive() ? 'flex' : 'none';
+  if (hasHive()) {
+    const waiting = beeTargets().length;
+    $('hivetext').innerHTML = '<b>' + beeCount() + '</b> bee' + (beeCount() > 1 ? 's' : '') +
+      ' working · pollinated blooms sell <b>+' + Math.round((honeyBonus() - 1) * 100) + '%</b>' +
+      (waiting ? ' · ' + waiting + ' plant' + (waiting > 1 ? 's' : '') + ' still to visit'
+               : ' · every plant visited 🍯');
+  }
   const wrap = $('plots');
   wrap.innerHTML = '';
   const season = seasonNow();
@@ -2291,6 +2349,7 @@ function paintPlots() {
       d.innerHTML =
         (state.trellised[i] ? '<span class="trellistag">🛡️</span>' : '') +
         (p.bug ? '<span class="bugtag">🐛</span>' : '') +
+        (p.pollen ? '<span class="pollen">🍯</span>' : '') +
         '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
         '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
         '<div class="lbl">' + (done
@@ -2695,6 +2754,15 @@ function harvest() {
   state.harvested++;
   addXP(10);
 
+  // a pollinated bloom carries the hive's honey bonus into the barn
+  if (p.pollen && !isGolden && !isPristine) {
+    state.barn[sp.id][stars]--;
+    if (state.barn[sp.id][stars] <= 0) delete state.barn[sp.id][stars];
+    const key = 'h' + stars;
+    state.barn[sp.id][key] = (state.barn[sp.id][key] || 0) + 1;
+    state.pollinatedSold++;
+  }
+
   // almanac: remember the best quality ever grown
   if (!state.almanac[sp.id] || stars > state.almanac[sp.id]) state.almanac[sp.id] = stars;
   let goldenNote = '';
@@ -2785,23 +2853,22 @@ function paintMarket() {
     const eff = priceOf(sp) / sp.price;                    // day × weather × season × φ
     const cls = eff > 1.08 ? 'up' : (eff < 0.92 ? 'down' : '');
     const seasonTag = seasonMult(sp) > 1 ? ' ' + season.icon : '';
-    ['g', 'p', 3, 2, 1].forEach(function (tier) {
+    ['g', 'p', 'h3', 'h2', 'h1', 3, 2, 1].forEach(function (tier) {
       const n = state.barn[id][tier] || 0;
       if (!n) return;
       const gold = tier === 'g', prist = tier === 'p';
+      const honey = typeof tier === 'string' && tier.charAt(0) === 'h';
       const each = tierPrice(sp, tier);
       const row = document.createElement('div');
       row.className = 'row-item';
       row.innerHTML =
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
-        '<div class="info"><h4>' + sp.name + ' ' +
-        (gold ? '<span class="stars">✨ golden</span>'
-              : prist ? '<span class="stars">💎 pristine</span>'
-              : '<span class="stars">' + starStr(tier) + '</span>') +
+        '<div class="info"><h4>' + sp.name + ' <span class="stars">' + tierLabel(tier) + '</span>' +
         ' <span class="badge ' + cls + '">×' + eff.toFixed(2) + seasonTag + '</span></h4>' +
         '<p>holding ' + n + ' · ' + each + '🪙 each' +
         (gold ? ' (mutation ×' + GOLD_PRICE_X + ')'
               : prist ? ' (flawless ×2)'
+              : honey ? ' (pollinated ×' + honeyBonus().toFixed(2) + ')'
               : (tier > 1 ? ' (quality ×' + STAR_MULT[tier] + ')' : '')) +
         '</p></div>' +
         '<div class="actions">' +
@@ -2826,16 +2893,17 @@ function paintMarket() {
   spin.addEventListener('click', spinWheel);
   list.appendChild(spin);
 
+  const asTier = function (v) { return /^\d+$/.test(v) ? +v : v; };
   list.querySelectorAll('button[data-sell]').forEach(function (b) {
     b.addEventListener('click', function () {
       const kv = b.dataset.sell.split(':');
-      sell(kv[0], kv[1] === 'g' || kv[1] === 'p' ? kv[1] : +kv[1], 1);
+      sell(kv[0], asTier(kv[1]), 1);
     });
   });
   list.querySelectorAll('button[data-sellall]').forEach(function (b) {
     b.addEventListener('click', function () {
       const kv = b.dataset.sellall.split(':');
-      sell(kv[0], kv[1] === 'g' || kv[1] === 'p' ? kv[1] : +kv[1], state.barn[kv[0]][kv[1]] || 0);
+      sell(kv[0], asTier(kv[1]), state.barn[kv[0]][kv[1]] || 0);
     });
   });
 }
@@ -2853,9 +2921,7 @@ function sell(id, tier, n) {
   state.earned += gain;
   state.runEarned += gain;
   saveState(); sfx('coin'); paintTop(); paintMarket(); paintShop();
-  toast('Sold ' + n + ' × ' +
-        (tier === 'g' ? '✨ golden' : tier === 'p' ? '💎 pristine' : starStr(tier)) + ' ' +
-        sp.name.toLowerCase() + ' · +' + gain + '🪙');
+  toast('Sold ' + n + ' × ' + tierLabel(tier) + ' ' + sp.name.toLowerCase() + ' · +' + gain + '🪙');
 }
 function sellAll() {
   const gain = barnValueAll();
@@ -2998,6 +3064,26 @@ function paintShop() {
     saveState(); paintTop(); paintShop(); paintGrowFoot();
     toast('+3 compost 🪱');
   });
+
+  // the hive
+  const hiveRow = document.createElement('div');
+  hiveRow.className = 'row-item';
+  const hiveCost = hasHive() ? Math.round(HIVE_COST * Math.pow(1.7, state.hiveLevel)) : HIVE_COST;
+  const canHive = state.coins >= hiveCost;
+  hiveRow.innerHTML =
+    '<div class="thumb" style="font-size:20px">🍯</div>' +
+    '<div class="info"><h4>' + (hasHive() ? 'Grow the hive' : 'A beehive') + '</h4><p>' +
+    (hasHive()
+      ? beeCount() + ' bee' + (beeCount() > 1 ? 's' : '') + ' · pollinated blooms +' +
+        Math.round((honeyBonus() - 1) * 100) + '%<br>next tier: ' +
+        Math.min(3, 1 + Math.floor((state.hiveLevel + 1) / 2)) + ' bees, +' +
+        Math.round((state.hiveLevel + 1) * 4) + '%'
+      : 'bees pollinate growing plants: +1 care each<br>they favour flowers over sprigs') +
+    '</p></div>' +
+    '<div class="actions"><button class="mini gold" id="buyhive"' + (canHive ? '' : ' disabled') + '>' +
+    hiveCost + '🪙</button></div>';
+  canWrap2.appendChild(hiveRow);
+  $('buyhive').addEventListener('click', buyHive);
 
   // land
   const landWrap = $('landlist');
@@ -3211,7 +3297,8 @@ const HINTS = {
   storm:   { ic: '⛈️', tx: 'A <b>storm</b> is coming. Unsheltered plants can be knocked back a stage — buy a <b>trellis</b> from a plant\'s screen to protect that plot.' },
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
-  wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' }
+  wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' },
+  bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' }
 };
 function hint(key) {
   if (tutor.hints[key] || coachActive()) return;
@@ -3234,7 +3321,7 @@ const WB_MIN_AWAY = 4 * 60 * 1000;          // don't nag for a quick tab-switch
 function catchUpWithLedger() {
   const awayMs = Math.max(0, NOW() - state.lastSeen);
   ledger = {};
-  tickWater(); stormTick(); growthTick(); bugTick(); weedTick(); ensureOrders();
+  tickWater(); stormTick(); pollenTick(); growthTick(); bugTick(); weedTick(); ensureOrders();
   const l = ledger;
   ledger = null;
   state.lastSeen = NOW();
@@ -3249,6 +3336,7 @@ function showWelcomeBack(awayMs, l) {
       (n ? '<span class="wbn">' + n + '</span>' : '') + '</div>');
   };
   if (l.ripened)    add('gold', '🌼', '<b>' + l.ripened + '</b> plant' + (l.ripened > 1 ? 's' : '') + ' finished growing', 'ready');
+  if (l.pollinated) add('gold', '🐝', 'your bees pollinated <b>' + l.pollinated + '</b> plant' + (l.pollinated > 1 ? 's' : ''), '🍯');
   if (l.stages)     add('good', '🌱', 'grew <b>' + l.stages + '</b> stage' + (l.stages > 1 ? 's' : '') + ' on their own', '');
   if (l.water)      add('good', '💧', 'the can refilled', '+' + l.water);
   if (l.aphids)     add('bad',  '🐛', '<b>' + l.aphids + '</b> plant' + (l.aphids > 1 ? 's' : '') + ' picked up aphids', 'tap!');
@@ -3382,6 +3470,125 @@ function openImport() {
       '</div>';
     $('k-no').addEventListener('click', openKeepsake);
     $('k-yes').addEventListener('click', function () { applyImport(res.data); });
+  });
+}
+
+/* ============================================================
+   Bees & pollination
+   A hive sends bees out over the garden. A bee lands on a growing
+   plant and pollinates it: +1 care, and the plant is marked. Bees
+   strongly prefer flowering forms (discs), so WHAT you plant and
+   HOW MANY flowers you keep in the ground both start to matter.
+   ============================================================ */
+const HIVE_COST = 650;
+const POLLEN_SLOT_MS = 4 * 60 * 1000;      // a bee sortie every few minutes
+function hasHive() { return !!state.hive; }
+function beeCount() { return hasHive() ? Math.min(3, 1 + Math.floor(state.hiveLevel / 2)) : 0; }
+function honeyBonus() { return hasHive() ? 1 + state.hiveLevel * 0.04 : 1; }   // pollinated sale bonus
+
+/* which plots a bee would find attractive right now */
+function beeTargets() {
+  const t = [];
+  state.plots.forEach(function (p, i) {
+    if (!p || p.bug) return;
+    const sp = byId[p.s];
+    if (!sp || p.stage === 0 || p.stage >= sp.stages) return;   // seeds and ripe plants are skipped
+    if (p.pollen) return;
+    t.push({ i: i, weight: sp.form === 'disc' ? 3 : sp.form === 'rosette' ? 2 : 1 });
+  });
+  return t;
+}
+function pollenTick() {
+  if (!hasHive()) return false;
+  const slot = Math.floor(NOW() / POLLEN_SLOT_MS);
+  if (slot === state.pollenSlot) return false;
+  const missed = Math.min(12, slot - (state.pollenSlot | 0));
+  state.pollenSlot = slot;
+  let did = 0;
+  for (let s = 0; s < missed; s++) {
+    for (let b = 0; b < beeCount(); b++) {
+      const targets = beeTargets();
+      if (!targets.length) break;
+      // weighted pick, deterministic per slot+bee
+      const total = targets.reduce(function (a, x) { return a + x.weight; }, 0);
+      let r = hash32(((slot - s) * 131 + b * 17 + 3) >>> 0) % total;
+      let chosen = targets[0];
+      for (let k = 0; k < targets.length; k++) { r -= targets[k].weight; if (r < 0) { chosen = targets[k]; break; } }
+      const p = state.plots[chosen.i];
+      if (!p) continue;
+      p.pollen = true;
+      p.q++;                                   // pollination is care the bee did for you
+      did++;
+      logEvent('pollinated');
+    }
+  }
+  if (did) saveState();
+  return did > 0;
+}
+function buyHive() {
+  if (hasHive()) {                             // upgrade
+    const cost = Math.round(HIVE_COST * Math.pow(1.7, state.hiveLevel));
+    if (state.coins < cost) return toast('Hive upgrade costs ' + cost + '🪙');
+    state.coins -= cost;
+    state.hiveLevel++;
+    saveState(); sfx('levelUp'); paintTop(); paintShop(); paintPlots();
+    return toast('🍯 Hive grown — ' + beeCount() + ' bees, +' + Math.round((honeyBonus() - 1) * 100) + '% on pollinated blooms');
+  }
+  if (state.coins < HIVE_COST) return toast('A hive costs ' + HIVE_COST + '🪙');
+  state.coins -= HIVE_COST;
+  state.hive = true;
+  state.hiveLevel = 1;
+  state.pollenSlot = Math.floor(NOW() / POLLEN_SLOT_MS);
+  saveState(); sfx('levelUp'); paintTop(); paintShop(); paintPlots();
+  toast('🍯 The bees have moved in!');
+  hint('bees');
+}
+
+/* the visible bees drifting over the garden view */
+let beeEls = [];
+function spawnBees() {
+  const wrap = $('plots');
+  beeEls.forEach(function (b) { b.remove(); });
+  beeEls = [];
+  if (!hasHive() || !opt.motion) return;
+  if ($('v-garden').classList.contains('hidden')) return;
+  const n = beeCount();
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('span');
+    b.className = 'bee';
+    b.textContent = '🐝';
+    b.style.left = (10 + Math.random() * 70) + '%';
+    b.style.top = (10 + Math.random() * 70) + '%';
+    b.style.animationDelay = (i * 0.13) + 's';
+    wrap.appendChild(b);
+    beeEls.push(b);
+  }
+}
+function flyBees() {
+  if (!beeEls.length) return;
+  const plots = $('plots').querySelectorAll('.plot');
+  beeEls.forEach(function (b) {
+    // head for a plot that still needs pollinating, else wander
+    const targets = beeTargets();
+    let x, y;
+    if (targets.length && plots.length) {
+      const t = targets[Math.floor(Math.random() * targets.length)];
+      const el = plots[t.i];
+      if (el) {
+        const pr = $('plots').getBoundingClientRect(), er = el.getBoundingClientRect();
+        x = er.left - pr.left + er.width * (0.25 + Math.random() * 0.5);
+        y = er.top - pr.top + er.height * (0.2 + Math.random() * 0.5);
+      }
+    }
+    if (x === undefined) {
+      const pr = $('plots').getBoundingClientRect();
+      x = Math.random() * Math.max(20, pr.width - 20);
+      y = Math.random() * Math.max(20, pr.height - 20);
+    }
+    const wasLeft = parseFloat(b.style.left) || 0;
+    b.classList.toggle('flip', x < wasLeft);
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
   });
 }
 
@@ -3546,7 +3753,7 @@ function GO(v) {
     $('v-' + name).classList.toggle('hidden', name !== v);
   });
   document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
-  if (v === 'garden')  paintPlots();
+  if (v === 'garden')  { paintPlots(); spawnBees(); setTimeout(flyBees, 60); }
   if (v === 'market')  { paintMarket(); hint('orders'); }
   if (v === 'almanac') paintAlmanac();
   if (v === 'shop')    { paintShop(); if (state.runEarned > 400) hint('prestige'); }
@@ -3582,6 +3789,7 @@ checkAch();               // catch anything a migrated save already qualifies fo
 paintAll();
 paintFever();
 GO('garden');
+spawnBees();
 if (!tutor.done && state.harvested === 0 && state.prestiges === 0) {
   setTimeout(function () { startTutorial(false); }, 400);   // a brand-new gardener
 } else if (caught.awayMs >= WB_MIN_AWAY && Object.keys(caught.l).length) {
@@ -3603,10 +3811,12 @@ setInterval(function () {
   const bugsBefore = state.plots.filter(function (p) { return p && p.bug; }).length;
   tickWater();
   stormTick();
+  const pollinated = pollenTick();
   const grew = growthTick();
   bugTick();
   weedTick();
   ladyTick();
+  if (tickN % 3 === 0) flyBees();
   paintFever();
   paintTop();
   paintSky();
@@ -3618,7 +3828,7 @@ setInterval(function () {
     const dot = $('dots').children[p.stage - 1];
     if (dot) dot.classList.add('on');
   }
-  if (state.water !== before || bugsNow !== bugsBefore || grew) { paintPlots(); paintGrowFoot(); }
+  if (state.water !== before || bugsNow !== bugsBefore || grew || pollinated) { paintPlots(); spawnBees(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
   if (bugsNow > bugsBefore) { toast('Aphids! 🐛 tap the plant and squash them'); hint('aphid'); }
   // a storm in the next two slots is worth warning about once
