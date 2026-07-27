@@ -1676,6 +1676,7 @@ function startFever() {
   toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for ' + Math.round(ms / 1000) + 's!');
   paintFever();
   hint('fever');
+  if (musicTimer) musicRetime();          // the score goes double-time
 }
 function paintFever() {
   const on = feverActive();
@@ -2211,7 +2212,7 @@ function etaToReady(sp, p) {
    until the first user gesture (browsers require that).
    ============================================================ */
 const SETTINGS_KEY = 'fibgarden.settings';
-let opt = { sound: true, ambient: true, haptics: true, motion: true, cb: false };
+let opt = { sound: true, ambient: true, music: true, haptics: true, motion: true, cb: false };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);
   if (raw) opt = Object.assign(opt, JSON.parse(raw));
@@ -2236,6 +2237,7 @@ function unlockAudio() {
   const a = audio();
   if (a && a.state === 'suspended') a.resume();
   startAmbient();
+  if (opt.music) startMusic();
 }
 ['pointerdown', 'keydown'].forEach(function (ev) {
   window.addEventListener(ev, unlockAudio, { once: true });
@@ -2329,6 +2331,109 @@ const SFX = {
   gift:     function () { chord([659.25, 830.6, 1046.5], 0.4, { type: 'sine', gain: 0.16 }); buzz(25); }
 };
 function sfx(name, arg) { const f = SFX[name]; if (f) try { f(arg); } catch (e) {} }
+
+/* ============================================================
+   The Score — generative music, no audio files
+   The garden plays itself. Each season picks a mode, the time of
+   day sets register and tempo, and the chord roots walk a
+   Fibonacci pattern (1,1,2,3,5,8 scale degrees). During Fibonacci
+   Fever it doubles in tempo and brightens.
+   ============================================================ */
+const SCALES = {
+  spring: [0, 2, 4, 6, 7, 9, 11],   // lydian — bright, hopeful
+  summer: [0, 2, 4, 5, 7, 9, 11],   // ionian — plain major
+  autumn: [0, 2, 4, 5, 7, 9, 10],   // mixolydian — warm, falling
+  winter: [0, 2, 3, 5, 7, 8, 10]    // aeolian — cold, minor
+};
+const SEASON_ROOT = { spring: 293.66, summer: 329.63, autumn: 261.63, winter: 220.00 };
+const SCORE_WALK = [1, 1, 2, 3, 5, 8];        // the sequence, as scale degrees
+let musicTimer = null, scoreStep = 0, musicBus = null;
+
+function noteAt(rootHz, scale, degree, octave) {
+  const n = scale[((degree % scale.length) + scale.length) % scale.length];
+  const oct = octave + Math.floor(degree / scale.length);
+  return rootHz * Math.pow(2, n / 12) * Math.pow(2, oct);
+}
+function musicGain() {
+  if (musicBus) return musicBus;
+  const a = audio();
+  if (!a) return null;
+  musicBus = a.createGain();
+  musicBus.gain.value = 0.10;                 // sits under the effects
+  musicBus.connect(master);
+  return musicBus;
+}
+/* one soft voice — a triangle through a lowpass, long release */
+function musicNote(freq, dur, gain, delay, type) {
+  const a = audio();
+  if (!a || a.state === 'suspended') return;
+  const bus = musicGain();
+  if (!bus) return;
+  const t0 = a.currentTime + (delay || 0);
+  const osc = a.createOscillator();
+  const g = a.createGain();
+  const f = a.createBiquadFilter();
+  osc.type = type || 'triangle';
+  osc.frequency.setValueAtTime(freq, t0);
+  f.type = 'lowpass';
+  f.frequency.setValueAtTime(isDay() ? 2600 : 1400, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + dur * 0.25);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(f); f.connect(g); g.connect(bus);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+}
+function beatMs() {
+  const fever = feverActive();
+  const base = isDay() ? 2000 : 2600;          // the garden slows at night
+  return fever ? base / 2 : base;
+}
+function playBar() {
+  if (!opt.music || !opt.sound) return;
+  const a = audio();
+  if (!a || a.state === 'suspended') return;
+  const season = seasonNow().id;
+  const scale = SCALES[season] || SCALES.summer;
+  const root = SEASON_ROOT[season] || 261.63;
+  const fever = feverActive();
+  const deg = SCORE_WALK[scoreStep % SCORE_WALK.length] - 1;
+  const oct = isDay() ? 0 : -1;
+  const beat = beatMs() / 1000;
+
+  // bass root
+  musicNote(noteAt(root, scale, deg, oct - 1), beat * 1.9, 0.075, 0, 'sine');
+  // a triad, arpeggiated — the interval steps are Fibonacci
+  [0, 2, 4].forEach(function (iv, i) {
+    musicNote(noteAt(root, scale, deg + iv, oct), beat * 1.1,
+              fever ? 0.05 : 0.036, i * beat * 0.16, 'triangle');
+  });
+  // a wandering high voice, only sometimes, so it never feels looped
+  if (hash32((scoreStep * 2654435761 + 11) >>> 0) % 100 < (fever ? 85 : 45)) {
+    const lead = deg + SCORE_WALK[(scoreStep + 2) % SCORE_WALK.length];
+    musicNote(noteAt(root, scale, lead, oct + 1), beat * 0.7,
+              fever ? 0.04 : 0.026, beat * 0.5, 'sine');
+  }
+  scoreStep++;
+}
+function startMusic() {
+  if (musicTimer) return;
+  playBar();
+  musicTimer = setInterval(function () {
+    if (!opt.music || !opt.sound) return;
+    playBar();
+  }, 2000);
+  // re-time when fever starts or the sun goes down
+  musicRetime();
+}
+function musicRetime() {
+  clearInterval(musicTimer);
+  musicTimer = setInterval(function () {
+    if (!opt.music || !opt.sound) return;
+    playBar();
+  }, beatMs());
+}
+function stopMusic() { clearInterval(musicTimer); musicTimer = null; }
 
 /* gentle ambience: birds by day, crickets at night, rain when it rains */
 function ambientVoice() {
@@ -4671,6 +4776,7 @@ function doInstall() {
 const OPTIONS = [
   { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
   { k: 'ambient', icon: '🐦', name: 'Garden ambience', desc: 'birds by day, crickets at night, rain when it rains' },
+  { k: 'music',   icon: '🎵', name: 'Generative score', desc: 'the season picks the mode, the hour sets the tempo' },
   { k: 'haptics', icon: '📳', name: 'Vibration', desc: 'a nudge on perfect pours and spills' },
   { k: 'motion',  icon: '✨', name: 'Motion & particles', desc: 'screen shake, bursts, floating text' },
   { k: 'cb',      icon: '👁', name: 'Colour-blind marks', desc: 'adds arrows and symbols where colour alone carried meaning' }
@@ -4710,6 +4816,7 @@ function openSettings() {
       if (k === 'sound' && opt.sound) { unlockAudio(); sfx('tap'); }
       if (k === 'haptics' && opt.haptics) buzz(20);
       if (k === 'ambient' && opt.ambient) { unlockAudio(); ambientVoice(); }
+      if (k === 'music') { if (opt.music) { unlockAudio(); startMusic(); } else stopMusic(); }
       if (k === 'cb') applyA11y();
       if (k === 'motion') { paintPlots(); spawnBees(); }
     });
