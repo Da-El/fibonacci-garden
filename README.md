@@ -223,4 +223,8 @@ blooms — as a PNG worth sharing.
   Delete that box.
 - There's no audio.
 - Balance is tuned from headless 21-day simulations at three visit rates and four
-  pour-accuracy levels, not from real players.
+  pour-accuracy levels, not from real players. The suite also audits for *dead*
+  mechanics — wilting fired zero times in three weeks for thirty iterations, and
+  customer orders were being drawn from species the player couldn't unlock — so if
+  you add a system, add the counter that proves it fires.
+- The worst-case garden is ~248KB of SVG markup for nine fully-grown plants.

@@ -2739,7 +2739,9 @@ function growthTick() {
         p.q++; p.appQ = (p.appQ | 0) + 1;
         logEvent('appCare');
       }
-      if (p.stage >= sp.stages) { p.ripeAt = Math.min(NOW(), p.stageAt); logEvent('ripened'); }
+      /* The clock cannot finish a plant any more — the ceiling is always
+         short of the last stage — so there is deliberately no `ripened`
+         event here. Ripening is now something only a pour can do. */
     }
     if (p.stage >= ceil && p.stage < sp.stages) {
       logEvent('stalled');
@@ -3238,11 +3240,24 @@ function barnValueAll() {
    Three standing orders. Each wants qty × species at a minimum
    quality, pays well over market, and expires. Deterministic on a
    counter so a save always regenerates the same next order.       */
+/* Orders used to be drawn from the whole shelf and given a flat 4–12 hours.
+   Both were wrong, and together they made the entire system dead content:
+   a measured three weeks delivered 0–4% of orders and expired the other
+   96–100%. A level-7 gardener was being asked for pineapples they could not
+   unlock for nine more levels, and four hours does not cover a crop that
+   takes five and a half just to reach the ceiling.
+   Now a customer only asks for something you can actually grow, and the
+   deadline is derived from how long that crop really takes. */
 function makeOrder(n) {
-  const sp = SPECIES[hash32(n * 2654435761 + 99991 >>> 0) % SPECIES.length];
+  const growable = SPECIES.filter(function (x) { return x.lvl <= state.level; });
+  const pool = growable.length ? growable : [SPECIES[0]];
+  const sp = pool[hash32(n * 2654435761 + 99991 >>> 0) % pool.length];
   const qty = 1 + hash32(n * 7 + 1 >>> 0) % 3;                 // 1..3
   const stars = 1 + hash32(n * 13 + 2 >>> 0) % 3;              // min quality 1..3
-  const hours = 4 + hash32(n * 17 + 3 >>> 0) % 9;              // 4..12 h to deliver
+  // time for the clock to reach the ceiling, plus room to pour and to repeat
+  const ceilH = timerCeiling(sp) * sp.growMin / 60;
+  const hours = Math.min(30, Math.ceil(ceilH * qty + 5 + stars * 2 +
+                                       hash32(n * 17 + 3 >>> 0) % 5));
   const mult = 1.5 + stars * 0.25 + qty * 0.05;                // premium over base
   return {
     n: n, s: sp.id, qty: qty, stars: stars,
@@ -3701,7 +3716,12 @@ function paintPlots() {
           ? '<span class="gmark">' + (glass ? '🔒' : state.trellised[i] ? '🛡️' : '') +
             (p.pollen ? '🍯' : '') + '</span>'
           : '') +
-        '<div class="gart">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>';
+        /* The garden scene draws each plant about 86px wide, where the extra
+           detail is not visible at all — forcing low here is 22% less markup
+           across the shelf, and up to 49% on the mid-tier species that were
+           under the auto-LOD budget and so had been drawing at full detail.
+           The grow view still gets everything. */
+        '<div class="gart">' + plantSVG(sp, elementsAt(sp, p.stage), undefined, 'low') + '</div>';
       d.addEventListener('click', function () { openGrow(i); });
       bed.appendChild(d);
     }
@@ -5702,7 +5722,6 @@ function showWelcomeBack(awayMs, l) {
       '<span class="wbic">' + icon + '</span><span class="wbtx">' + text + '</span>' +
       (n ? '<span class="wbn">' + n + '</span>' : '') + '</div>');
   };
-  if (l.ripened)    add('gold', '🌼', '<b>' + l.ripened + '</b> plant' + (l.ripened > 1 ? 's' : '') + ' finished growing', 'ready');
   if (l.stalled)    add('good', '💧', '<b>' + l.stalled + '</b> plant' + (l.stalled > 1 ? 's are' : ' is') +
                         ' grown as far as the clock will take ' + (l.stalled > 1 ? 'them' : 'it'), 'pour!');
   if (l.pollinated) add('gold', '🐝', 'your bees pollinated <b>' + l.pollinated + '</b> plant' + (l.pollinated > 1 ? 's' : ''), '🍯');
@@ -5752,7 +5771,8 @@ function showWelcomeBack(awayMs, l) {
     closeCard();
     checkDailyGift();                        // the gift comes after the digest
   });
-  if (l.ripened) sfx('gift');
+  // something good happened while you were away, and it is worth a sound
+  if (l.appPick || l.appTook || l.stalled) sfx('gift');
 }
 
 /* ============================================================
