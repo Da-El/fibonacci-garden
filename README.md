@@ -205,7 +205,9 @@ for itself; **promoting only pays if you play often**, and that's the decision.
 Buy a hive and bees work the garden for you: each sortie pollinates a growing plant
 for a free care point, and a 🍯 pollinated bloom sells for a premium. They **favour
 flowers over sprigs**, so what you keep in the ground decides how much they help.
-Upgrading the hive adds bees and raises the honey bonus.
+Upgrading the hive adds bees and raises the honey bonus (+15% a level on a honeyed
+bloom). Measured over three weeks a hive returns +2,300 to +19,200 against its 650
+coins, at every visit rate.
 
 ## Sound
 

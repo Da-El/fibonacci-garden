@@ -5765,7 +5765,11 @@ const WB_MIN_AWAY = 4 * 60 * 1000;          // don't nag for a quick tab-switch
 function catchUpWithLedger() {
   const awayMs = Math.max(0, NOW() - state.lastSeen);
   ledger = {};
-  tickWater(); stormTick(); pollenTick(); growthTick(); bugTick(); weedTick();
+  /* Growth before pollen: bees skip seeds and ripe plants, so running them
+     first meant they inspected the garden as it was when you closed the app —
+     everything you had just sown still at stage 0 — and found nothing to
+     visit. Thirteen pollinations in three weeks, for a hive that costs 650. */
+  tickWater(); stormTick(); growthTick(); pollenTick(); bugTick(); weedTick();
   appWages(); appTick(); ensureOrders();
   const l = ledger;
   ledger = null;
@@ -5960,7 +5964,10 @@ const HIVE_COST = 650;
 const POLLEN_SLOT_MS = 4 * 60 * 1000;      // a bee sortie every few minutes
 function hasHive() { return !!state.hive; }
 function beeCount() { return hasHive() ? Math.min(3, 1 + Math.floor(state.hiveLevel / 2)) : 0; }
-function honeyBonus() { return hasHive() ? 1 + state.hiveLevel * 0.04 : 1; }   // pollinated sale bonus
+/* A honeyed bloom's premium. It was 4% a hive level, which could not repay
+   a 650-coin hive however many flowers the bees found — the reward was
+   simply too small to be worth measuring, and nobody had measured it. */
+function honeyBonus() { return hasHive() ? 1 + state.hiveLevel * 0.15 : 1; }
 
 /* which plots a bee would find attractive right now */
 function beeTargets() {
