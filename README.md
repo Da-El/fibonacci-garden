@@ -249,6 +249,13 @@ flawless, and the whole ladder. It pays 6,620 coins and 7 golden seeds across it
 Long-term goals: the **botanist's almanac** (all nine species at ★★★ pays a golden
 seed), **17 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
 
+The **Daily's** streak is separate, and it is now actually a streak. It was written in
+one place and reset in none, so it was a lifetime win count wearing the word — three
+months away and it came back untouched, sitting next to a `dailyWins` field that already
+counted lifetime wins. It carries on from yesterday or it starts again, and it is
+computed from the day it last advanced rather than swept, because there is no tick
+running while the app is closed that could be trusted to notice the lapse.
+
 ## The almanac
 
 Every species you have grown gets a card, and the card makes the case the game keeps
@@ -282,7 +289,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,083 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,111 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

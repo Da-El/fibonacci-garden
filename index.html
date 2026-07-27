@@ -2114,6 +2114,7 @@ function freshState() {
     daily: null,                     // today's challenge run
     dailyBest: {},                   // best score per day
     dailyStreak: 0,
+    dailyStreakDay: -2,              // the day the streak last advanced
     dailyWins: 0,
     appLevel: 0,                     // 0 = no apprentice
     appSlot: 0,
@@ -2203,6 +2204,11 @@ function loadState() {
         p.daily = p.daily || null;
         p.dailyBest = p.dailyBest || {};
         p.dailyStreak = p.dailyStreak | 0;
+        /* An old save has a streak but no day against it. Credit it to
+           yesterday so a returning player's next win carries on rather than
+           silently restarting — the number was already theirs. */
+        p.dailyStreakDay = p.dailyStreakDay === undefined
+          ? (p.dailyStreak ? dayIndex() - 1 : -2) : p.dailyStreakDay | 0;
         p.dailyWins = p.dailyWins | 0;
         p.appLevel = p.appLevel | 0;
         p.appSlot = p.appSlot | 0;
@@ -4895,11 +4901,21 @@ function paintOrders() {
   });
 }
 
+/* A streak is consecutive days, so it is worth nothing the moment a day is
+   missed. Read live rather than reset by a sweep: there is no tick that runs
+   while the app is closed and could be trusted to notice the lapse, and a
+   number the game recomputes cannot go stale in a save. Today still counts as
+   carrying on — you have not missed today until it is over. */
+function streakNow() {
+  const gap = dayIndex() - (state.dailyStreakDay | 0);
+  return gap <= 1 ? (state.dailyStreak | 0) : 0;
+}
+
 function paintDailyRow() {
   const spec = dailySpec(dayIndex());
   const d = dailyState();
   const best = (state.dailyBest && state.dailyBest[String(spec.day)]) || 0;
-  $('dailyinfo').textContent = 'streak ' + (state.dailyStreak | 0) +
+  $('dailyinfo').textContent = 'streak ' + streakNow() +
     ' · won ' + (state.dailyWins | 0);
   $('dailyrow').innerHTML =
     '<div class="row-item" style="cursor:pointer;border-color:' +
@@ -6539,7 +6555,12 @@ function dailyRender(spec, d) {
       if (d.score > (state.dailyBest[key] || 0)) state.dailyBest[key] = d.score;
       if (d.score >= spec.par && !d.done) {
         d.done = true;
-        state.dailyStreak = (state.dailyStreak | 0) + 1;
+        /* The streak was incremented here and reset nowhere in the game, so
+           it was a lifetime win count wearing the word "streak" — three
+           months away and it came back untouched, and `dailyWins` beside it
+           already counts lifetime wins. It carries on only from yesterday. */
+        state.dailyStreak = streakNow() + 1;
+        state.dailyStreakDay = spec.day;
         state.dailyWins = (state.dailyWins | 0) + 1;
         gainCoins(Math.round(spec.par * 0.5));
         sfx('jackpot');

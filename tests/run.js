@@ -41,6 +41,7 @@ const FILES = [
   ['edge-check','the pour at its edges: the ends of the bar, the last drop, the timeout'],
   ['deep-check','the deepening pass over 84-87: her chores, the panes, the planter, the digest'],
   ['barn-check','the barn as a decision: what waiting pays, and whether a hoarder loses'],
+  ['season-check','a real mid-run garden left for three days, three weeks and a season'],
   ['skip-check',    'the opening played with the coach switched off: what is never explained'],
   ['return-check',  'everything a returning player is told: the hints, the digest, the title'],
   ['orders-check',  'the order board: what it pays, and whether it is ever worth planting for'],
