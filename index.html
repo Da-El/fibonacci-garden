@@ -5699,8 +5699,14 @@ const CHAPTERS = [
   { id: 'c4', title: 'Weather the weather',
     quote: 'Every storm passes. What matters is what is still standing.',
     objs: [
-      { t: 'Build a trellis',                 get: function (s) { return s.trellised.filter(Boolean).length; }, need: 1 },
-      { t: 'Clear weeds three times',         get: function (s) { return s.weedsCleared | 0; }, need: 3 },
+      /* Weeds only sprout in an empty bed, so "clear weeds three times" asked
+         a tidy gardener to be untidy three times over — a diligent three
+         weeks turns up one weed in total, and the chapter was unreachable
+         for anyone who replants what they lift. An objective should be a
+         choice, not a punishment for having played well. One weed teaches
+         that weeds exist; three demands neglect. */
+      { t: 'Shelter three beds from storms',  get: function (s) { return s.trellised.filter(Boolean).length; }, need: 3 },
+      { t: 'Clear a patch of weeds',          get: function (s) { return s.weedsCleared | 0; }, need: 1 },
       { t: 'Deliver five orders',             get: function (s) { return s.ordersDelivered; }, need: 5 }
     ],
     reward: { coins: 500, label: '500🪙' } },

@@ -75,7 +75,14 @@ function run(cfg) {
     s.plots.forEach(function (p, i) {
       if (p && p.bug) { E('curPlot = ' + i); guardCall('squashBug', function () { E('squashBug()'); return true; }); }
     });
-    for (let i = 0; i < s.plotCount; i++) if (s.weeds && s.weeds[i]) s.weeds[i] = 0;
+    /* Clear weeds by calling the game's own function rather than zeroing the
+       array. Setting state.weeds[i] = 0 skips the worm, the experience, and
+       the weedsCleared counter a journal chapter is waiting on — so a run
+       that pulled weeds all fortnight reported having pulled none. Same
+       shape as selling the barn before delivering an order. */
+    for (let i = 0; i < s.plotCount; i++) {
+      if (s.weeds && s.weeds[i]) guardCall('clearWeed', function () { E('clearWeed(' + i + ')'); return true; });
+    }
 
     /* Spend the can down, finishing the plant nearest to ripe first, and
        harvest and replant as we go. Pouring only once per plot per visit
@@ -215,6 +222,23 @@ function run(cfg) {
       if (cc && s.coins > cc * 3) guardCall('buyCan', function () { E('buyCan()'); return true; });
       else break;
     }
+    /* Shelter a bed or two once there is money spare. A trellis is one of
+       the cheapest things on the shelf and a storm costs a whole stage, so
+       anyone would — and the simulation never bought one, which left a
+       journal chapter looking permanently out of reach. */
+    {
+      const s = S();
+      const tc = E('TRELLIS_COST');
+      const sheltered = (s.trellised || []).filter(Boolean).length;
+      if (sheltered < 3 && s.coins > tc * 6) {
+        for (let i = 0; i < s.plotCount; i++) {
+          if (s.trellised[i]) continue;
+          E('curPlot = ' + i);
+          guardCall('buyTrellis', function () { E('buyTrellis()'); return true; });
+          break;
+        }
+      }
+    }
     // plant the best affordable species in every empty plot
     const sp3 = S();
     const list = E('SPECIES').filter(function (x) { return x.lvl <= sp3.level; });
@@ -236,10 +260,24 @@ function run(cfg) {
     twice: [10 * HOUR, 14 * HOUR]
   };
   const gaps = PROFILE[cfg.profile || 'diligent'];
-  for (let d = 0; d < 21; d++) {
+  /* Which day each journal chapter was first complete on. The journal exists
+     to answer "what should I do next", and that question is only answerable
+     by knowing when each one actually falls in a run rather than whether it
+     can be satisfied by a synthetic maxed-out save. */
+  const chapterTrail = {};
+  const days = cfg.days || 21;
+  for (let d = 0; d < days; d++) {
     for (let k = 0; k < gaps.length; k++) {
       advance(gaps[k]);
       session();
+    }
+    if (cfg.chapterTrail) {
+      E('CHAPTERS').forEach(function (c) {
+        if (chapterTrail[c.id]) return;
+        let p = null;
+        try { p = E('chapterProgress')(c); } catch (e) { return; }
+        if (p && p.all) chapterTrail[c.id] = d + 1;
+      });
     }
     const s = S();
     log.days.push({
@@ -266,6 +304,7 @@ function run(cfg) {
     /* which achievements a real run actually earns — nothing had ever
        reported this, so the achievement audit was reading undefined */
     ach: Object.assign({}, s.ach),
+    chapterTrail: chapterTrail,
     errs: errs,
     days: log.days
   };
