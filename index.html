@@ -225,6 +225,8 @@
   }
   .gplant .gtag.ready { color: #2a1d05; background: var(--gold); font-weight: 700; }
   .gplant .gtag.warn { color: #fff; background: #b3402ecc; }
+  /* the clock has done all it will — this plant is waiting on a drop */
+  .gplant .gtag.thirsty { color: #eaf6ff; background: #2f6da8dd; font-weight: 600; }
   .gplant .gmark {
     position: absolute; top: -4px; right: -2px; font-size: 12px; pointer-events: none;
   }
@@ -1838,6 +1840,7 @@ function freshState() {
     appLevel: 0,                     // 0 = no apprentice
     appSlot: 0,
     appPaidDay: 0,
+    lastSown: {},                    // bed -> species, so she can re-sow it
     history: [],                     // per-day ledger rows, capped
     speciesGrown: {},                // lifetime harvests per species
     qualityMix: {},                  // lifetime harvests per quality tier
@@ -1917,6 +1920,7 @@ function loadState() {
         p.appLevel = p.appLevel | 0;
         p.appSlot = p.appSlot | 0;
         p.appPaidDay = p.appPaidDay | 0;
+        p.lastSown = p.lastSown || {};
         p.history = Array.isArray(p.history) ? p.history : [];
         p.speciesGrown = p.speciesGrown || {};
         p.qualityMix = p.qualityMix || {};
@@ -2032,9 +2036,13 @@ function paintFever() {
   if (on) $('fevertime').textContent = Math.ceil((state.feverUntil - NOW()) / 1000) + 's';
 }
 
-function priceOf(sp) {
+/* `sellMult` overrides the weather's contribution, so the apprentice can
+   price a sale at the best weather of her shift through this same
+   formula rather than a second copy of it that could drift. */
+function priceOf(sp, sellMult) {
   return Math.max(1, Math.round(
-    sp.price * priceMult(sp) * weatherNow().sell * goldenMult() * seasonMult(sp) *
+    sp.price * priceMult(sp) * (sellMult === undefined ? weatherNow().sell : sellMult) *
+    goldenMult() * seasonMult(sp) *
     (feverActive() ? PHI : 1) * (hasPerk('greenthumb') ? 1.10 : 1)));
 }
 
@@ -2514,12 +2522,17 @@ function spinWheel() {
    A ripe plant left standing loses one star per full day.         */
 const WILT_MS = 24 * 3600 * 1000;
 function wiltMs() { return WILT_MS * (hasPerk('evergreen') ? 2 : 1); }
-function wiltPenalty(p) {
+/* `at` is when the crop is being lifted, and defaults to now. The
+   apprentice's work is replayed retroactively when you reopen the app,
+   so she has to be credited at the hour she would actually have picked
+   it — otherwise she is judged as though she waited for you to get back,
+   and saving a bloom from wilting becomes literally impossible. */
+function wiltPenalty(p, at) {
   if (!p.ripeAt) return 0;
-  return Math.floor(Math.max(0, NOW() - p.ripeAt) / wiltMs());
+  return Math.floor(Math.max(0, (at === undefined ? NOW() : at) - p.ripeAt) / wiltMs());
 }
-function harvestStars(sp, p) {
-  return Math.max(1, starsFor(sp, p.q) - wiltPenalty(p));
+function harvestStars(sp, p, at) {
+  return Math.max(1, starsFor(sp, p.q) - wiltPenalty(p, at));
 }
 
 /* ---- the living clock -------------------------------------------
@@ -2543,31 +2556,65 @@ function stageDurMs(sp, p) {
   const r = growthRate(p, sp);
   return r === 0 ? Infinity : sp.growMin * 60000 / r;
 }
+/* How far the clock alone will carry a plant. It used to carry it all
+   the way, which quietly made watering pointless: a garden left alone
+   ripened everything for free in under an hour, so drops only ever
+   bought quality and the can never mattered. Now the clock brings a
+   plant most of the way and the last stages are yours to pour — so
+   coming back still finds the garden grown, but there is work waiting
+   and the size of your can is what decides how much you can finish. */
+/* Half. At 0.6 the seven-stage species were left only two pours, and two
+   pours cannot reach the ★★★ threshold of ceil(stages·2/3) however
+   perfectly they land — the top grade was arithmetically out of reach for
+   a third of the shelf. Half also states the rule more plainly: the clock
+   takes a plant halfway, you finish it.
+   Employing an apprentice extends that reach, because the boring middle
+   of a grow is precisely what hired help is for. Every rank is checked to
+   leave enough pours that ★★★ stays reachable — she buys you drops, never
+   quality. */
+const TIMER_REACH = 0.5;
+function timerCeiling(sp) {
+  const reach = hasApprentice() ? appTier().reach : TIMER_REACH;
+  return Math.max(1, Math.ceil(sp.stages * reach));
+}
+
 function growthTick() {
   let grew = false;
   state.plots.forEach(function (p) {
     if (!p) return;
     const sp = byId[p.s];
     if (!sp || p.stage >= sp.stages) return;
+    const ceil = timerCeiling(sp);
     let guard = 0;
-    while (p.stage < sp.stages && guard++ < 50) {
+    while (p.stage < ceil && guard++ < 50) {
       const dur = stageDurMs(sp, p);
       if (!isFinite(dur) || NOW() - p.stageAt < dur) break;
       p.stageAt += dur;
-      p.stage++;                                   // the clock grows it — no care point
+      p.stage++;                                   // the clock alone earns no care
       grew = true;
       logEvent('stages');
+      /* but if you employ someone, she is out there tending these stages
+         properly, and that is worth quality up to her rank's allowance */
+      if (hasApprentice() && (p.appQ | 0) < appTier().care) {
+        p.q++; p.appQ = (p.appQ | 0) + 1;
+        logEvent('appCare');
+      }
       if (p.stage >= sp.stages) { p.ripeAt = Math.min(NOW(), p.stageAt); logEvent('ripened'); }
     }
+    if (p.stage >= ceil && p.stage < sp.stages) logEvent('stalled');
   });
   if (grew) saveState();
   return grew;
 }
+/* Time until the clock has done all it will do — the ceiling, not ripe.
+   Returns 0 once the plant is stalled and waiting on you. */
 function etaToReady(sp, p) {
   const dur = stageDurMs(sp, p);
   if (!isFinite(dur)) return null;                 // aphids: growth paused
+  const ceil = timerCeiling(sp);
+  if (p.stage >= ceil) return 0;                   // stalled — it needs a drop
   const first = Math.max(0, dur - (NOW() - p.stageAt));
-  return first + (sp.stages - p.stage - 1) * dur;
+  return first + (ceil - p.stage - 1) * dur;
 }
 
 /* ============================================================
@@ -2948,7 +2995,7 @@ function starsFor(sp, q) {
 }
 const STAR_MULT = { 1: 1.0, 2: 1.3, 3: 1.6 };
 function starStr(n) { return '★'.repeat(n); }
-function priceOfQ(sp, stars) { return Math.max(1, Math.round(priceOf(sp) * STAR_MULT[stars])); }
+function priceOfQ(sp, stars, sellMult) { return Math.max(1, Math.round(priceOf(sp, sellMult) * STAR_MULT[stars])); }
 function barnCountAll() {
   let n = 0;
   Object.keys(state.barn).forEach(function (id) {
@@ -3394,10 +3441,14 @@ function paintPlots() {
       d.style.bottom = baseY + 'px';
       d.style.zIndex = 10 + rowI;
       d.style.opacity = 0.78 + depth * 0.22;
+      // a stalled plant has had all the clock will give it — it wants a drop
+      const stalled = !done && !p.bug && p.stage >= timerCeiling(sp);
       d.innerHTML =
-        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : '')) + '">' +
+        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : (stalled ? ' thirsty' : ''))) + '">' +
           (done ? (wilting ? 'wilting ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
-                : (p.bug ? '🐛 paused' : p.stage + '/' + sp.stages + ' · ' + fmtLong(etaToReady(sp, p)))) +
+                : p.bug ? '🐛 paused'
+                : stalled ? p.stage + '/' + sp.stages + ' · 💧 needs you'
+                : p.stage + '/' + sp.stages + ' · ' + fmtLong(etaToReady(sp, p))) +
         '</div>' +
         (state.trellised[i] || p.pollen
           ? '<span class="gmark">' + (state.trellised[i] ? '🛡️' : '') + (p.pollen ? '🍯' : '') + '</span>'
@@ -3455,7 +3506,7 @@ function openPlanter(plotIdx) {
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') +
         (want.length ? ';border-color:#6a5322' : '') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
-        '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
+        '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match ? ' match' : '') +
           '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
           'water to skip stages · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
@@ -3481,6 +3532,7 @@ function plant(plotIdx, spId) {
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
   state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0, hired: false };
+  state.lastSown[plotIdx] = spId;              // what a head gardener would put back
   sfx('plant');
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
@@ -3716,7 +3768,11 @@ function advanceStage(via, perfect) {
   if (via === 'water') {
     state.water--;
     if (state.water === waterCap() - 1) state.lastTick = NOW();
-    if (prefMatch(sp) && sp.pref !== 'any') p.q++;
+    /* An easygoing species earns its care point in any hour — that is what
+       easygoing is supposed to mean. Excluding it here made elm and vine
+       the only plants that could never reach ★★★, so the friendliest
+       label on the shelf was quietly the harshest penalty. */
+    if (prefMatch(sp)) p.q++;
     if (perfect) { p.q++; p.perfects++; }
   } else {
     state.compost--;
@@ -3730,7 +3786,7 @@ function advanceStage(via, perfect) {
   const dot = $('dots').children[p.stage - 1];
   if (dot) dot.classList.add('on');
   $('addflash').textContent = '+' + FIB[p.stage - 1] +
-    (via === 'water' && prefMatch(sp) && sp.pref !== 'any' ? ' · +care ' + prefIcon(sp) : '');
+    (via === 'water' && prefMatch(sp) ? ' · +care ' + prefIcon(sp) : '');
   $('addflash').classList.add('show');
   burstCenter($('canvas'), via === 'water' ? ['💧', '💧', '✨', '💧'] : ['🪱', '✨', '🍂']);
   paintGrowFoot(); paintTop();
@@ -3769,11 +3825,17 @@ function doCompost() {
   advanceStage('compost');
 }
 
-function harvest() {
-  const p = state.plots[curPlot];
+/* Banks a ripe plot into the barn and clears the plot. Split out of
+   harvest() so the apprentice can lift a crop while you are away under
+   exactly the same quality rules — one code path, no second set of
+   odds to keep in step. Returns what happened; the caller supplies the
+   celebration. */
+function bankHarvest(idx, at) {
+  const p = state.plots[idx];
+  if (!p) return null;
   const sp = byId[p.s];
-  const wilted = wiltPenalty(p) > 0;
-  let stars = harvestStars(sp, p);
+  const wilted = wiltPenalty(p, at) > 0;
+  let stars = harvestStars(sp, p, at);
 
   // golden mutation roll — deterministic on the lifetime harvest count.
   // Failing that: a flawless grow — every single stage perfect-poured,
@@ -3792,7 +3854,7 @@ function harvest() {
   } else {
     state.barn[sp.id][stars] = (state.barn[sp.id][stars] || 0) + 1;
   }
-  state.plots[curPlot] = null;
+  state.plots[idx] = null;
   state.harvested++;
   ledgerAdd('harvests', 1);
   ledgerNote(sp.id, isGolden ? 'g' : isPristine ? 'p' : String(stars));
@@ -3825,14 +3887,22 @@ function harvest() {
     gainCoins(bonus);
   }
   saveState();
+  return { sp: sp, stars: stars, isGolden: isGolden, isPristine: isPristine,
+           wilted: wilted, bonus: bonus, goldenNote: goldenNote };
+}
+
+function harvest() {
+  const r = bankHarvest(curPlot);
+  if (!r) return;
+  const sp = r.sp, stars = r.stars;
   curPlot = -1;
-  sfx(isGolden || isPristine ? 'golden' : 'harvest');
-  harvestReveal(sp, stars, isGolden || isPristine,
-    isGolden ? goldPriceOf(sp) : isPristine ? priceOfQ(sp, 3) * 2 : priceOfQ(sp, stars));
-  toast((isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '!'
-       : isPristine ? '💎 PRISTINE — every pour perfect!'
-       : 'Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() + (wilted ? ' (wilted)' : '')) +
-        (bonus ? ' · new species +' + bonus + '🪙' : '') + goldenNote);
+  sfx(r.isGolden || r.isPristine ? 'golden' : 'harvest');
+  harvestReveal(sp, stars, r.isGolden || r.isPristine,
+    r.isGolden ? goldPriceOf(sp) : r.isPristine ? priceOfQ(sp, 3) * 2 : priceOfQ(sp, stars));
+  toast((r.isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '!'
+       : r.isPristine ? '💎 PRISTINE — every pour perfect!'
+       : 'Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() + (r.wilted ? ' (wilted)' : '')) +
+        (r.bonus ? ' · new species +' + r.bonus + '🪙' : '') + r.goldenNote);
   checkAch();
 }
 
@@ -4438,12 +4508,20 @@ function paintShop() {
     '<div class="thumb" style="font-size:20px">👩‍🌾</div>' +
     '<div class="info"><h4>' + (aHired ? t.name : 'Hire an apprentice') + '</h4><p>' +
     (aHired
-      ? 'waters ' + t.waters + '×/hour while you are away<br>' +
-        'clears ' + t.weeds + ' weed' + (t.weeds > 1 ? 's' : '') + ', squashes ' + t.bugs +
-        ' aphid' + (t.bugs > 1 ? 's' : '') + ' · <b>' + t.wage + '🪙/day</b>' +
-        (aMaxed ? '' : '<br>promote for a steadier hand')
-      : 'she tends the garden while the app is closed<br>' +
-        'never perfectly — no combos, no pristine blooms') +
+      ? 'the clock carries plants to <b>' + Math.round(t.reach * 100) + '%</b> ' +
+        '(' + Math.round(TIMER_REACH * 100) + '% alone) — fewer drops each<br>' +
+        'tends those stages: <b>+' + t.care + ' care</b> a plant<br>' +
+        'clears ' + t.weeds + ' weed' + (t.weeds > 1 ? 's' : '') + '/hour, squashes ' + t.bugs +
+        ' aphid' + (t.bugs > 1 ? 's' : '') + '/hour<br>' +
+        'lifts ripe blooms before they wilt, sells the ★ and ★★' +
+        (t.resow ? '<br>and <b>sows the bed again</b> with what you had there' : '') + '<br>' +
+        '<b>' + t.base + '🪙 plus ' + Math.round((APP_SHARE[t.lvl] || 0.06) * 100) +
+        '%</b> of the takings · <b>~' + appWage(t) + '🪙/day</b>' +
+        (aMaxed ? '' : '<br>promote and the clock reaches further still — but so does her share')
+      : 'the clock takes a plant halfway on its own; she<br>' +
+        'takes it further, so each one costs you fewer drops<br>' +
+        '<b>she never takes a pour off you</b> — the skill,<br>' +
+        'the combos and the pristine blooms stay yours') +
     '</p></div>' +
     '<div class="actions">' +
       (aMaxed ? '<span class="badge up">top rank</span>'
@@ -4947,12 +5025,53 @@ function paintJournal() {
    Charges a daily wage whether or not you visit.
    ============================================================ */
 const APPRENTICE_HIRE = 900;
+/* She will not re-sow you into a corner: a garden with no coins and no
+   plants is a dead save, so she always leaves this much in the purse. */
+const RESOW_FLOOR = 120;
+/* She never takes a pour off you — see appTick for why that was a trap.
+   What she does is tend the stages the clock grows, so a crop you barely
+   touch still comes out decent: `care` is how many care points she is
+   worth per plant. She raises the floor, you keep the ceiling — a
+   pristine bloom still needs every stage perfect-poured by hand. */
+/* `reach` is how far the clock will carry a plant while she is employed
+   (0.5 unaided), and `care` is the quality she is worth per plant — enough
+   to cover the pours her reach saved you, so extending it never costs you
+   a grade. */
+/* Two ranks, not three, and that is a finding rather than a shortcut.
+   Reach stops paying at 0.70: pushing it to 0.80 measured *worse* at every
+   skill level, because the volume it buys saturates once your can can
+   finish all nine beds while the pours it removes are pours that would
+   have earned care. Every other candidate for a third rank either took
+   quality off the player or duplicated what they already do before closing
+   the app, and measured at roughly nothing. Two ranks that are both plainly
+   worth buying beat three with a trap at the top. */
 const APP_TIERS = [
-  { lvl: 1, wage: 40,  waters: 3, weeds: 1, bugs: 1, name: 'Apprentice' },
-  { lvl: 2, wage: 90,  waters: 6, weeds: 2, bugs: 2, name: 'Journeyman' },
-  { lvl: 3, wage: 190, waters: 10, weeds: 4, bugs: 3, name: 'Head gardener' }
+  { lvl: 1, base: 12, reach: 0.60, care: 2, weeds: 1, bugs: 1, name: 'Apprentice' },
+  { lvl: 2, base: 25, reach: 0.70, care: 3, weeds: 3, bugs: 2, resow: true, name: 'Head gardener' }
 ];
-const APP_UPGRADE = [0, 1400, 2600];
+/* She is paid a small retainer plus a share of the takings, and the share
+   is nearly all of it. Anything else measured badly: a flat wage made
+   hiring a no-brainer, and scaling the retainer by plot count charged a
+   once-a-day player the same as someone farming four sessions a day, so
+   she was a trap for exactly the player she is meant to help. A share
+   tracks what she is actually worth on its own.
+   Tuned against a 21-day simulation at three visit rates so that she
+   costs a little over half of what she brings in at every rank. */
+const APP_SHARE = [0, 0.06, 0.10];             // by rank
+function yesterdayEarned() {
+  const h = state.history || [];
+  if (!h.length) return 0;
+  const today = dayIndex();
+  for (let i = h.length - 1; i >= 0; i--) if (h[i].d < today) return h[i].earned || 0;
+  return h[h.length - 1].earned || 0;
+}
+function appWage(tier) {
+  const t = tier || appTier();
+  const lvl = tier ? tier.lvl : state.appLevel;
+  const share = Math.round(yesterdayEarned() * (APP_SHARE[lvl] || 0.03));
+  return t.base + share;                        // the retainer is the floor
+}
+const APP_UPGRADE = [0, 1400];
 function appTier() { return APP_TIERS[Math.max(0, Math.min(APP_TIERS.length - 1, state.appLevel - 1))]; }
 function hasApprentice() { return state.appLevel > 0; }
 function appSlot() { return Math.floor(NOW() / (60 * 60 * 1000)); }   // she works by the hour
@@ -4966,7 +5085,7 @@ function hireApprentice() {
     state.coins -= cost;
     state.appLevel++;
     saveState(); sfx('levelUp'); paintTop(); paintShop();
-    return toast('Promoted to ' + appTier().name + ' — wage now ' + appTier().wage + '🪙/day');
+    return toast('Promoted to ' + appTier().name + ' — wage now ' + appWage() + '🪙/day');
   }
   if (state.coins < APPRENTICE_HIRE) return toast('Hiring costs ' + APPRENTICE_HIRE + '🪙');
   state.coins -= APPRENTICE_HIRE;
@@ -4974,7 +5093,7 @@ function hireApprentice() {
   state.appSlot = appSlot();
   state.appPaidDay = dayIndex();
   saveState(); sfx('gift'); paintTop(); paintShop();
-  toast('👩‍🌾 Hired! She works while you are away — ' + appTier().wage + '🪙 a day');
+  toast('👩‍🌾 Hired! She works while you are away — ' + appWage() + '🪙 a day');
   hint('apprentice');
 }
 function dismissApprentice() {
@@ -4988,7 +5107,8 @@ function appWages() {
   const today = dayIndex();
   const owed = Math.max(0, today - (state.appPaidDay | 0));
   if (!owed) return;
-  const bill = owed * appTier().wage;
+  const bill = owed * appWage();
+  logEvent('wageRate', 0);              // so the digest can show the rate
   state.appPaidDay = today;
   if (state.coins >= bill) {
     state.coins -= bill;
@@ -5000,7 +5120,7 @@ function appWages() {
   }
   saveState();
 }
-/* the actual work, retroactive and capped per hour */
+/* the actual work, replayed retroactively when you reopen the app */
 function appTick() {
   if (!hasApprentice()) return false;
   const cur = appSlot();
@@ -5008,8 +5128,9 @@ function appTick() {
   if (cur <= state.appSlot) return false;
   const hours = Math.min(24, cur - state.appSlot);
   const t = appTier();
+  const onDutySince = state.appSlot * 3600000;    // she cannot act before her shift
   state.appSlot = cur;
-  let didWater = 0, didWeed = 0, didBug = 0;
+  let didWeed = 0, didBug = 0;
 
   for (let h = 0; h < hours; h++) {
     // she clears a few weeds
@@ -5026,32 +5147,108 @@ function appTick() {
       p.bug = false; p.bugSlot = bugSlot();
       squashed++; didBug++;
     });
-    // then waters whatever is closest to ripe, plainly
-    for (let w = 0; w < t.waters; w++) {
-      if (state.water <= 0) break;
-      const cand = state.plots.map(function (p, i) { return [p, i]; })
-        .filter(function (x) { return x[0] && !x[0].bug && x[0].stage < byId[x[0].s].stages; })
-        .sort(function (a, b) {
-          return (byId[a[0].s].stages - a[0].stage) - (byId[b[0].s].stages - b[0].stage);
-        });
-      if (!cand.length) break;
-      const p = cand[0][0], sp = byId[p.s];
-      state.water--;
-      p.stage++;
-      p.stageAt = NOW();
-      p.hired = true;                     // a hired plant can never be pristine
-      if (p.stage >= sp.stages) p.ripeAt = NOW();
-      didWater++;
-    }
   }
-  if (didWater || didWeed || didBug) {
-    logEvent('appWater', didWater);
+
+  /* She does not water, and that is deliberate. Every version of a
+     watering apprentice made her strictly worse than not hiring her:
+     her pours earn no care points, so she turned plants that were headed
+     for ★★★ into ripe ★ ones and then charged a wage for the damage. Now
+     that the clock stops short of ripe, a stalled plant is exactly where
+     your skill pays — the last thing she should be allowed to touch. */
+
+  /* She lifts anything ripe into the barn at full quality, so a bloom you
+     finished before closing the app cannot wilt while you are gone. */
+  let didPick = 0;
+  for (let i = 0; i < state.plots.length; i++) {
+    const p = state.plots[i];
+    if (!p || p.stage < byId[p.s].stages) continue;
+    // she finds it within the hour of it ripening, but never before her shift
+    const pickAt = Math.min(NOW(), Math.max(p.ripeAt || 0, onDutySince) + 3600000);
+    const was = p.s;
+    if (bankHarvest(i, pickAt)) { didPick++; state.lastSown[i] = was; }
+  }
+
+  /* A head gardener puts the bed back to whatever you had there, so it is
+     growing again by the time you look. She chooses nothing — she repeats
+     you — and she will not spend down your last coins to do it. */
+  let didSow = 0;
+  if (t.resow) {
+    for (let i = 0; i < state.plotCount; i++) {
+      if (state.plots[i] || state.weeds[i]) continue;
+      const sp = byId[state.lastSown[i]];
+      if (!sp || sp.lvl > state.level) continue;
+      const cost = seedCostOf(sp);
+      if (state.coins - cost < RESOW_FLOOR) break;
+      state.coins -= cost;
+      state.plots[i] = { s: sp.id, stage: 0, q: 0, stageAt: Math.max(onDutySince, NOW() - hours * 3600000),
+                         perfects: 0, spills: 0, hired: false };
+      didSow++;
+    }
+    if (didSow) growthTick();          // it has been in the ground since she sowed it
+  }
+
+  /* And this is what she is actually for: she minds the stall. Prices
+     swing with the day, the weather and the season, and the swing was
+     pure luck about when you happened to open the app. She sells the
+     ordinary blooms at the best price the market reached while you were
+     away, and leaves every ★★★, golden and pristine for you — those are
+     for your orders and your own judgement. */
+  const sold = appSellStock(onDutySince);
+
+  if (didWeed || didBug || didPick || didSow || sold.n) {
     logEvent('appWeed', didWeed);
     logEvent('appBug', didBug);
+    logEvent('appPick', didPick);
+    logEvent('appSow', didSow);
+    logEvent('appSold', sold.n);
+    logEvent('appTook', sold.coins);
     saveState();
     return true;
   }
   return false;
+}
+
+/* The best the weather did for prices during her shift. Weather turns
+   over every 20 minutes, so that — not the day's roll or the season — is
+   the swing she is being paid to watch. */
+function bestSellDuring(sinceMs, untilMs) {
+  const first = Math.floor(sinceMs / WEATHER_SLOT_MS);
+  const last = Math.floor(untilMs / WEATHER_SLOT_MS);
+  let best = weatherAt(last).sell;
+  for (let s = first; s <= last && s - first <= 96; s++) {
+    const v = weatherAt(s).sell;
+    if (v > best) best = v;
+  }
+  return best;
+}
+
+/* Sells every ★, ★★ and honeyed bloom in the barn at that best price.
+   ★★★, golden and pristine stock is never touched — that is yours. */
+function appSellStock(sinceMs) {
+  const sell = bestSellDuring(sinceMs, NOW());
+  let n = 0, coins = 0;
+  Object.keys(state.barn).forEach(function (id) {
+    const sp = byId[id];
+    if (!sp) return;
+    const row = state.barn[id];
+    ['1', '2', 'h1', 'h2'].forEach(function (tier) {
+      const have = row[tier] | 0;
+      if (!have) return;
+      const stars = tier.charAt(tier.length - 1) | 0;
+      let each = priceOfQ(sp, stars, sell);
+      if (tier.charAt(0) === 'h') each = Math.round(each * honeyBonus());
+      coins += each * have;
+      n += have;
+      delete row[tier];
+    });
+    if (!Object.keys(row).length) delete state.barn[id];
+  });
+  if (coins) {
+    gainCoins(coins);
+    state.runEarned += coins;
+    ledgerAdd('earned', coins);
+  }
+  return { n: n, coins: coins, sell: sell };
 }
 
 /* ============================================================
@@ -5232,9 +5429,16 @@ function showWelcomeBack(awayMs, l) {
       (n ? '<span class="wbn">' + n + '</span>' : '') + '</div>');
   };
   if (l.ripened)    add('gold', '🌼', '<b>' + l.ripened + '</b> plant' + (l.ripened > 1 ? 's' : '') + ' finished growing', 'ready');
+  if (l.stalled)    add('good', '💧', '<b>' + l.stalled + '</b> plant' + (l.stalled > 1 ? 's are' : ' is') +
+                        ' grown as far as the clock will take ' + (l.stalled > 1 ? 'them' : 'it'), 'pour!');
   if (l.pollinated) add('gold', '🐝', 'your bees pollinated <b>' + l.pollinated + '</b> plant' + (l.pollinated > 1 ? 's' : ''), '🍯');
-  if (l.appWater)   add('good', '👩‍🌾', 'your ' + (hasApprentice() ? appTier().name.toLowerCase() : 'gardener') +
-                        ' watered <b>' + l.appWater + '</b> time' + (l.appWater > 1 ? 's' : ''), '');
+  if (l.appSold)    add('gold', '👩‍🌾', 'your ' + (hasApprentice() ? appTier().name.toLowerCase() : 'gardener') +
+                        ' sold <b>' + l.appSold + '</b> bloom' + (l.appSold > 1 ? 's' : '') +
+                        ' at the day\'s best price', '+' + (l.appTook || 0) + '🪙');
+  if (l.appPick)    add('gold', '🧺', 'she lifted <b>' + l.appPick + '</b> ripe bloom' + (l.appPick > 1 ? 's' : '') +
+                        ' before they wilted', 'barn');
+  if (l.appSow)     add('good', '🌱', 'she sowed <b>' + l.appSow + '</b> bed' + (l.appSow > 1 ? 's' : '') +
+                        ' again, so ' + (l.appSow > 1 ? 'they are' : 'it is') + ' already growing', '');
   if (l.appWeed)    add('good', '🌾', 'she cleared <b>' + l.appWeed + '</b> plot' + (l.appWeed > 1 ? 's' : '') + ' of weeds', '');
   if (l.appBug)     add('good', '🐛', 'she squashed aphids on <b>' + l.appBug + '</b> plant' + (l.appBug > 1 ? 's' : ''), '');
   if (l.wages)      add('bad',  '💰', 'wages paid', '−' + l.wages + '🪙');

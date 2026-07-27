@@ -27,12 +27,17 @@ Growth uses the sequence too: each watering adds the *next* Fibonacci number of
 leaves or seeds — 1, 1, 2, 3, 5, 8, 13, 21… so a plant looks like almost nothing for
 the first several taps and then visibly explodes.
 
-## Plants grow on their own — watering is the boost
+## The clock takes a plant halfway — you finish it
 
 Every species grows one stage on a timer (5, 8, 13, 21 or 34 minutes — Fibonacci,
 naturally), and it keeps growing while the app is closed. Growth runs faster in a
 species' favourite hours, in rain and storms, and in its own season; heat slows it;
 aphids stop it dead.
+
+But the clock **stops at half grown**. From there the plant is stalled and thirsty,
+and the rest is yours to pour. That's what makes water the real currency: the size of
+your can decides how many plants you can finish, and the clock alone never earns a
+single care point, so it can never sell you anything better than ★.
 
 **Watering skips a stage instantly**, and it's a skill shot. A droplet sweeps a bar —
 tap to lock it:
@@ -50,7 +55,7 @@ and a combo of **8 triggers Fibonacci Fever** — 90 seconds where everything se
 
 1. **Plant** a seed — seed prices drift daily, and the planter flags any species a
    customer is currently waiting on
-2. **Let it grow**, or spend water to skip stages and earn quality
+2. **Let it grow to halfway**, then pour the rest — that's where quality comes from
 3. **Squash aphids** (they drink your water and freeze growth) and **clear weeds**
    from empty plots — sometimes there's a worm underneath
 4. **Harvest** before it wilts. Quality runs ★–★★★, plus two rare tiers:
@@ -123,6 +128,20 @@ seed), **15 achievements**, and a daily-gift streak whose seventh day pays a gol
 The concept pages are kept because they're playable prototypes in their own right and
 document how the design arrived where it did.
 
+## The apprentice
+
+Hire help and **the clock carries your plants further** — to 60%, and to 70% once
+you promote her — so every plant costs you fewer drops and your can stretches over
+more of the garden. She tends those stages properly, which is worth a few care
+points, and she clears weeds, squashes aphids, lifts ripe blooms before they wilt and
+sells the ★ and ★★ stock at the best price the day reached. A head gardener also
+sows an emptied bed again with whatever you had there.
+
+**She never takes a pour off you.** The last stages — the ones that set quality, feed
+combos and mint a 💎 pristine — are always yours. She's paid a small retainer plus a
+share of the takings, so she costs more in a good week than a quiet one. Hiring pays
+for itself; **promoting only pays if you play often**, and that's the decision.
+
 ## Bees
 
 Buy a hive and bees work the garden for you: each sortie pollinates a growing plant
@@ -154,4 +173,5 @@ blooms — as a PNG worth sharing.
   `skip a day`, `reset save`) so the time-gated loop can be evaluated without waiting.
   Delete that box.
 - There's no audio.
-- Balance is tuned from a simulated 14-session run, not from real players.
+- Balance is tuned from headless 21-day simulations at three visit rates and four
+  pour-accuracy levels, not from real players.
