@@ -168,7 +168,52 @@
     animation: heatthrob 2.6s ease-in-out infinite;
   }
   @keyframes heatthrob { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  #sky.storm { filter: brightness(.75) saturate(.8); }
+  #sky.storm .wx {
+    background:
+      repeating-linear-gradient(100deg, transparent 0 5px, #bcd8f066 5px 6px, transparent 6px 11px),
+      linear-gradient(#1a223855, #0a0f1a66);
+    animation: rainfall .3s linear infinite, lightning 4.2s steps(1) infinite;
+  }
+  @keyframes lightning {
+    0%, 91%, 94%, 100% { box-shadow: none; }
+    92%, 95% { box-shadow: inset 0 0 60px 20px #e8f0ff88; }
+  }
   #p-weather { color: var(--pale); cursor: default; }
+  #forecast {
+    position: absolute; left: 10px; bottom: 4px; display: flex; gap: 5px;
+    font-size: 11px; align-items: center;
+  }
+  #forecast .fc { opacity: .75; filter: saturate(.85); }
+  #forecast .fc.warn { animation: warnpulse 1.2s ease-in-out infinite; }
+  @keyframes warnpulse { 0%,100% { opacity: .7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.25); } }
+  #forecast .fclabel {
+    font-family: var(--mono); font-size: 7.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: #ffffff90; text-shadow: 0 1px 3px #0008;
+  }
+
+  /* ---------- weeds & trellis ---------- */
+  .plot.weedy { border-color: #5c5a2a; background: linear-gradient(#232312, #17170c); }
+  .plot.weedy .weedart { font-size: 26px; animation: sway 3s ease-in-out infinite; }
+  .trellistag { position: absolute; top: 5px; left: 6px; font-size: 12px; z-index: 3; opacity: .9; }
+
+  /* ---------- merchant's wheel ---------- */
+  #wheelbox { position: relative; width: 210px; height: 210px; margin: 6px auto 14px; }
+  #wheel {
+    width: 100%; height: 100%; border-radius: 50%;
+    border: 3px solid #6a5322; box-shadow: 0 0 30px -8px #f2c53c55, inset 0 0 20px #0008;
+    transition: transform 3.2s cubic-bezier(.12, .8, .16, 1);
+  }
+  #wheelpin {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    font-size: 20px; z-index: 2; filter: drop-shadow(0 2px 3px #000a);
+  }
+  #wheelbox .hub {
+    position: absolute; inset: 0; margin: auto; width: 54px; height: 54px;
+    border-radius: 50%; background: radial-gradient(#2a220f, #171208);
+    border: 2px solid #6a5322; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; z-index: 2;
+  }
 
   /* ---------- orders ---------- */
   .order-exp { font-family: var(--mono); font-size: 9px; color: var(--dim); }
@@ -486,6 +531,7 @@
         <div class="wx"></div>
         <span class="orb" id="orb">☀️</span>
         <span class="skylabel" id="skylabel"></span>
+        <div id="forecast"><span class="fclabel">next</span></div>
       </div>
       <div class="sectitle">Plots <span id="plotinfo"></span></div>
       <div id="plots"></div>
@@ -541,6 +587,7 @@
           <h2 id="grow-name">—</h2>
           <p id="grow-sub">—</p>
         </div>
+        <div class="iconbtn" id="trellisBtn" title="Trellis: protects this plot from storms" style="display:none">🛡️</div>
         <div class="iconbtn" id="grow-close">✕</div>
       </div>
       <div id="canvas"></div>
@@ -821,6 +868,10 @@ function freshState() {
     combo: 0,                        // consecutive perfect pours
     bestCombo: 0,
     pourN: 0,                        // deterministic pour-zone counter
+    trellised: [false, false, false],// storm protection per plot
+    weeds: {},                       // plotIdx -> true while overgrown
+    weedChecked: null,               // last weed slot processed
+    stormChecked: null,              // last storm slot processed
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -864,6 +915,12 @@ function loadState() {
         p.combo = p.combo | 0;
         p.bestCombo = p.bestCombo | 0;
         p.pourN = p.pourN | 0;
+        p.trellised = Array.isArray(p.trellised) ? p.trellised : [];
+        while (p.trellised.length < p.plotCount) p.trellised.push(false);
+        p.trellised.length = p.plotCount;
+        p.weeds = p.weeds || {};
+        if (typeof p.weedChecked !== 'number') p.weedChecked = null;
+        if (typeof p.stormChecked !== 'number') p.stormChecked = null;
         // plants from before the living clock get a timer starting now
         p.plots.forEach(function (pl) {
           if (pl && typeof pl.stageAt !== 'number') pl.stageAt = Date.now();
@@ -1056,6 +1113,122 @@ function squashBug() {
   paintGrowFoot();
 }
 
+/* ---- weeds ------------------------------------------------------
+   Empty plots grow over if you stay away. Tap to clear — and
+   sometimes there's a worm under them for the compost bin.        */
+const WEED_SLOT_MS = 30 * 60 * 1000;
+const WEED_CHANCE = 15;
+function weedSlot() { return Math.floor(NOW() / WEED_SLOT_MS); }
+function weedTick() {
+  const cur = weedSlot();
+  if (typeof state.weedChecked !== 'number') { state.weedChecked = cur; saveState(); return; }
+  if (cur <= state.weedChecked) return;
+  let sprouted = 0;
+  for (let s = state.weedChecked + 1; s <= cur; s++) {
+    state.plots.forEach(function (p, i) {
+      if (p || state.weeds[i]) return;
+      if (hash32((s * 41 + i * 11 + 5) >>> 0) % 100 < WEED_CHANCE) { state.weeds[i] = true; sprouted++; }
+    });
+  }
+  state.weedChecked = cur;
+  saveState();
+  if (sprouted) toast('🌾 Weeds took over ' + sprouted + ' empty plot' + (sprouted > 1 ? 's' : ''));
+}
+function clearWeed(i) {
+  if (!state.weeds[i]) return;
+  delete state.weeds[i];
+  const worm = hash32((weedSlot() * 13 + i * 3 + 1) >>> 0) % 100 < 10;
+  if (worm) state.compost++;
+  saveState();
+  shakeApp();
+  toast(worm ? 'Cleared — and found a worm! +1 🪱' : 'Weeds cleared');
+  paintPlots();
+}
+
+/* ---- trellis ----------------------------------------------------
+   One-time per-plot storm protection. Lost when you replant.      */
+const TRELLIS_COST = 120;
+function buyTrellis() {
+  if (curPlot < 0 || state.trellised[curPlot]) return;
+  if (state.coins < TRELLIS_COST) return toast('Trellis costs ' + TRELLIS_COST + '🪙');
+  state.coins -= TRELLIS_COST;
+  state.trellised[curPlot] = true;
+  saveState(); paintTop();
+  $('trellisBtn').style.display = 'none';
+  burstCenter($('canvas'), ['🛡️', '✨', '🔨']);
+  toast('Plot ' + (curPlot + 1) + ' trellised — storms can\'t touch it');
+}
+
+/* ---- the merchant's wheel ---------------------------------------
+   Gamble the whole barn instead of selling it. Slightly better
+   than fair on average — but one slice in four pays nothing.      */
+const WHEEL = [
+  { m: 0,   label: '×0',  color: '#3a2420' },
+  { m: 1.5, label: '×1.5', color: '#2a3320' },
+  { m: 1,   label: '×1',  color: '#2c2a1c' },
+  { m: 2,   label: '×2',  color: '#3d3221' },
+  { m: 0,   label: '×0',  color: '#3a2420' },
+  { m: 1.5, label: '×1.5', color: '#2a3320' },
+  { m: 3,   label: '×3',  color: '#6a5322' },
+  { m: 1,   label: '×1',  color: '#2c2a1c' }
+];
+function pickSegment(r01) { return Math.floor(r01 * WHEEL.length) % WHEEL.length; }
+function wheelSVGBg() {
+  const seg = 360 / WHEEL.length;
+  const stops = WHEEL.map(function (w, i) {
+    return w.color + ' ' + (i * seg) + 'deg ' + ((i + 1) * seg) + 'deg';
+  }).join(', ');
+  return 'conic-gradient(from -' + (seg / 2) + 'deg, ' + stops + ')';
+}
+function spinWheel() {
+  const value = barnValueAll();
+  if (!value) return;
+  const idx = pickSegment(Math.random());
+  const seg = 360 / WHEEL.length;
+  const spins = 4 * 360;
+  const target = spins - idx * seg + (Math.random() - 0.5) * seg * 0.6;
+  $('card').innerHTML =
+    '<h3>The Speculator</h3>' +
+    '<div class="sub">whole barn (' + value + '🪙) rides on one spin</div>' +
+    '<div id="wheelbox"><span id="wheelpin">🔻</span>' +
+    '<div id="wheel"></div><div class="hub">🎩</div></div>' +
+    '<div class="fact" id="wheelmsg">Round she goes…</div>';
+  $('modal').classList.add('show');
+  const wheelEl = $('wheel');
+  wheelEl.style.background = wheelSVGBg();
+  // draw segment labels
+  WHEEL.forEach(function (w, i) {
+    const lbl = document.createElement('span');
+    lbl.textContent = w.label;
+    lbl.style.cssText = 'position:absolute;left:50%;top:50%;font-family:var(--mono);font-size:11px;' +
+      'font-weight:700;color:' + (w.m >= 3 ? 'var(--gold)' : w.m === 0 ? 'var(--bad)' : 'var(--pale)') + ';' +
+      'transform:translate(-50%,-50%) rotate(' + (i * seg) + 'deg) translateY(-76px);';
+    wheelEl.appendChild(lbl);
+  });
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { wheelEl.style.transform = 'rotate(' + target + 'deg)'; });
+  });
+  setTimeout(function () {
+    const mult = WHEEL[idx].m;
+    const payout = Math.round(value * mult);
+    state.barn = {};
+    if (payout) { state.coins += payout; state.earned += payout; state.runEarned += payout; }
+    saveState();
+    $('wheelmsg').innerHTML = mult === 0
+      ? '<b style="color:var(--bad)">×0 — the merchant tips his hat and walks off with everything.</b>'
+      : '<b style="color:var(--gold)">' + WHEEL[idx].label + ' — paid ' + payout + '🪙!</b>';
+    if (mult === 0) { hurtFlash(); } else { shakeApp(); floatText($('p-coins'), '+' + payout + '🪙', 'var(--gold)'); }
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.style.marginTop = '10px';
+    btn.textContent = 'done';
+    btn.addEventListener('click', closeCard);
+    $('card').appendChild(btn);
+    paintTop(); paintMarket(); paintShop();
+    checkAch();
+  }, 3400);
+}
+
 /* ---- wilt -------------------------------------------------------
    A ripe plant left standing loses one star per full day.         */
 const WILT_MS = 24 * 3600 * 1000;
@@ -1155,13 +1328,47 @@ const WEATHERS = [
   { id: 'sun',   icon: '☀️', name: 'sunny',    regen: 1,   sell: 1.05, blurb: 'prices +5%' },
   { id: 'cloud', icon: '☁️', name: 'overcast', regen: 1,   sell: 1,    blurb: 'a quiet sky' },
   { id: 'rain',  icon: '🌧️', name: 'rain',     regen: 2,   sell: 1,    blurb: 'water refills 2× fast' },
-  { id: 'heat',  icon: '🔥', name: 'heatwave', regen: 0.5, sell: 1.25, blurb: 'slow refill · prices +25%' }
+  { id: 'heat',  icon: '🔥', name: 'heatwave', regen: 0.5, sell: 1.25, blurb: 'slow refill · prices +25%' },
+  { id: 'storm', icon: '⛈️', name: 'storm',    regen: 2,   sell: 1,    blurb: 'unprotected plants may take damage!' }
 ];
-function weatherNow() {
-  const r = hash32(Math.floor(NOW() / WEATHER_SLOT_MS) * 2246822519 + 7 >>> 0) % 100;
-  return WEATHERS[r < 30 ? 0 : r < 60 ? 1 : r < 85 ? 2 : 3];
+function weatherSlot() { return Math.floor(NOW() / WEATHER_SLOT_MS); }
+function weatherAt(slot) {
+  const r = hash32(slot * 2246822519 + 7 >>> 0) % 100;
+  return WEATHERS[r < 27 ? 0 : r < 54 ? 1 : r < 77 ? 2 : r < 92 ? 3 : 4];
 }
+function weatherNow() { return weatherAt(weatherSlot()); }
 function regenIntervalMs() { return Math.round(WATER_REGEN_MS / weatherNow().regen); }
+
+/* storms roll damage per slot per unprotected plot — deterministic,
+   so the same storm plays out however long the app was closed */
+const STORM_DMG_CHANCE = 30;
+function stormTick() {
+  const cur = weatherSlot();
+  if (typeof state.stormChecked !== 'number') { state.stormChecked = cur; saveState(); return; }
+  if (cur <= state.stormChecked) return;
+  let hits = 0;
+  for (let s = state.stormChecked + 1; s <= cur; s++) {
+    if (weatherAt(s).id !== 'storm') continue;
+    state.plots.forEach(function (p, i) {
+      if (!p || state.trellised[i]) return;
+      if (hash32((s * 53 + i * 17 + 29) >>> 0) % 100 >= STORM_DMG_CHANCE) return;
+      const sp = byId[p.s];
+      if (p.stage >= sp.stages) {
+        p.q = Math.max(0, p.q - Math.ceil(sp.stages / 3));   // ripe: battered, ~1 star
+      } else if (p.stage > 0) {
+        p.stage--;                                            // growing: snapped back a stage
+        p.stageAt = NOW();
+      }
+      hits++;
+    });
+  }
+  state.stormChecked = cur;
+  saveState();
+  if (hits) {
+    hurtFlash();
+    toast('⛈️ A storm battered ' + hits + ' plant' + (hits > 1 ? 's' : '') + ' — trellises protect plots');
+  }
+}
 
 /* ---- day / night ------------------------------------------------
    Species prefer a time of day; watering during it earns a care
@@ -1327,9 +1534,21 @@ function paintSky() {
   const h = hourNow(), m = new Date(NOW()).getMinutes();
   const wx = weatherNow();
   const phase = isDusk() ? 'dusk' : (isDay() ? 'day' : 'night');
-  sky.className = phase + (wx.id === 'rain' || wx.id === 'heat' ? ' ' + wx.id : '');
+  sky.className = phase + (wx.id === 'rain' || wx.id === 'heat' || wx.id === 'storm' ? ' ' + wx.id : '');
   $('wxicon').textContent = wx.icon;
   $('p-weather').title = wx.name + ' — ' + wx.blurb;
+
+  // forecast: the next three slots, storms flagged loud
+  const fc = $('forecast');
+  while (fc.children.length > 1) fc.removeChild(fc.lastChild);
+  for (let k = 1; k <= 3; k++) {
+    const w = weatherAt(weatherSlot() + k);
+    const s = document.createElement('span');
+    s.className = 'fc' + (w.id === 'storm' ? ' warn' : '');
+    s.textContent = w.icon;
+    s.title = w.name + ' in ' + (k * 20) + ' min — ' + w.blurb;
+    fc.appendChild(s);
+  }
   const frac = isDay()
     ? ((h - 6) * 60 + m) / (12 * 60)              // sun sweeps 6:00 -> 18:00
     : ((((h + 24 - 18) % 24) * 60 + m) / (12 * 60));  // moon sweeps 18:00 -> 6:00
@@ -1387,9 +1606,15 @@ function paintPlots() {
   for (let i = 0; i < state.plotCount; i++) {
     const p = state.plots[i];
     const d = document.createElement('div');
-    if (!p) {
+    if (!p && state.weeds[i]) {
+      d.className = 'plot weedy';
+      d.innerHTML = '<div class="art"><span class="weedart">🌾</span></div>' +
+                    '<div class="lbl">weeds!<br>tap to clear</div>';
+      d.addEventListener('click', function () { clearWeed(i); });
+    } else if (!p) {
       d.className = 'plot dirt';
-      d.innerHTML = '<b>+</b><small>plant</small>';
+      d.innerHTML = (state.trellised[i] ? '<span class="trellistag">🛡️</span>' : '') +
+                    '<b>+</b><small>plant</small>';
       d.addEventListener('click', function () { openPlanter(i); });
     } else {
       const sp = byId[p.s];
@@ -1398,6 +1623,7 @@ function paintPlots() {
       const st = harvestStars(sp, p);
       d.className = 'plot' + (done ? ' ready' : '');
       d.innerHTML =
+        (state.trellised[i] ? '<span class="trellistag">🛡️</span>' : '') +
         (p.bug ? '<span class="bugtag">🐛</span>' : '') +
         '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
         '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
@@ -1493,6 +1719,8 @@ function openGrow(plotIdx) {
   }
   $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), Infinity);
   $('bugBtn').classList.toggle('show', !!p.bug);
+  $('trellisBtn').style.display = state.trellised[plotIdx] ? 'none' : '';
+  $('trellisBtn').title = 'Trellis this plot (' + TRELLIS_COST + '🪙) — storms can\'t damage it';
   paintGrowFoot();
   $('grow').classList.add('show');
 }
@@ -1789,6 +2017,7 @@ function harvest() {
 $('act').addEventListener('click', doAct);
 $('compostBtn').addEventListener('click', doCompost);
 $('bugBtn').addEventListener('click', squashBug);
+$('trellisBtn').addEventListener('click', buyTrellis);
 $('canvas').addEventListener('click', doAct);
 $('grow-close').addEventListener('click', function () {
   cancelPour();
@@ -1874,6 +2103,13 @@ function paintMarket() {
   all.textContent = 'sell everything · ' + value + ' 🪙';
   all.addEventListener('click', function () { sellAll(); });
   list.appendChild(all);
+
+  const spin = document.createElement('button');
+  spin.className = 'btn';
+  spin.style.cssText = 'margin-top:8px;border-color:#6a5322;color:var(--gold)';
+  spin.textContent = '🎩 or gamble it all on the wheel';
+  spin.addEventListener('click', spinWheel);
+  list.appendChild(spin);
 
   list.querySelectorAll('button[data-sell]').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -2096,6 +2332,7 @@ function buyPlot() {
   state.coins -= cost;
   state.plotCount++;
   state.plots.push(null);
+  state.trellised.push(false);
   const rescued = ensureSolvent();
   saveState(); paintTop(); paintShop(); paintPlots();
   toast(rescued ? 'Plot ' + state.plotCount + ' cleared — a neighbour spotted you a seed'
@@ -2160,8 +2397,10 @@ $('dev-reset').addEventListener('click', function () {
 function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); paintShop(); paintGrowFoot(); }
 
 tickWater();
+stormTick();              // storms strike before the catch-up growth
 growthTick();             // catch up everything that grew while the app was closed
 bugTick();
+weedTick();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
 paintAll();
@@ -2172,8 +2411,10 @@ setInterval(function () {
   const before = state.water;
   const bugsBefore = state.plots.filter(function (p) { return p && p.bug; }).length;
   tickWater();
+  stormTick();
   const grew = growthTick();
   bugTick();
+  weedTick();
   paintTop();
   paintSky();
   const bugsNow = state.plots.filter(function (p) { return p && p.bug; }).length;
