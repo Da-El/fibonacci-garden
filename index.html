@@ -244,6 +244,74 @@
     100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.15); }
   }
 
+  /* ---------- perfect pour ---------- */
+  #pourwrap { display: none; margin-bottom: 12px; }
+  #pourwrap.show { display: block; }
+  #pourbar {
+    position: relative; height: 26px; border-radius: 100px;
+    background: #10150c; border: 1px solid var(--line); overflow: hidden;
+  }
+  #pourbar .zone { position: absolute; top: 0; bottom: 0; }
+  #pourbar .zgood { background: #6fbf5e33; }
+  #pourbar .zgold {
+    background: linear-gradient(90deg, #f2c53c44, #f2c53c77, #f2c53c44);
+    box-shadow: inset 0 0 0 1px #f2c53c66;
+  }
+  #pourmarker {
+    position: absolute; top: 50%; font-size: 17px; line-height: 1;
+    transform: translate(-50%, -52%); will-change: left; filter: drop-shadow(0 0 5px #57b6e8aa);
+  }
+  #pourhint {
+    text-align: center; font-family: var(--mono); font-size: 10px;
+    color: var(--water); margin-top: 7px; letter-spacing: .08em;
+  }
+  #combochip {
+    font-family: var(--mono); font-size: 10px; color: var(--amber);
+    background: #e79a3c1c; border-radius: 100px; padding: 2px 8px; white-space: nowrap;
+  }
+
+  /* ---------- growth timer ---------- */
+  #growtimer { margin-bottom: 10px; display: none; }
+  #growtimer.show { display: block; }
+  #growtimer .tbar {
+    height: 5px; border-radius: 3px; background: #ffffff10; overflow: hidden;
+  }
+  #growtimer .tbar i {
+    display: block; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--water), var(--leaf));
+    transition: width 1s linear;
+  }
+  #growtimer .tlbl {
+    font-family: var(--mono); font-size: 9.5px; color: var(--dim);
+    text-align: center; margin-top: 4px;
+  }
+  .plot .eta { color: var(--water); }
+
+  /* ---------- juice ---------- */
+  @keyframes appshake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); }
+    60% { transform: translate(-2px, -1px); } 80% { transform: translate(2px, 1px); }
+  }
+  #app.shake { animation: appshake .28s ease-in-out; }
+  @keyframes flashred { 0% { opacity: .55; } 100% { opacity: 0; } }
+  #hurt {
+    position: absolute; inset: 0; z-index: 45; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, #e0664f55 100%);
+  }
+  #hurt.go { animation: flashred .5s ease-out; }
+  .floater {
+    position: absolute; z-index: 46; pointer-events: none;
+    font-family: var(--mono); font-weight: 700; font-size: 16px;
+    animation: floatup 1.1s ease-out forwards; white-space: nowrap;
+    text-shadow: 0 2px 8px #000c;
+  }
+  @keyframes floatup {
+    0%   { opacity: 0; transform: translate(-50%, 0) scale(.7); }
+    18%  { opacity: 1; transform: translate(-50%, -14px) scale(1.12); }
+    100% { opacity: 0; transform: translate(-50%, -56px) scale(1); }
+  }
+
   /* ---------- quality / care ---------- */
   .stars { color: var(--gold); letter-spacing: 1px; }
   .prefbadge {
@@ -480,7 +548,16 @@
       <div id="grow-foot">
         <div id="addflash"></div>
         <div id="carebar"></div>
+        <div id="growtimer"><div class="tbar"><i></i></div><div class="tlbl"></div></div>
         <div id="dots"></div>
+        <div id="pourwrap">
+          <div id="pourbar">
+            <div class="zone zgood"></div>
+            <div class="zone zgold"></div>
+            <span id="pourmarker">💧</span>
+          </div>
+          <div id="pourhint">tap when the drop is in the gold!</div>
+        </div>
         <div id="actrow">
           <button id="act">water</button>
           <button id="compostBtn">🪱</button>
@@ -497,6 +574,7 @@
     </div>
 
     <div id="modal"><div id="card"></div></div>
+    <div id="hurt"></div>
     <div id="toast"></div>
   </div>
 </div>
@@ -533,49 +611,49 @@ const MAX_PLOTS      = 9;
    earns a care point; care points decide the harvest's star quality. */
 const SPECIES = [
   {
-    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any',
+    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any', growMin: 5,
     stages: 6, seed: 4, price: 16, leafHue: 104, leafSat: 46,
     fact: 'Elm leaves advance half a turn each time, so they simply alternate left and right. This is the crudest Fibonacci fraction — 1/2 — and the start of the whole ladder.'
   },
   {
-    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day',
+    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day', growMin: 8,
     stages: 9, seed: 8, price: 32, petals: 34, seedR: 2.6,
     disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
     fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
   },
   {
-    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day',
+    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day', growMin: 8,
     stages: 7, seed: 10, price: 32, leafHue: 128, leafSat: 34,
     fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
   },
   {
-    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night',
+    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night', growMin: 13,
     stages: 7, seed: 14, price: 42, leafHue: 88, leafSat: 44,
     fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
   },
   {
-    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day',
+    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day', growMin: 13,
     stages: 10, seed: 20, price: 70, petals: 21, seedR: 2.5,
     disc: [44, 78, 50], petal: '#f7f4ea', leafHue: 100,
     fact: 'Chamomile commonly carries 21 ray florets. Its domed centre uses the same golden angle as the sunflower, with fewer seeds to pack.'
   },
   {
-    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night',
+    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night', growMin: 21,
     stages: 7, seed: 26, price: 68, leafHue: 116, leafSat: 30,
     fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
   },
   {
-    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day',
+    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day', growMin: 21,
     stages: 8, seed: 34, price: 90, leafHue: 94, leafSat: 42,
     fact: 'Three eighths of a turn: walk up eight pear leaves and you have spiralled the twig exactly three times. Both numbers, again, are Fibonacci.'
   },
   {
-    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night',
+    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night', growMin: 34,
     stages: 9, seed: 48, price: 120, leafHue: 28, leafSat: 38,
     fact: 'Eight twenty-firsts of a turn, 137.14°, almost the golden angle. On a real cone the scales fall into two sets of spirals — 8 running one way and 13 the other.'
   },
   {
-    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day',
+    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day', growMin: 34,
     stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
     disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
     fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
@@ -740,6 +818,9 @@ function freshState() {
     ach: {},                         // achievementId -> true
     ordersDelivered: 0,
     goldenHarvests: 0,
+    combo: 0,                        // consecutive perfect pours
+    bestCombo: 0,
+    pourN: 0,                        // deterministic pour-zone counter
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -780,6 +861,14 @@ function loadState() {
         p.ach = p.ach || {};
         p.ordersDelivered = p.ordersDelivered | 0;
         p.goldenHarvests = p.goldenHarvests | 0;
+        p.combo = p.combo | 0;
+        p.bestCombo = p.bestCombo | 0;
+        p.pourN = p.pourN | 0;
+        // plants from before the living clock get a timer starting now
+        p.plots.forEach(function (pl) {
+          if (pl && typeof pl.stageAt !== 'number') pl.stageAt = Date.now();
+          if (pl && typeof pl.perfects !== 'number') pl.perfects = 0;
+        });
         // ripe plants from older saves get a fresh ripeness clock
         p.plots.forEach(function (pl) {
           if (pl && pl.stage >= (byId[pl.s] ? byId[pl.s].stages : 99) && !pl.ripeAt) pl.ripeAt = Date.now();
@@ -976,6 +1065,75 @@ function wiltPenalty(p) {
 }
 function harvestStars(sp, p) {
   return Math.max(1, starsFor(sp, p.q) - wiltPenalty(p));
+}
+
+/* ---- the living clock -------------------------------------------
+   Plants grow by themselves: one stage per growMin minutes (all
+   Fibonacci counts). Growth runs 25% faster during a species'
+   favourite hours, 50% faster in rain — and stops under aphids.
+   Watering skips a stage instantly and is where quality comes
+   from; the clock alone never earns care points.                  */
+function growthRate(p, sp) {
+  if (p.bug) return 0;
+  let r = 1;
+  if (prefMatch(sp) && sp.pref !== 'any') r *= 1.25;
+  if (weatherNow().id === 'rain') r *= 1.5;
+  return r;
+}
+function stageDurMs(sp, p) {
+  const r = growthRate(p, sp);
+  return r === 0 ? Infinity : sp.growMin * 60000 / r;
+}
+function growthTick() {
+  let grew = false;
+  state.plots.forEach(function (p) {
+    if (!p) return;
+    const sp = byId[p.s];
+    if (!sp || p.stage >= sp.stages) return;
+    let guard = 0;
+    while (p.stage < sp.stages && guard++ < 50) {
+      const dur = stageDurMs(sp, p);
+      if (!isFinite(dur) || NOW() - p.stageAt < dur) break;
+      p.stageAt += dur;
+      p.stage++;                                   // the clock grows it — no care point
+      grew = true;
+      if (p.stage >= sp.stages) p.ripeAt = Math.min(NOW(), p.stageAt);
+    }
+  });
+  if (grew) saveState();
+  return grew;
+}
+function etaToReady(sp, p) {
+  const dur = stageDurMs(sp, p);
+  if (!isFinite(dur)) return null;                 // aphids: growth paused
+  const first = Math.max(0, dur - (NOW() - p.stageAt));
+  return first + (sp.stages - p.stage - 1) * dur;
+}
+
+/* ---- juice ---- */
+function shakeApp() {
+  const app = $('app');
+  app.classList.remove('shake');
+  void app.offsetWidth;                            // restart the animation
+  app.classList.add('shake');
+}
+function hurtFlash() {
+  const h = $('hurt');
+  h.classList.remove('go');
+  void h.offsetWidth;
+  h.classList.add('go');
+}
+function floatText(anchor, txt, color) {
+  const app = $('app');
+  const r = anchor.getBoundingClientRect(), ar = app.getBoundingClientRect();
+  const f = document.createElement('span');
+  f.className = 'floater';
+  f.textContent = txt;
+  f.style.color = color || 'var(--gold)';
+  f.style.left = (r.left - ar.left + r.width / 2) + 'px';
+  f.style.top = (r.top - ar.top + r.height * .3) + 'px';
+  app.appendChild(f);
+  f.addEventListener('animationend', function () { f.remove(); });
 }
 
 /* seed prices drift on their own daily cycle — buy low, plant cheap */
@@ -1246,7 +1404,9 @@ function paintPlots() {
         '<div class="lbl">' + (done
           ? (wilting ? '<span class="wilttag">wilting! </span>' : 'ready ') +
             '<span class="stars">' + starStr(st) + '</span> · ' + priceOfQ(sp, st) + '🪙'
-          : prefIcon(sp) + ' ' + sp.name + '<br>' + p.stage + '/' + sp.stages + ' 💧') + '</div>';
+          : prefIcon(sp) + ' ' + sp.name + '<br>' + p.stage + '/' + sp.stages +
+            (p.bug ? ' <span class="wilttag">paused</span>'
+                   : ' · <span class="eta">' + fmtLong(etaToReady(sp, p)) + '</span>')) + '</div>';
       d.addEventListener('click', function () { openGrow(i); });
     }
     wrap.appendChild(d);
@@ -1266,9 +1426,9 @@ function paintPlots() {
   $('gardenhint').innerHTML = ready
     ? ready + (ready === 1 ? ' plant is' : ' plants are') + ' ready — tap to harvest.'
     : (state.water === 0
-        ? 'Out of water. Next drop in ' + fmtMS(msToNextDrop()) + '.<br>A full can takes about ' +
-          fmtLong(waterCap() * WATER_REGEN_MS) + '.'
-        : (empty ? 'Tap an empty plot to plant something.' : 'Tap a plant to water it.'));
+        ? 'Plants keep growing on their own. Next drop in ' + fmtMS(msToNextDrop()) + '.'
+        : (empty ? 'Tap an empty plot to plant something.'
+                 : 'Plants grow by themselves — water one to skip ahead and earn quality.'));
 }
 
 /* ---- planting ---- */
@@ -1287,8 +1447,8 @@ function openPlanter(plotIdx) {
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
           '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span></h4>' +
-          '<p>' + sp.stages + ' 💧 to grow · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
-          '+' + (profit / sp.stages).toFixed(1) + '/💧 · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
+          '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
+          'water to skip stages · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
         '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
           (afford ? '' : ' disabled') + '>' + cost + '🪙</button></div>' +
       '</div>';
@@ -1309,7 +1469,7 @@ function plant(plotIdx, spId) {
   if (state.coins < cost) return;
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
-  state.plots[plotIdx] = { s: spId, stage: 0, q: 0 };
+  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0 };
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
 }
@@ -1357,10 +1517,31 @@ function paintGrowFoot() {
       (sp.pref === 'any' ? '' : (match ? ' — now!' : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark'))) +
       '</span>';
 
-  cb.style.display = done ? 'none' : '';
+  cb.style.display = done || pour ? 'none' : '';
   cb.disabled = state.compost <= 0;
   cb.textContent = '🪱 ' + state.compost;
   cb.title = 'Compost: grow one stage without water (no care point)';
+
+  // growth clock
+  const gt = $('growtimer');
+  if (done || pour) {
+    gt.classList.remove('show');
+  } else {
+    gt.classList.add('show');
+    const dur = stageDurMs(sp, p);
+    if (!isFinite(dur)) {
+      gt.querySelector('i').style.width = '0%';
+      gt.querySelector('.tlbl').innerHTML = '<span class="wilttag">🐛 aphids — growth stopped</span>';
+    } else {
+      const frac = Math.min(1, (NOW() - p.stageAt) / dur);
+      gt.querySelector('i').style.width = (frac * 100) + '%';
+      const rate = growthRate(p, sp);
+      gt.querySelector('.tlbl').textContent =
+        'next stage grows itself in ' + fmtLong(Math.max(0, dur - (NOW() - p.stageAt))) +
+        (rate > 1 ? ' · ' + (weatherNow().id === 'rain' ? '🌧️' : prefIcon(sp)) + ' ×' + rate.toFixed(2) : '') +
+        ' — watering skips it';
+    }
+  }
 
   if (done) {
     act.disabled = false;
@@ -1370,25 +1551,133 @@ function paintGrowFoot() {
     return;
   }
   act.className = '';
+  if (pour) {
+    act.disabled = false;
+    act.textContent = 'TAP!';
+    $('growfact').textContent = 'gold = perfect pour · green = fine · miss = the drop spills';
+    return;
+  }
   if (state.water <= 0) {
     act.disabled = true;
     act.textContent = 'no water · ' + fmtMS(msToNextDrop());
-    $('growfact').textContent = 'One drop refills every ' + Math.round(WATER_REGEN_MS / 1000) +
-      's — or spend a compost 🪱.';
+    $('growfact').textContent = 'The clock still grows it — water refills every ' +
+      Math.round(WATER_REGEN_MS / 1000) + 's, or spend a compost 🪱.';
   } else {
     act.disabled = false;
-    act.textContent = 'water · 1 💧' + (match && sp.pref !== 'any' ? ' · +care' : '');
+    act.textContent = 'water · skip a stage 💧';
     const next = FIB[p.stage];
-    $('growfact').textContent = p.stage === 0
-      ? 'first watering puts down ' + next + ' — then each one adds the next Fibonacci number'
-      : elementsAt(sp, p.stage) + ' grown · next adds ' +
-        (p.stage > 1 ? FIB[p.stage - 1] + ' + ' + FIB[p.stage - 2] + ' = ' : '') + next;
+    $('growfact').innerHTML =
+      (state.combo > 0 ? '<span id="combochip">🔥 combo ×' + state.combo + '</span> · ' : '') +
+      (p.stage === 0
+        ? 'first stage puts down ' + next + ' — each stage adds the next Fibonacci number'
+        : elementsAt(sp, p.stage) + ' grown · next adds ' +
+          (p.stage > 1 ? FIB[p.stage - 1] + ' + ' + FIB[p.stage - 2] + ' = ' : '') + next);
   }
 }
 
-/* advance one stage; via==='water' spends a drop and can earn care,
+/* ---- perfect pour -----------------------------------------------
+   Watering is a timing shot: a droplet sweeps the bar; tap to lock.
+   Gold zone = perfect (care + combo), green = good (care only in
+   the species' favourite hours), outside = the drop spills.
+   Zones come from a deterministic counter; the gold shrinks as the
+   plant matures, so late pours on tall plants take real aim.      */
+let pour = null;                    // {t0, period, center, gw, goodw, auto}
+const FIBSET = { 3: 1, 5: 1, 8: 1, 13: 1, 21: 1, 34: 1, 55: 1, 89: 1 };
+
+function pourZonesFor(stage) {
+  const h = hash32((state.pourN * 2654435761 + 4241) >>> 0);
+  return {
+    center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
+    gw: Math.max(0.08, 0.20 - stage * 0.012),             // gold shrinks per stage
+    goodw: 0.14
+  };
+}
+function resolvePour(pos, z) {
+  const d = Math.abs(pos - z.center);
+  if (d <= z.gw / 2) return 'perfect';
+  if (d <= z.gw / 2 + z.goodw) return 'good';
+  return 'spill';
+}
+function markerPos() {
+  const ph = ((performance.now() - pour.t0) / pour.period) % 2;
+  return ph < 1 ? ph : 2 - ph;                            // triangle sweep
+}
+function startPour() {
+  const p = state.plots[curPlot];
+  const sp = byId[p.s];
+  const z = pourZonesFor(p.stage);
+  state.pourN++;
+  saveState();
+  pour = {
+    t0: performance.now(),
+    period: Math.max(650, 1150 - sp.idx * 45),            // pricier plants sweep faster
+    center: z.center, gw: z.gw, goodw: z.goodw,
+    auto: setTimeout(function () { lockPour(); }, 3800)   // hesitate and it locks itself
+  };
+  const bar = $('pourbar');
+  const gold = bar.querySelector('.zgold'), good = bar.querySelector('.zgood');
+  gold.style.left = ((z.center - z.gw / 2) * 100) + '%';
+  gold.style.width = (z.gw * 100) + '%';
+  good.style.left = ((z.center - z.gw / 2 - z.goodw) * 100) + '%';
+  good.style.width = ((z.gw + z.goodw * 2) * 100) + '%';
+  $('pourwrap').classList.add('show');
+  $('actrow').style.display = 'none';
+  (function anim() {
+    if (!pour) return;
+    $('pourmarker').style.left = (markerPos() * 100) + '%';
+    requestAnimationFrame(anim);
+  })();
+}
+function cancelPour() {
+  if (!pour) return;
+  clearTimeout(pour.auto);
+  pour = null;
+  $('pourwrap').classList.remove('show');
+  $('actrow').style.display = '';
+}
+function lockPour() {
+  if (!pour) return;
+  const pos = markerPos();
+  const z = { center: pour.center, gw: pour.gw, goodw: pour.goodw };
+  cancelPour();
+  const result = resolvePour(pos, z);
+  const p = state.plots[curPlot];
+  if (!p) return;
+  const sp = byId[p.s];
+
+  if (result === 'spill') {
+    state.water--;
+    if (state.water === waterCap() - 1) state.lastTick = NOW();
+    if (state.combo >= 5) toast('Combo lost at ' + state.combo + '!');
+    state.combo = 0;
+    saveState();
+    hurtFlash(); shakeApp();
+    floatText($('canvas'), 'SPILLED!', 'var(--bad)');
+    burstCenter($('canvas'), ['💦', '💧', '😖']);
+    paintGrowFoot(); paintTop();
+    return;
+  }
+  if (result === 'perfect') {
+    state.combo++;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    shakeApp();
+    floatText($('canvas'), 'PERFECT! ×' + state.combo, 'var(--gold)');
+    if (FIBSET[state.combo]) {
+      const bonus = state.combo * 2;
+      state.coins += bonus; state.earned += bonus; state.runEarned += bonus;
+      floatText($('p-coins'), '+' + bonus + '🪙 combo!', 'var(--gold)');
+      toast('🔥 Fibonacci combo ' + state.combo + ' · +' + bonus + '🪙');
+    }
+  } else {
+    floatText($('canvas'), 'good', 'var(--leaf)');
+  }
+  advanceStage('water', result === 'perfect');
+}
+
+/* advance one stage; via==='water' spends a drop and can earn care
+   (from the species' favourite hours and/or a perfect pour),
    via==='compost' spends a compost and earns none */
-function advanceStage(via) {
+function advanceStage(via, perfect) {
   const p = state.plots[curPlot];
   const sp = byId[p.s];
   const from = elementsAt(sp, p.stage);
@@ -1396,11 +1685,13 @@ function advanceStage(via) {
   if (via === 'water') {
     state.water--;
     if (state.water === waterCap() - 1) state.lastTick = NOW();
-    if (prefMatch(sp)) p.q++;
+    if (prefMatch(sp) && sp.pref !== 'any') p.q++;
+    if (perfect) { p.q++; p.perfects++; }
   } else {
     state.compost--;
   }
   p.stage++;
+  p.stageAt = NOW();                            // fresh clock for the next stage
   if (p.stage >= sp.stages) p.ripeAt = NOW();   // the wilt clock starts now
   saveState();
 
@@ -1420,6 +1711,8 @@ function doAct() {
   if (!p) return;
   const sp = byId[p.s];
 
+  if (pour) return lockPour();                   // a pour is in flight — this tap is the shot
+
   if (p.stage >= sp.stages) return harvest();
 
   tickWater();
@@ -1434,7 +1727,7 @@ function doAct() {
     paintGrowFoot(); paintTop();
     return toast('The aphids drank it! Squash them first 🐛');
   }
-  advanceStage('water');
+  startPour();
 }
 
 function doCompost() {
@@ -1498,6 +1791,7 @@ $('compostBtn').addEventListener('click', doCompost);
 $('bugBtn').addEventListener('click', squashBug);
 $('canvas').addEventListener('click', doAct);
 $('grow-close').addEventListener('click', function () {
+  cancelPour();
   $('grow').classList.remove('show');
   curPlot = -1;
   paintPlots();
@@ -1866,6 +2160,7 @@ $('dev-reset').addEventListener('click', function () {
 function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); paintShop(); paintGrowFoot(); }
 
 tickWater();
+growthTick();             // catch up everything that grew while the app was closed
 bugTick();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
@@ -1877,11 +2172,19 @@ setInterval(function () {
   const before = state.water;
   const bugsBefore = state.plots.filter(function (p) { return p && p.bug; }).length;
   tickWater();
+  const grew = growthTick();
   bugTick();
   paintTop();
   paintSky();
   const bugsNow = state.plots.filter(function (p) { return p && p.bug; }).length;
-  if (state.water !== before || bugsNow !== bugsBefore) { paintPlots(); paintGrowFoot(); }
+  if (grew && curPlot >= 0 && state.plots[curPlot] && !pour) {
+    // the open plant just grew a stage on its own — redraw it
+    const p = state.plots[curPlot], sp = byId[p.s];
+    $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), elementsAt(sp, p.stage - 1));
+    const dot = $('dots').children[p.stage - 1];
+    if (dot) dot.classList.add('on');
+  }
+  if (state.water !== before || bugsNow !== bugsBefore || grew) { paintPlots(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
   if (bugsNow > bugsBefore) toast('Aphids! 🐛 tap the plant and squash them');
   // keep order countdowns honest while the market is open
