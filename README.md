@@ -51,8 +51,12 @@ tap to lock it:
 - **Green** → *good*: the stage still skips
 - **Miss** → the drop **spills**, nothing grows, combo lost
 
-The gold zone shrinks as a plant matures and pricier species sweep faster, so late
-pours on a sunflower take real aim. Combos pay out at Fibonacci counts (3, 5, 8, 13…),
+The difficulty is set in **milliseconds**, not as a width on the bar — the bar sweeps
+almost twice as fast for the priciest species, so a fixed width meant a fixed *look*
+and a wildly varying *ask*. Every pour on the shelf gives you between **150ms** (an
+elm's first stage) and **75ms** (a pineapple's last): a real 2× gradient, all of it
+landable. Miss and the game tells you whether you were early or late, because that's
+the only thing you can act on. Combos pay out at Fibonacci counts (3, 5, 8, 13…),
 and a combo of **8 triggers Fibonacci Fever** — 90 seconds where everything sells at
 **×1.618** and the gold zones widen, so a hot streak feeds itself.
 
@@ -82,8 +86,9 @@ making level 1 as good as level 16.
 5. **Sell** at market, where price moves with the day, the weather, the season, fever
    and your golden seeds — or **gamble the whole barn** on the Speculator's wheel
    (×0 / ×1 / ×1.5 / ×2 / ×3, and one slice in four takes everything)
-6. **Deliver customer orders** — premium contracts with quality minimums and 4–12h
-   deadlines
+6. **Deliver customer orders** — premium contracts with quality minimums. A customer
+   only ever asks for something you can already grow, and the deadline is derived from
+   how long that crop actually takes
 7. **Reinvest** — plots (3→9), Fibonacci watering cans (13→21→34→55→89 — the can is
    how much of a day's water you can hold at once, so this is the real upgrade), compost,
    and **trellises** that shield a plot from storms
@@ -145,13 +150,13 @@ and more.
 
 When a garden has earned enough, **replant it** for **golden seeds** — each raises all
 sale prices by 6.18% (a hundredth of φ−1) forever. Coins, plots and upgrades reset;
-the almanac, achievements, levels and perks stay. The first seed costs 12,000 earned in a run and each successive one 45% more, so
+the almanac, achievements, levels and perks stay.
+
+The first seed costs **12,000 earned in a run** and each successive one 45% more, so
 three seeds cost more than the entire upgrade tree — replanting is what you do once
-you have run out of garden to buy, not instead of buying it. The running bonus is shown
-on the ✨ pill, because a permanent reward you cannot see is not much of a reward.
-Also,
-and **storms and aphids grow bolder with every replant** — mastery has to cost
-something.
+you've run out of garden to buy, not instead of buying it. The running bonus shows on
+the ✨ pill, because a permanent reward you can't see isn't much of a reward. And
+**storms and aphids grow bolder with every replant** — mastery has to cost something.
 
 Long-term goals: the **botanist's almanac** (all nine species at ★★★ pays a golden
 seed), **17 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
