@@ -211,7 +211,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 210 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 218 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -239,6 +239,23 @@ flowers over sprigs**, so what you keep in the ground decides how much they help
 Upgrading the hive adds bees and raises the honey bonus (+15% a level on a honeyed
 bloom). Measured over three weeks a hive returns +2,300 to +19,200 against its 650
 coins, at every visit rate.
+
+## Crossbreeding
+
+Cross two plants you have grown and the child's divergence angle is the **mediant** of
+its parents' fractions — `a/b ⊕ c/d = (a+c)/(b+d)`. That is not a rule invented for the
+game; it is how the real phyllotactic ladder is built, and it is the same relationship
+the almanac names on every card.
+
+The bench shows what a pair would produce before you commit — the fraction, the angle,
+what the child would sell for, and whether it lands on a rung of the real ladder or
+between them. Below that is **your ladder**: which of the seven rungs you hold, and for
+the ones you do not, which pair would make them. So the mediant is something to aim at
+rather than a lever you pull to see what happens.
+
+Each cross costs 35% more than the last, and a child's price is damped by generation and
+hard-capped, because crossing hybrids with hybrids used to compound into a money printer
+— an early simulation reached 3.6 million coins in three weeks.
 
 ## Sound
 

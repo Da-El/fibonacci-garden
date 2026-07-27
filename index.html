@@ -497,6 +497,28 @@
     margin-top: 8px; padding: 9px 11px; border-radius: 11px; background: #ffffff07;
   }
   .ladder b { color: #cfe6b4; }
+  /* the breeding bench: what a cross is worth, and which rungs you hold */
+  .bpreview { font-size: 10.5px; color: var(--dim); }
+  .bpreview b { color: var(--leaf); }
+  .lstrip { margin-top: 9px; }
+  .lhead {
+    font-family: var(--mono); font-size: 8.5px; color: var(--dim);
+    letter-spacing: .14em; text-transform: uppercase; margin-bottom: 5px;
+  }
+  .lrow { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; }
+  .lrung {
+    flex: 0 0 auto; min-width: 52px; text-align: center; padding: 5px 4px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2);
+  }
+  .lrung b { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .lrung i {
+    display: block; font-family: var(--mono); font-size: 7px; font-style: normal;
+    color: var(--dim); margin-top: 2px;
+  }
+  .lrung.has { border-color: var(--leaf); background: #6fbf5e14; }
+  .lrung.has b { color: var(--pale); }
+  .lrung.has i { color: var(--leaf); }
+  body.cb .lrung.has b::after { content: ' ✓'; font-size: 8px; }
   .hint2 { color: var(--dim); font-size: 10px; font-weight: 400; }
   .wilttag { color: var(--bad); }
   .thirstytag { color: var(--water); font-weight: 600; }
@@ -6574,6 +6596,36 @@ function openBreeder() {
   renderBreeder();
 }
 let breedPick = { a: null, b: null };
+
+function onLadder(frac) {
+  return !!frac && PHYLLO_LADDER.some(function (f) { return f[0] === frac[0] && f[1] === frac[1]; });
+}
+
+/* Which rungs of the real phyllotactic ladder you hold, and for the ones you
+   do not, which pair would make them. A mediant you cannot aim is a lever you
+   pull to see what happens; this is what turns it into a plan. */
+function ladderStrip() {
+  const held = {};
+  SPECIES.forEach(function (sp) {
+    if (sp.frac && (state.almanac[sp.id] || byId[sp.id].hybrid && state.hybrids[sp.id])) {
+      held[sp.frac.join('/')] = 1;
+    }
+  });
+  const cells = PHYLLO_LADDER.map(function (f, i) {
+    const key = f.join('/');
+    const has = !!held[key];
+    let how = '';
+    if (!has && i >= 2) {
+      const p = PHYLLO_LADDER[i - 2], q = PHYLLO_LADDER[i - 1];
+      how = p.join('/') + '⊕' + q.join('/');
+    }
+    return '<div class="lrung' + (has ? ' has' : '') + '">' +
+      '<b>' + key + '</b><i>' + (has ? '✓' : (how || '—')) + '</i></div>';
+  }).join('');
+  const n = Object.keys(held).length;
+  return '<div class="lstrip"><div class="lhead">your ladder · ' + n + ' of ' +
+    PHYLLO_LADDER.length + ' rungs</div><div class="lrow">' + cells + '</div></div>';
+}
 function renderBreeder() {
   const stock = canBreed();
   const a = byId[breedPick.a], b = byId[breedPick.b];
@@ -6607,9 +6659,19 @@ function renderBreeder() {
        : (a.frac && b.frac
           ? a.frac[0] + '/' + a.frac[1] + ' ⊕ ' + b.frac[0] + '/' + b.frac[1] + ' = <b style="color:var(--gold)">' +
             preview.frac[0] + '/' + preview.frac[1] + '</b> · ' + angleOf(preview).toFixed(2) + '°' +
-            (isFibFraction(preview.frac) ? '<br><span style="color:var(--leaf)">a true Fibonacci fraction</span>' : '')
+            (isFibFraction(preview.frac) ? '<br><span style="color:var(--leaf)">a true Fibonacci fraction</span>' : '') +
+            /* What it would be worth, so a cross is a decision and not only a
+               curiosity — and whether it lands on the real ladder. */
+            '<br><span class="bpreview">sells ' + priceOf(preview) + '🪙 · seed ' +
+            seedCostOf(preview) + '🪙 · ' + preview.stages + ' stages' +
+            (onLadder(preview.frac) ? ' · <b>a rung of the ladder</b>'
+                                    : ' · between the rungs') + '</span>'
           : 'One parent uses the golden angle — the child will too.')) +
     '</div>' +
+    /* The ladder itself, with what you hold marked. This is the thing to aim
+       at: the mediant is only interesting if you can see which rung is
+       missing and work out which pair would make it. */
+    ladderStrip() +
     '<div class="btnrow2">' +
       '<button class="btn" id="b-go"' + ((same || already || !afford) ? ' disabled' : '') +
       ' style="background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">' +

@@ -21,7 +21,8 @@ const FILES = [
   ['a11y-check',    'colour, motion, screen readers and tap targets'],
   ['market-check',  'the price spread, and whether the market explains it'],
   ['save-check',    'old saves, corrupt saves, export codes, a failing localStorage'],
-  ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning']
+  ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning'],
+  ['breed-check',   'the mediant, the price cap, and every rung reachable']
 ];
 
 let pass = 0, fail = 0, broken = [];
