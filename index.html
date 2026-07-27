@@ -86,7 +86,124 @@
     text-align: center; color: var(--dim); font-size: 13px; padding: 26px 10px; line-height: 1.6;
   }
 
-  /* ---------- plots ---------- */
+  /* ---------- the garden scene ---------- */
+  #scene {
+    position: relative; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--line); margin-bottom: 12px;
+    transition: background 2s;
+  }
+  #scene.day   { background: linear-gradient(#6ea8d6 0%, #a8cfe8 42%, #cfe3d2 62%); }
+  #scene.dusk  { background: linear-gradient(#3d4b7a 0%, #a86a52 46%, #d19a5a 64%); }
+  #scene.night { background: linear-gradient(#060a18 0%, #131a33 46%, #1b2436 64%); }
+  #scenesky { position: absolute; left: 0; right: 0; top: 0; height: 64%; overflow: hidden; }
+  #scenesky .stars {
+    position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s;
+    background-image:
+      radial-gradient(1px 1px at 9% 22%, #fff, transparent),
+      radial-gradient(1px 1px at 24% 54%, #fffa, transparent),
+      radial-gradient(1.4px 1.4px at 41% 16%, #fff, transparent),
+      radial-gradient(1px 1px at 58% 42%, #fffc, transparent),
+      radial-gradient(1px 1px at 71% 20%, #fff9, transparent),
+      radial-gradient(1.4px 1.4px at 86% 48%, #fff, transparent),
+      radial-gradient(1px 1px at 49% 66%, #fff8, transparent),
+      radial-gradient(1px 1px at 15% 70%, #fff7, transparent);
+  }
+  #scene.night #scenesky .stars { opacity: 1; }
+  #sceneorb {
+    position: absolute; font-size: 21px; line-height: 1;
+    transform: translate(-50%, -50%); transition: left 3s linear, top 3s linear;
+    filter: drop-shadow(0 0 10px #ffd97077);
+  }
+  #scenesky .hill {
+    position: absolute; left: -6%; right: -6%; bottom: -2px; height: 46%;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  }
+  #scene.day   .hill { background: #4e7a3e; opacity: .55; }
+  #scene.dusk  .hill { background: #4a3d52; opacity: .6; }
+  #scene.night .hill { background: #16203a; opacity: .8; }
+  #scenesky .hill.far { transform: scaleY(.72) translateX(-7%); filter: brightness(.82); }
+  #scenewx { position: absolute; inset: 0; pointer-events: none; }
+  #scene.rain #scenewx, #scene.storm #scenewx {
+    background: repeating-linear-gradient(103deg, transparent 0 6px, #cfe6fa55 6px 7px, transparent 7px 13px);
+    animation: rainfall .5s linear infinite;
+  }
+  #scene.storm #scenewx { animation: rainfall .3s linear infinite, lightning 4.4s steps(1) infinite; }
+  #scene.heat #scenewx { background: linear-gradient(#e2703a26, transparent 60%); animation: heatthrob 2.8s ease-in-out infinite; }
+  #scenelabel {
+    position: absolute; right: 9px; top: 7px; z-index: 6;
+    font-family: var(--mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+    color: #ffffffd0; text-shadow: 0 1px 3px #000a;
+  }
+  #sceneforecast {
+    position: absolute; left: 9px; top: 6px; z-index: 6; display: flex; gap: 4px; font-size: 11px;
+  }
+  #sceneforecast .fc { opacity: .8; }
+  #sceneforecast .fc.warn { animation: warnpulse 1.2s ease-in-out infinite; }
+
+  /* the soil bed the plants stand in */
+  #bed {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+    background:
+      linear-gradient(#3a2c1c 0%, #2a2013 18%, #1d1710 100%);
+    box-shadow: inset 0 5px 12px -4px #0009;
+  }
+  #bed::before {
+    content: ''; position: absolute; left: -2%; right: -2%; top: -7px; height: 15px;
+    border-radius: 50%; background: #46351f;
+  }
+  /* rows of plants: back row smaller and dimmer for depth */
+  .gplant {
+    position: absolute; bottom: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    transform-origin: 50% 100%; transition: filter .2s;
+  }
+  .gplant:active { filter: brightness(1.15); }
+  .gplant .gart { width: 100%; }
+  .gplant .gart svg { width: 100%; height: 100%; overflow: visible; }
+  .gplant .gtag {
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 7.5px; white-space: nowrap;
+    color: #f2f6e6; background: #0a0d06b0; padding: 1.5px 5px; border-radius: 100px;
+    margin-bottom: 1px; pointer-events: none;
+  }
+  .gplant .gtag.ready { color: #2a1d05; background: var(--gold); font-weight: 700; }
+  .gplant .gtag.warn { color: #fff; background: #b3402ecc; }
+  .gplant .gmark {
+    position: absolute; top: -4px; right: -2px; font-size: 12px; pointer-events: none;
+  }
+  .gplant.ready { animation: readyglow 2.2s ease-in-out infinite; }
+  @keyframes readyglow {
+    0%,100% { filter: drop-shadow(0 0 3px #f2c53c55); }
+    50%     { filter: drop-shadow(0 0 12px #f2c53caa); }
+  }
+  /* an empty or overgrown spot in the bed */
+  .gspot {
+    position: absolute; bottom: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  }
+  .gspot .hole {
+    width: 100%; aspect-ratio: 2.1; border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 35%, #17110a, #241a10 70%, transparent 100%);
+    box-shadow: inset 0 3px 6px #000a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #6b5636;
+  }
+  .gspot.weedy .hole { color: #b8b45e; font-size: 19px; }
+  .gspot .glabel {
+    font-family: var(--mono); font-size: 7.5px; color: #b8a888; margin-top: 2px;
+    text-shadow: 0 1px 2px #000;
+  }
+  #bedgrass {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 13px; pointer-events: none;
+    background: repeating-linear-gradient(84deg, #2f4420 0 3px, transparent 3px 8px);
+    opacity: .55;
+  }
+  #scenelocked {
+    position: absolute; right: 8px; bottom: 8px; font-size: 11px; opacity: .5;
+    font-family: var(--mono); color: #d8c9a8; pointer-events: none;
+  }
+
+  /* ---------- plots (legacy grid, kept for the almanac thumbs) ---------- */
   #plots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
   .plot {
     aspect-ratio: .8; border-radius: 14px; border: 1px solid var(--line);
@@ -737,19 +854,24 @@
 
     <!-- GARDEN -->
     <div class="view" id="v-garden">
-      <div id="sky">
-        <div class="stars"></div>
-        <div class="wx"></div>
-        <span class="orb" id="orb">☀️</span>
-        <span class="skylabel" id="skylabel"></span>
-        <div id="forecast"><span class="fclabel">next</span></div>
+      <div id="scene">
+        <div id="scenesky">
+          <div class="stars"></div>
+          <div class="hill far"></div>
+          <div class="hill"></div>
+          <span id="sceneorb">☀️</span>
+        </div>
+        <div id="bed"><div id="bedgrass"></div></div>
+        <div id="scenewx"></div>
+        <div id="sceneforecast"></div>
+        <span id="scenelabel"></span>
+        <span id="scenelocked"></span>
       </div>
       <div id="hivebar" style="display:none">
         <span class="hicon">🍯</span>
         <span class="htext" id="hivetext"></span>
       </div>
-      <div class="sectitle">Plots <span id="plotinfo"></span></div>
-      <div id="plots"></div>
+      <div class="sectitle">Your bed <span id="plotinfo"></span></div>
       <div id="gardenhint" class="empty-note"></div>
     </div>
 
@@ -2242,18 +2364,18 @@ function paintTop() {
 
 /* ---- sky strip ---- */
 function paintSky() {
-  const sky = $('sky');
-  if (!sky) return;
+  const scene = $('scene');
+  if (!scene) return;
   const h = hourNow(), m = new Date(NOW()).getMinutes();
   const wx = weatherNow();
   const phase = isDusk() ? 'dusk' : (isDay() ? 'day' : 'night');
-  sky.className = phase + (wx.id === 'rain' || wx.id === 'heat' || wx.id === 'storm' ? ' ' + wx.id : '');
+  scene.className = phase + (wx.id === 'rain' || wx.id === 'heat' || wx.id === 'storm' ? ' ' + wx.id : '');
   $('wxicon').textContent = wx.icon;
   $('p-weather').title = wx.name + ' — ' + wx.blurb;
 
   // forecast: the next three slots, storms flagged loud
-  const fc = $('forecast');
-  while (fc.children.length > 1) fc.removeChild(fc.lastChild);
+  const fc = $('sceneforecast');
+  fc.innerHTML = '';
   for (let k = 1; k <= 3; k++) {
     const w = weatherAt(weatherSlot() + k);
     const s = document.createElement('span');
@@ -2265,26 +2387,28 @@ function paintSky() {
   const frac = isDay()
     ? ((h - 6) * 60 + m) / (12 * 60)              // sun sweeps 6:00 -> 18:00
     : ((((h + 24 - 18) % 24) * 60 + m) / (12 * 60));  // moon sweeps 18:00 -> 6:00
-  $('orb').textContent = isDay() ? '☀️' : '🌙';
-  $('orb').style.left = (8 + frac * 84) + '%';
-  $('orb').style.top = (58 - Math.sin(frac * Math.PI) * 26) + '%';
-  $('skylabel').textContent = wx.icon + ' ' + wx.name + ' · ' + wx.blurb + '  |  ' +
-    (isDusk() ? '🌅 golden hour — every plant earns care'
-              : (isDay() ? '☀️' : '🌙') + ' plants earn care now');
-  // a couple of drifting clouds by day
-  let clouds = sky.querySelectorAll('.cloud');
-  if (isDay() && clouds.length === 0) {
+  const orb = $('sceneorb');
+  orb.textContent = isDay() ? '☀️' : '🌙';
+  orb.style.left = (8 + frac * 84) + '%';
+  orb.style.top = (74 - Math.sin(frac * Math.PI) * 52) + '%';
+  $('scenelabel').textContent = wx.icon + ' ' + wx.name +
+    (isDusk() ? ' · 🌅 golden hour' : '');
+
+  // drifting clouds by day only
+  const sky = $('scenesky');
+  const clouds = sky.querySelectorAll('.cloud');
+  if (isDay() && clouds.length === 0 && opt.motion) {
     for (let i = 0; i < 2; i++) {
       const c = document.createElement('span');
       c.className = 'cloud';
       c.textContent = '☁️';
-      c.style.top = (12 + i * 38) + '%';
-      c.style.animationDuration = (34 + i * 21) + 's';
-      c.style.animationDelay = (-i * 13) + 's';
+      c.style.top = (10 + i * 26) + '%';
+      c.style.animationDuration = (36 + i * 23) + 's';
+      c.style.animationDelay = (-i * 15) + 's';
       sky.appendChild(c);
     }
-  } else if (!isDay()) {
-    clouds.forEach(function (c) { c.remove(); });
+  } else if (!isDay() || !opt.motion) {
+    Array.prototype.slice.call(clouds).forEach(function (c) { c.remove(); });
   }
 }
 
@@ -2310,6 +2434,15 @@ function burstCenter(el, glyphs) {
   burst(el.offsetParent || el, glyphs, r.left - rr.left + r.width / 2, r.top - rr.top + r.height / 2);
 }
 
+/* ---- the garden scene -------------------------------------------
+   Plots become places in one illustrated bed. Back row sits higher
+   and smaller so the bed reads as having depth.                   */
+function sceneRows() {
+  const n = state.plotCount;
+  if (n <= 3) return [n];
+  if (n <= 6) return [Math.ceil(n / 2), Math.floor(n / 2)];   // back, front
+  return [Math.ceil(n / 3), Math.ceil((n - Math.ceil(n / 3)) / 2), n - Math.ceil(n / 3) - Math.ceil((n - Math.ceil(n / 3)) / 2)];
+}
 function paintPlots() {
   paintSky();
   const hb = $('hivebar');
@@ -2321,56 +2454,80 @@ function paintPlots() {
       (waiting ? ' · ' + waiting + ' plant' + (waiting > 1 ? 's' : '') + ' still to visit'
                : ' · every plant visited 🍯');
   }
-  const wrap = $('plots');
-  wrap.innerHTML = '';
   const season = seasonNow();
-  $('plotinfo').textContent = state.plotCount + ' of ' + MAX_PLOTS + ' owned · ' +
+  $('plotinfo').textContent = state.plotCount + ' of ' + MAX_PLOTS + ' plots · ' +
     season.icon + ' ' + season.name + ' — ' + season.blurb;
 
-  for (let i = 0; i < state.plotCount; i++) {
-    const p = state.plots[i];
-    const d = document.createElement('div');
-    if (!p && state.weeds[i]) {
-      d.className = 'plot weedy';
-      d.innerHTML = '<div class="art"><span class="weedart">🌾</span></div>' +
-                    '<div class="lbl">weeds!<br>tap to clear</div>';
-      d.addEventListener('click', function () { clearWeed(i); });
-    } else if (!p) {
-      d.className = 'plot dirt';
-      d.innerHTML = (state.trellised[i] ? '<span class="trellistag">🛡️</span>' : '') +
-                    '<b>+</b><small>plant</small>';
-      d.addEventListener('click', function () { openPlanter(i); });
-    } else {
+  // size the scene to the phone, then lay the bed out inside it
+  const scene = $('scene');
+  const W = scene.clientWidth || 340;
+  scene.style.height = Math.round(W * 0.82) + 'px';
+  const H = scene.clientHeight;
+  const bed = $('bed');
+  // clear everything except the permanent bits
+  Array.prototype.slice.call(bed.querySelectorAll('.gplant,.gspot')).forEach(function (e) { e.remove(); });
+
+  const rows = sceneRows();
+  const bedH = bed.clientHeight || H * 0.42;
+  let idx = 0;
+  rows.forEach(function (count, rowI) {
+    const depth = rows.length === 1 ? 1 : 1 - (rows.length - 1 - rowI) * 0.22;   // back rows smaller
+    const baseY = 6 + (rows.length - 1 - rowI) * (bedH * 0.30);
+    const slotW = W / count;
+    for (let k = 0; k < count && idx < state.plotCount; k++, idx++) {
+      const i = idx;
+      const p = state.plots[i];
+      const cx = slotW * (k + 0.5);
+      const w = Math.min(slotW * 0.86, 86) * depth;
+
+      if (!p) {
+        const s = document.createElement('div');
+        s.className = 'gspot' + (state.weeds[i] ? ' weedy' : '');
+        s.style.width = w + 'px';
+        s.style.left = (cx - w / 2) + 'px';
+        s.style.bottom = baseY + 'px';
+        s.style.zIndex = 10 + rowI;
+        s.innerHTML = '<div class="hole">' + (state.weeds[i] ? '🌾' : '+') + '</div>' +
+          '<div class="glabel">' + (state.weeds[i] ? 'weeds — tap' : 'plant') + '</div>';
+        s.addEventListener('click', state.weeds[i]
+          ? function () { clearWeed(i); }
+          : function () { openPlanter(i); });
+        bed.appendChild(s);
+        continue;
+      }
+
       const sp = byId[p.s];
       const done = p.stage >= sp.stages;
       const wilting = done && wiltPenalty(p) > 0;
       const st = harvestStars(sp, p);
-      d.className = 'plot' + (done ? ' ready' : '');
-      d.innerHTML =
-        (state.trellised[i] ? '<span class="trellistag">🛡️</span>' : '') +
-        (p.bug ? '<span class="bugtag">🐛</span>' : '') +
-        (p.pollen ? '<span class="pollen">🍯</span>' : '') +
-        '<div class="art">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>' +
-        '<div class="bar"><i style="width:' + Math.round(p.stage / sp.stages * 100) + '%"></i></div>' +
-        '<div class="lbl">' + (done
-          ? (wilting ? '<span class="wilttag">wilting! </span>' : 'ready ') +
-            '<span class="stars">' + starStr(st) + '</span> · ' + priceOfQ(sp, st) + '🪙'
-          : prefIcon(sp) + ' ' + sp.name + '<br>' + p.stage + '/' + sp.stages +
-            (p.bug ? ' <span class="wilttag">paused</span>'
-                   : ' · <span class="eta">' + fmtLong(etaToReady(sp, p)) + '</span>')) + '</div>';
-      d.addEventListener('click', function () { openGrow(i); });
-    }
-    wrap.appendChild(d);
-  }
+      // the plant grows visually as well as numerically
+      const growFrac = 0.42 + (p.stage / sp.stages) * 0.58;
+      const h = w * 1.5 * growFrac;
 
-  // one locked slot to show there's more land to buy
-  if (state.plotCount < MAX_PLOTS) {
-    const l = document.createElement('div');
-    l.className = 'plot locked';
-    l.innerHTML = '<b>🔒</b>';
-    l.title = 'Buy more land in the shop';
-    wrap.appendChild(l);
-  }
+      const d = document.createElement('div');
+      d.className = 'gplant' + (done ? ' ready' : '');
+      d.style.width = w + 'px';
+      d.style.height = h + 'px';
+      d.style.left = (cx - w / 2) + 'px';
+      d.style.bottom = baseY + 'px';
+      d.style.zIndex = 10 + rowI;
+      d.style.opacity = 0.78 + depth * 0.22;
+      d.innerHTML =
+        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : '')) + '">' +
+          (done ? (wilting ? 'wilting ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
+                : (p.bug ? '🐛 paused' : p.stage + '/' + sp.stages + ' · ' + fmtLong(etaToReady(sp, p)))) +
+        '</div>' +
+        (state.trellised[i] || p.pollen
+          ? '<span class="gmark">' + (state.trellised[i] ? '🛡️' : '') + (p.pollen ? '🍯' : '') + '</span>'
+          : '') +
+        '<div class="gart">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>';
+      d.addEventListener('click', function () { openGrow(i); });
+      bed.appendChild(d);
+    }
+  });
+
+  $('scenelocked').textContent = state.plotCount < MAX_PLOTS
+    ? '🔒 ' + (MAX_PLOTS - state.plotCount) + ' more plots in the shop' : '';
 
   const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
   const empty = state.plots.filter(function (p) { return !p; }).length;
@@ -3193,8 +3350,8 @@ function saveTutor() { try { localStorage.setItem(TUTOR_KEY, JSON.stringify(tuto
 const STEPS = [
   { sel: null, title: 'Welcome to your garden',
     text: 'Nine plants, every one shaped by the <b>Fibonacci sequence</b> — the same maths that shapes real sunflowers. Let\'s grow one.' },
-  { sel: '#plots .plot', title: 'This is a plot',
-    text: 'Tap an empty plot to plant a seed. You start with three plots and enough coins for a few seeds.',
+  { sel: '#bed .gspot', title: 'This is your bed',
+    text: 'Tap an empty spot in the soil to plant a seed. You start with three and enough coins for a few seeds.',
     await: 'planter', hand: true },
   { sel: '#card', title: 'Pick a seed',
     text: 'Cheap and quick, or slow and valuable? The <b>📋 badge</b> marks anything a customer is waiting on. Tap <b>Elm Sprig</b> to begin.',
@@ -3209,7 +3366,7 @@ const STEPS = [
     await: 'poured', hand: true },
   { sel: '#carebar', title: 'Care becomes quality',
     text: 'Care points decide the harvest\'s <b>★ to ★★★</b> quality, and stars multiply the price. Perfect pours and watering at a plant\'s favourite hour both earn them.' },
-  { sel: '#sky', title: 'The sky matters',
+  { sel: '#scene', title: 'The sky matters',
     text: 'Real time of day and weather drive the garden. Plants earn care in their favourite hours, rain speeds growth, and <b>storms can damage</b> what isn\'t sheltered.' },
   { sel: '#tabs', title: 'Grow, sell, master',
     text: 'Harvest into the <b>barn</b>, sell at the <b>market</b> (prices move daily), and track everything in the <b>almanac</b>. That\'s the whole loop — enjoy your garden.' }
@@ -3547,7 +3704,8 @@ function buyHive() {
 /* the visible bees drifting over the garden view */
 let beeEls = [];
 function spawnBees() {
-  const wrap = $('plots');
+  const wrap = $('scene');
+  if (!wrap) return;
   beeEls.forEach(function (b) { b.remove(); });
   beeEls = [];
   if (!hasHive() || !opt.motion) return;
@@ -3557,8 +3715,9 @@ function spawnBees() {
     const b = document.createElement('span');
     b.className = 'bee';
     b.textContent = '🐝';
-    b.style.left = (10 + Math.random() * 70) + '%';
-    b.style.top = (10 + Math.random() * 70) + '%';
+    b.style.zIndex = 30;
+    b.style.left = (20 + Math.random() * 60) + '%';
+    b.style.top = (45 + Math.random() * 25) + '%';
     b.style.animationDelay = (i * 0.13) + 's';
     wrap.appendChild(b);
     beeEls.push(b);
@@ -3566,24 +3725,26 @@ function spawnBees() {
 }
 function flyBees() {
   if (!beeEls.length) return;
-  const plots = $('plots').querySelectorAll('.plot');
+  const scene = $('scene');
+  const sr = scene.getBoundingClientRect();
+  const plants = scene.querySelectorAll('.gplant');
   beeEls.forEach(function (b) {
-    // head for a plot that still needs pollinating, else wander
+    // head for a plant that still needs pollinating, else wander the bed
     const targets = beeTargets();
     let x, y;
-    if (targets.length && plots.length) {
+    if (targets.length && plants.length) {
       const t = targets[Math.floor(Math.random() * targets.length)];
-      const el = plots[t.i];
+      // .gplant elements are laid out in plot order across the rows
+      const el = plants[Math.min(t.i, plants.length - 1)];
       if (el) {
-        const pr = $('plots').getBoundingClientRect(), er = el.getBoundingClientRect();
-        x = er.left - pr.left + er.width * (0.25 + Math.random() * 0.5);
-        y = er.top - pr.top + er.height * (0.2 + Math.random() * 0.5);
+        const er = el.getBoundingClientRect();
+        x = er.left - sr.left + er.width * (0.2 + Math.random() * 0.6);
+        y = er.top - sr.top + er.height * (0.05 + Math.random() * 0.35);
       }
     }
     if (x === undefined) {
-      const pr = $('plots').getBoundingClientRect();
-      x = Math.random() * Math.max(20, pr.width - 20);
-      y = Math.random() * Math.max(20, pr.height - 20);
+      x = sr.width * (0.15 + Math.random() * 0.7);
+      y = sr.height * (0.45 + Math.random() * 0.3);
     }
     const wasLeft = parseFloat(b.style.left) || 0;
     b.classList.toggle('flip', x < wasLeft);
