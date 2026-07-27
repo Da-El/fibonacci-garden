@@ -2008,6 +2008,10 @@ function freshState() {
     bred: 0,
     chapters: {},                    // journal chapters claimed
     weedsCleared: 0,
+    stalledFinished: 0,             // plants you took past the clock's ceiling
+    driedReady: 0,                  // dry spells walked into with a full can
+    driedDay: 0,                    // so a spell is only counted once
+    glassPristine: 0,               // pristine blooms grown under glass
     hive: false,                     // bees pollinate growing plants
     hiveLevel: 0,
     pollenSlot: 0,
@@ -2093,6 +2097,10 @@ function loadState() {
         p.bred = p.bred | 0;
         p.chapters = p.chapters || {};
         p.weedsCleared = p.weedsCleared | 0;
+        p.stalledFinished = p.stalledFinished | 0;
+        p.driedReady = p.driedReady | 0;
+        p.driedDay = p.driedDay | 0;
+        p.glassPristine = p.glassPristine | 0;
         p.hive = !!p.hive;
         p.hiveLevel = p.hiveLevel | 0;
         p.pollenSlot = p.pollenSlot | 0;
@@ -3205,6 +3213,22 @@ function isDryDay(day) {
   return day >= start && day < start + DRY_RUN_DAYS;
 }
 function dryNow() { return isDryDay(dayIndex()); }
+/* Credit for having actually prepared: the first time you are seen inside a
+   dry spell with a full can, that spell counts. Checked once per spell, so
+   topping up on the second day does not earn it retroactively. */
+function noteDryPreparedness() {
+  const today = dayIndex();
+  if (!isDryDay(today)) return;
+  if (state.driedDay === today) return;
+  // only the first day of a spell counts — you had the warning the day before
+  if (isDryDay(today - 1)) { state.driedDay = today; return; }
+  state.driedDay = today;
+  if (state.water >= waterCap()) {
+    state.driedReady = (state.driedReady | 0) + 1;
+    logEvent('driedReady', 1);
+    saveState();
+  }
+}
 /* days until the next dry spell begins, or 0 if we are in one */
 function dryDaysAway() {
   const today = dayIndex();
@@ -4188,6 +4212,8 @@ function advanceStage(via, perfect) {
   const from = elementsAt(sp, p.stage);
 
   if (via === 'water') {
+    // a drop spent on a plant the clock had already given up on
+    if (p.stage >= timerCeiling(sp, p)) state.stalledFinished = (state.stalledFinished | 0) + 1;
     state.water--;
     if (state.water === waterCap() - 1) state.lastTick = NOW();
     /* An easygoing species earns its care point in any hour — that is what
@@ -4273,6 +4299,8 @@ function bankHarvest(idx, at) {
   } else if (isPristine) {
     state.barn[sp.id].p = (state.barn[sp.id].p || 0) + 1;
     state.pristineHarvests++;
+    // a pristine grown under glass is the deliberate kind, not the lucky kind
+    if (p.glass) state.glassPristine = (state.glassPristine | 0) + 1;
   } else {
     state.barn[sp.id][stars] = (state.barn[sp.id][stars] || 0) + 1;
   }
@@ -5327,6 +5355,21 @@ const CHAPTERS = [
     ],
     reward: { coins: 500, label: '500🪙' } },
 
+  /* The clock stopping halfway is the central rule of the game and had no
+     goal pointing at it, and neither did the dry spell — the one hazard you
+     are meant to prepare for. A chapter that teaches you to walk into a
+     drought with a full can teaches the whole economy. */
+  { id: 'c4b', title: 'The dry days',
+    quote: 'You get a day\'s warning. That is the entire mercy, and it is enough.',
+    objs: [
+      { t: 'Pour five stalled plants to the finish',
+        get: function (s) { return s.stalledFinished | 0; }, need: 5 },
+      { t: 'Hold a full can into a dry spell',
+        get: function (s) { return s.driedReady | 0; }, need: 1 },
+      { t: 'Own a can that holds 34',          get: function (s) { return CAN_TIERS[s.canTier]; }, need: 34 }
+    ],
+    reward: { coins: 650, compost: 3, label: '650🪙 + 3🪱' } },
+
   { id: 'c5', title: 'The swarm',
     quote: 'Let something else do the walking.',
     objs: [
@@ -5354,12 +5397,24 @@ const CHAPTERS = [
     ],
     reward: { golden: 1, coins: 500, label: '500🪙 + 1 ✨' } },
 
+  /* Hired help and the glasshouse both arrive late and had nothing pointing
+     at them. They belong together: one hands you more of the clock, the other
+     takes the clock away entirely. */
+  { id: 'c7b', title: 'Hired hands and glass',
+    quote: 'Someone to carry the middle of the work, and one bed where there is no middle at all.',
+    objs: [
+      { t: 'Employ an apprentice',            get: function (s) { return s.appLevel; }, need: 1 },
+      { t: 'Promote her to head gardener',    get: function (s) { return s.appLevel; }, need: 2 },
+      { t: 'Put a bed under glass',           get: function (s) { return (s.glassed || []).filter(Boolean).length; }, need: 1 }
+    ],
+    reward: { coins: 1400, label: '1,400🪙' } },
+
   { id: 'c8', title: 'Flawless',
     quote: 'Not one drop spilled. Not one.',
     objs: [
       { t: 'Harvest a pristine bloom',        get: function (s) { return s.pristineHarvests; }, need: 1 },
-      { t: 'Reach a combo of 13',             get: function (s) { return s.bestCombo; }, need: 13 },
-      { t: 'Reach gardener level 10',         get: function (s) { return s.level; }, need: 10 }
+      { t: 'Grow one pristine under glass',   get: function (s) { return s.glassPristine | 0; }, need: 1 },
+      { t: 'Reach a combo of 13',             get: function (s) { return s.bestCombo; }, need: 13 }
     ],
     reward: { golden: 2, label: '2 golden seeds ✨' } },
 
@@ -5877,7 +5932,8 @@ function catchUpWithLedger() {
      first meant they inspected the garden as it was when you closed the app —
      everything you had just sown still at stage 0 — and found nothing to
      visit. Thirteen pollinations in three weeks, for a hive that costs 650. */
-  tickWater(); stormTick(); growthTick(); pollenTick(); bugTick(); weedTick();
+  tickWater(); noteDryPreparedness();
+  stormTick(); growthTick(); pollenTick(); bugTick(); weedTick();
   appWages(); appTick(); ensureOrders();
   const l = ledger;
   ledger = null;

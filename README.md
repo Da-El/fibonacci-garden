@@ -158,6 +158,11 @@ you've run out of garden to buy, not instead of buying it. The running bonus sho
 the ✨ pill, because a permanent reward you can't see isn't much of a reward. And
 **storms and aphids grow bolder with every replant** — mastery has to cost something.
 
+The **botanist's journal** runs eleven chapters of concrete objectives, each one
+introducing a system in the order you meet it — the first harvest, the steady hand,
+reading the sky, the dry days, the swarm, fever, the mediant, hired hands and glass,
+flawless, and the whole ladder. It pays 6,620 coins and 7 golden seeds across its length.
+
 Long-term goals: the **botanist's almanac** (all nine species at ★★★ pays a golden
 seed), **17 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
 
