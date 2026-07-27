@@ -2983,8 +2983,10 @@ const SFX = {
                           buzz([40, 30, 40, 30, 70]); },
   squash:   function () { noise(0.14, { freq: 1500, gain: 0.16, q: 0.7 }); tone(140, 0.1, { type: 'square', gain: 0.08 }); buzz(15); },
   bug:      function () { tone(880, 0.07, { type: 'square', gain: 0.06, slideTo: 1200 }); },
-  storm:    function () { noise(1.5, { freq: 120, gain: 0.3, type: 'lowpass', q: 0.5 });
-                          tone(60, 1.4, { type: 'sine', gain: 0.12 }); buzz([60, 60, 120]); },
+  /* 0.3 made this twice as loud as anything else in the game — a six-fold
+     spread across the whole set, and the storm arrives unbidden. */
+  storm:    function () { noise(1.5, { freq: 120, gain: 0.18, type: 'lowpass', q: 0.5 });
+                          tone(60, 1.4, { type: 'sine', gain: 0.1 }); buzz([60, 60, 120]); },
   weed:     function () { noise(0.3, { freq: 700, gain: 0.15 }); buzz(15); },
   wheel:    function () { tone(300, 0.06, { type: 'square', gain: 0.05 }); },
   jackpot:  function () { chord([523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98], 0.8, { type: 'triangle', gain: 0.17 }); buzz([50, 40, 50, 40, 90]); },
@@ -4132,8 +4134,10 @@ function lockPour() {
 
   /* Which side of the gold you landed on. "SPILLED" alone tells a player
      nothing they can act on; early or late is the one thing that lets them
-     correct on the next drop, and the whole game rests on this tap. */
-  const side = pos < pour.center ? 'EARLY' : 'LATE';
+     correct on the next drop, and the whole game rests on this tap.
+     Read from `z`, not from `pour` — cancelPour() above has already nulled
+     `pour`, which is why `z` is captured before it. */
+  const side = pos < z.center ? 'EARLY' : 'LATE';
 
   if (result === 'spill') {
     state.water--;
