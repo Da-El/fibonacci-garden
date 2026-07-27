@@ -545,6 +545,35 @@
   #devbox p { margin: 0 0 9px; font-family: var(--mono); font-size: 9px; color: var(--dim); line-height: 1.5; letter-spacing: .04em; }
   #devbox .r { display: flex; gap: 7px; }
 
+  /* ---------- settings ---------- */
+  #gear {
+    position: absolute; top: 22px; right: 16px; z-index: 12;
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+    background: #ffffff0d; border: 1px solid var(--line); color: var(--muted);
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  #gear:hover { background: #ffffff1c; color: var(--pale); }
+  .toggle {
+    display: flex; align-items: center; gap: 11px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px;
+    background: var(--panel-2); cursor: pointer;
+  }
+  .toggle .tinfo { flex: 1; text-align: left; }
+  .toggle h4 { margin: 0; font-size: 13.5px; font-weight: 560; }
+  .toggle p { margin: 2px 0 0; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  .switch {
+    flex: 0 0 auto; width: 40px; height: 23px; border-radius: 100px;
+    background: #ffffff14; border: 1px solid var(--line); position: relative;
+    transition: background .18s;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 17px; height: 17px; border-radius: 50%; background: var(--dim);
+    transition: transform .18s, background .18s;
+  }
+  .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
+  .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
+
   /* ---------- toast ---------- */
   #toast {
     position: absolute; left: 50%; bottom: 88px; transform: translate(-50%, 14px);
@@ -668,6 +697,7 @@
       <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
     </div>
 
+    <div id="gear" title="Settings">⚙</div>
     <div id="feverbar">🔥 FIBONACCI FEVER · prices ×1.618 · <span id="fevertime"></span></div>
     <div id="modal"><div id="card"></div></div>
     <div id="hurt"></div>
@@ -1071,6 +1101,7 @@ function startFever() {
   const ms = hasPerk('longfever') ? 150 * 1000 : FEVER_MS;
   state.feverUntil = NOW() + ms;
   saveState();
+  sfx('fever');
   shakeApp();
   toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for ' + Math.round(ms / 1000) + 's!');
   paintFever();
@@ -1180,7 +1211,7 @@ function checkDailyGift() {
     if (gift.coins)   { state.coins += gift.coins; state.earned += gift.coins; state.runEarned += gift.coins; }
     if (gift.compost) state.compost += gift.compost;
     if (gift.golden)  state.golden += gift.golden;
-    saveState(); closeCard(); paintTop(); shakeApp();
+    saveState(); closeCard(); paintTop(); sfx(gift.golden ? 'jackpot' : 'gift'); shakeApp();
     toast('🎁 Claimed ' + gift.label + ' · streak ' + streak);
   });
 }
@@ -1230,6 +1261,7 @@ function spawnLadybug(slot) {
     clearTimeout(gone);
     const msg = ladyBoon(slot);
     saveState();
+    sfx('gift');
     floatText(b, '🐞 ' + msg, 'var(--leaf)');
     burst(app, ['🐞', '✨', '🍀'], b.offsetLeft, b.offsetTop);
     b.remove();
@@ -1290,6 +1322,7 @@ function addXP(n) {
   }
   saveState();
   if (!leveled) return;
+  sfx('levelUp');
   shakeApp();
   const unlocked = SPECIES.filter(function (s) { return s.lvl === state.level; });
   toast('🌟 Level ' + state.level + '!' +
@@ -1377,7 +1410,7 @@ function bugTick() {
     if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
     if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
     p.bugSlot = slot;
-    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < bugChance()) p.bug = true;
+    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < bugChance()) { p.bug = true; sfx('bug'); }
     changed = true;
   });
   if (changed) saveState();
@@ -1389,6 +1422,7 @@ function squashBug() {
   p.bug = false;
   p.bugSlot = bugSlot();                                 // no instant respawn
   saveState();
+  sfx('squash');
   $('bugBtn').classList.remove('show');
   burstCenter($('canvas'), ['💥', '🐛', '✨']);
   toast('Aphids squashed!');
@@ -1424,6 +1458,7 @@ function clearWeed(i) {
   const worm = hash32((weedSlot() * 13 + i * 3 + 1) >>> 0) % 100 < 10;
   if (worm) state.compost++;
   saveState();
+  sfx('weed');
   shakeApp();
   toast(worm ? 'Cleared — and found a worm! +1 🪱' : 'Weeds cleared');
   addXP(2);
@@ -1493,6 +1528,9 @@ function spinWheel() {
   requestAnimationFrame(function () {
     requestAnimationFrame(function () { wheelEl.style.transform = 'rotate(' + target + 'deg)'; });
   });
+  // ratcheting clicks that slow down with the wheel
+  let t = 0;
+  for (let k = 0; k < 26; k++) { t += 0.055 + k * 0.008; setTimeout(function () { sfx('wheel'); }, t * 1000); }
   setTimeout(function () {
     const mult = WHEEL[idx].m;
     const payout = Math.round(value * mult);
@@ -1503,7 +1541,8 @@ function spinWheel() {
     $('wheelmsg').innerHTML = mult === 0
       ? '<b style="color:var(--bad)">×0 — the merchant tips his hat and walks off with everything.</b>'
       : '<b style="color:var(--gold)">' + WHEEL[idx].label + ' — paid ' + payout + '🪙!</b>';
-    if (mult === 0) { hurtFlash(); } else { shakeApp(); floatText($('p-coins'), '+' + payout + '🪙', 'var(--gold)'); }
+    if (mult === 0) { sfx('fail'); hurtFlash(); }
+    else { sfx(mult >= 3 ? 'jackpot' : 'coin'); shakeApp(); floatText($('p-coins'), '+' + payout + '🪙', 'var(--gold)'); }
     const btn = document.createElement('button');
     btn.className = 'btn';
     btn.style.marginTop = '10px';
@@ -1574,14 +1613,166 @@ function etaToReady(sp, p) {
   return first + (sp.stages - p.stage - 1) * dur;
 }
 
+/* ============================================================
+   Audio — everything synthesized with the Web Audio API so the
+   page stays a single self-contained file. Nothing is created
+   until the first user gesture (browsers require that).
+   ============================================================ */
+const SETTINGS_KEY = 'fibgarden.settings';
+let opt = { sound: true, ambient: true, haptics: true, motion: true };
+try {
+  const raw = localStorage.getItem(SETTINGS_KEY);
+  if (raw) opt = Object.assign(opt, JSON.parse(raw));
+} catch (e) {}
+function saveOpts() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(opt)); } catch (e) {} }
+
+let AC = null, master = null, ambientGain = null, ambientTimer = null;
+function audio() {
+  if (AC) return AC;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  AC = new Ctx();
+  master = AC.createGain();
+  master.gain.value = 0.5;
+  master.connect(AC.destination);
+  ambientGain = AC.createGain();
+  ambientGain.gain.value = 0.18;
+  ambientGain.connect(master);
+  return AC;
+}
+function unlockAudio() {
+  const a = audio();
+  if (a && a.state === 'suspended') a.resume();
+  startAmbient();
+}
+['pointerdown', 'keydown'].forEach(function (ev) {
+  window.addEventListener(ev, unlockAudio, { once: true });
+});
+
+/* one shaped oscillator note */
+function tone(freq, dur, o) {
+  if (!opt.sound) return;
+  const a = audio();
+  if (!a || a.state === 'suspended') return;
+  o = o || {};
+  const t0 = a.currentTime + (o.delay || 0);
+  const osc = a.createOscillator();
+  const g = a.createGain();
+  osc.type = o.type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.slideTo), t0 + dur);
+  const peak = (o.gain === undefined ? 0.22 : o.gain);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + Math.min(0.02, dur * 0.3));
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g);
+  if (o.filter) {
+    const f = a.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = o.filter;
+    g.connect(f); f.connect(master);
+  } else g.connect(master);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+/* filtered noise burst — rustles, thuds, rumbles */
+function noise(dur, o) {
+  if (!opt.sound) return;
+  const a = audio();
+  if (!a || a.state === 'suspended') return;
+  o = o || {};
+  const len = Math.max(1, Math.floor(a.sampleRate * dur));
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = a.createBufferSource();
+  src.buffer = buf;
+  const f = a.createBiquadFilter();
+  f.type = o.type || 'bandpass';
+  f.frequency.value = o.freq || 900;
+  f.Q.value = o.q || 1;
+  const g = a.createGain();
+  g.gain.value = (o.gain === undefined ? 0.18 : o.gain);
+  src.connect(f); f.connect(g); g.connect(master);
+  src.start(a.currentTime + (o.delay || 0));
+}
+function chord(freqs, dur, o) {
+  freqs.forEach(function (f, i) {
+    tone(f, dur, Object.assign({ delay: i * 0.055 }, o || {}));
+  });
+}
+function buzz(ms) {
+  if (opt.haptics && navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
+}
+
+const SFX = {
+  tap:      function () { tone(520, 0.05, { type: 'triangle', gain: 0.08 }); },
+  plant:    function () { noise(0.22, { freq: 420, gain: 0.12 }); tone(220, 0.16, { type: 'sine', gain: 0.1 }); buzz(12); },
+  pourStart:function () { tone(300, 0.1, { type: 'sine', slideTo: 460, gain: 0.1 }); },
+  perfect:  function (combo) {
+              const base = 523.25 * Math.pow(1.05946, Math.min(combo || 1, 12));  // climbs with the combo
+              chord([base, base * 1.25, base * 1.5], 0.3, { type: 'triangle', gain: 0.17 });
+              buzz(18);
+            },
+  good:     function () { tone(392, 0.16, { type: 'sine', gain: 0.13 }); buzz(8); },
+  spill:    function () { tone(200, 0.3, { type: 'sawtooth', slideTo: 70, gain: 0.14, filter: 800 });
+                          noise(0.3, { freq: 300, gain: 0.14 }); buzz([25, 40, 25]); },
+  harvest:  function () { chord([523.25, 659.25, 783.99, 1046.5], 0.42, { type: 'triangle', gain: 0.16 }); buzz(25); },
+  golden:   function () { chord([659.25, 830.6, 987.77, 1318.5, 1661.2], 0.6, { type: 'sine', gain: 0.16 });
+                          noise(0.5, { freq: 5200, gain: 0.07, type: 'highpass' }); buzz([30, 40, 60]); },
+  coin:     function () { tone(1046.5, 0.08, { type: 'square', gain: 0.07 });
+                          tone(1396.9, 0.1, { type: 'square', gain: 0.06, delay: 0.05 }); },
+  levelUp:  function () { chord([392, 523.25, 659.25, 783.99, 1046.5], 0.5, { type: 'triangle', gain: 0.17 }); buzz([20, 30, 40]); },
+  fever:    function () { tone(180, 0.9, { type: 'sawtooth', slideTo: 1400, gain: 0.13, filter: 2400 });
+                          chord([523.25, 659.25, 783.99], 0.7, { type: 'triangle', gain: 0.13, });
+                          buzz([40, 30, 40, 30, 70]); },
+  squash:   function () { noise(0.14, { freq: 1500, gain: 0.16, q: 0.7 }); tone(140, 0.1, { type: 'square', gain: 0.08 }); buzz(15); },
+  bug:      function () { tone(880, 0.07, { type: 'square', gain: 0.06, slideTo: 1200 }); },
+  storm:    function () { noise(1.5, { freq: 120, gain: 0.3, type: 'lowpass', q: 0.5 });
+                          tone(60, 1.4, { type: 'sine', gain: 0.12 }); buzz([60, 60, 120]); },
+  weed:     function () { noise(0.3, { freq: 700, gain: 0.15 }); buzz(15); },
+  wheel:    function () { tone(300, 0.06, { type: 'square', gain: 0.05 }); },
+  jackpot:  function () { chord([523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98], 0.8, { type: 'triangle', gain: 0.17 }); buzz([50, 40, 50, 40, 90]); },
+  fail:     function () { tone(300, 0.5, { type: 'sawtooth', slideTo: 90, gain: 0.13, filter: 700 }); buzz([80, 50, 80]); },
+  gift:     function () { chord([659.25, 830.6, 1046.5], 0.4, { type: 'sine', gain: 0.16 }); buzz(25); }
+};
+function sfx(name, arg) { const f = SFX[name]; if (f) try { f(arg); } catch (e) {} }
+
+/* gentle ambience: birds by day, crickets at night, rain when it rains */
+function ambientVoice() {
+  if (!opt.ambient || !opt.sound) return;
+  const a = audio();
+  if (!a || a.state === 'suspended') return;
+  const wx = weatherNow().id;
+  if (wx === 'rain' || wx === 'storm') {
+    noise(1.6, { freq: 2200, gain: 0.05, type: 'highpass', q: 0.4 });
+    return;
+  }
+  if (isDay()) {                                    // a couple of bird notes
+    const base = 1800 + Math.random() * 900;
+    tone(base, 0.09, { type: 'sine', gain: 0.05, slideTo: base * 1.5 });
+    tone(base * 1.4, 0.07, { type: 'sine', gain: 0.04, delay: 0.13, slideTo: base });
+  } else {                                          // cricket chirps
+    for (let i = 0; i < 3; i++) noise(0.035, { freq: 4600, gain: 0.035, q: 9, delay: i * 0.09 });
+  }
+}
+function startAmbient() {
+  if (ambientTimer) return;
+  ambientTimer = setInterval(function () {
+    if (Math.random() < 0.45) ambientVoice();
+  }, 4200);
+}
+
 /* ---- juice ---- */
 function shakeApp() {
+  if (!opt.motion) return;
   const app = $('app');
   app.classList.remove('shake');
   void app.offsetWidth;                            // restart the animation
   app.classList.add('shake');
 }
 function hurtFlash() {
+  if (!opt.motion) return;
   const h = $('hurt');
   h.classList.remove('go');
   void h.offsetWidth;
@@ -1663,6 +1854,7 @@ function stormTick() {
   state.stormChecked = cur;
   saveState();
   if (hits) {
+    sfx('storm');
     hurtFlash();
     toast('⛈️ A storm battered ' + hits + ' plant' + (hits > 1 ? 's' : '') + ' — trellises protect plots');
   }
@@ -1893,6 +2085,7 @@ function paintSky() {
 
 /* ---- particles ---- */
 function burst(container, glyphs, cx, cy) {
+  if (!opt.motion) return;
   for (let i = 0; i < glyphs.length; i++) {
     const s = document.createElement('span');
     s.className = 'particle';
@@ -2032,6 +2225,7 @@ function plant(plotIdx, spId) {
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
   state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0 };
+  sfx('plant');
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
 }
@@ -2188,6 +2382,7 @@ function startPour() {
   gold.style.width = (z.gw * 100) + '%';
   good.style.left = ((z.center - z.gw / 2 - z.goodw) * 100) + '%';
   good.style.width = ((z.gw + z.goodw * 2) * 100) + '%';
+  sfx('pourStart');
   $('pourwrap').classList.add('show');
   $('actrow').style.display = 'none';
   (function anim() {
@@ -2220,6 +2415,7 @@ function lockPour() {
     state.combo = 0;
     p.spills = (p.spills | 0) + 1;                 // pristine is off the table now
     saveState();
+    sfx('spill');
     hurtFlash(); shakeApp();
     floatText($('canvas'), 'SPILLED!', 'var(--bad)');
     burstCenter($('canvas'), ['💦', '💧', '😖']);
@@ -2229,16 +2425,19 @@ function lockPour() {
   if (result === 'perfect') {
     state.combo++;
     state.bestCombo = Math.max(state.bestCombo, state.combo);
+    sfx('perfect', state.combo);
     shakeApp();
     floatText($('canvas'), 'PERFECT! ×' + state.combo, 'var(--gold)');
     if (FIBSET[state.combo]) {
       const bonus = state.combo * 2;
       state.coins += bonus; state.earned += bonus; state.runEarned += bonus;
+      sfx('coin');
       floatText($('p-coins'), '+' + bonus + '🪙 combo!', 'var(--gold)');
       toast('🔥 Fibonacci combo ' + state.combo + ' · +' + bonus + '🪙');
     }
     if (state.combo >= 8 && state.combo % 8 === 0) startFever();
   } else {
+    sfx('good');
     floatText($('canvas'), 'good', 'var(--leaf)');
   }
   advanceStage('water', result === 'perfect');
@@ -2356,6 +2555,7 @@ function harvest() {
   }
   saveState();
   curPlot = -1;
+  sfx(isGolden || isPristine ? 'golden' : 'harvest');
   harvestReveal(sp, stars, isGolden || isPristine,
     isGolden ? goldPriceOf(sp) : isPristine ? priceOfQ(sp, 3) * 2 : priceOfQ(sp, stars));
   toast((isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '!'
@@ -2491,7 +2691,7 @@ function sell(id, tier, n) {
   state.coins += gain;
   state.earned += gain;
   state.runEarned += gain;
-  saveState(); paintTop(); paintMarket(); paintShop();
+  saveState(); sfx('coin'); paintTop(); paintMarket(); paintShop();
   toast('Sold ' + n + ' × ' +
         (tier === 'g' ? '✨ golden' : tier === 'p' ? '💎 pristine' : starStr(tier)) + ' ' +
         sp.name.toLowerCase() + ' · +' + gain + '🪙');
@@ -2503,7 +2703,7 @@ function sellAll() {
   state.coins += gain;
   state.earned += gain;
   state.runEarned += gain;
-  saveState(); paintTop(); paintMarket(); paintShop();
+  saveState(); sfx('coin'); paintTop(); paintMarket(); paintShop();
   toast('Sold the whole barn · +' + gain + '🪙');
 }
 
@@ -2728,6 +2928,39 @@ $('grow-name').addEventListener('click', function () {
   $('modal').classList.add('show');
   $('c-close').addEventListener('click', closeCard);
 });
+
+/* ---- settings ---- */
+const OPTIONS = [
+  { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
+  { k: 'ambient', icon: '🐦', name: 'Garden ambience', desc: 'birds by day, crickets at night, rain when it rains' },
+  { k: 'haptics', icon: '📳', name: 'Vibration', desc: 'a nudge on perfect pours and spills' },
+  { k: 'motion',  icon: '✨', name: 'Motion & particles', desc: 'screen shake, bursts, floating text' }
+];
+function openSettings() {
+  $('card').innerHTML =
+    '<h3>Settings</h3><div class="sub">saved on this device</div>' +
+    OPTIONS.map(function (o) {
+      return '<div class="toggle' + (opt[o.k] ? ' on' : '') + '" data-opt="' + o.k + '">' +
+        '<span style="font-size:18px">' + o.icon + '</span>' +
+        '<div class="tinfo"><h4>' + o.name + '</h4><p>' + o.desc + '</p></div>' +
+        '<div class="switch"></div></div>';
+    }).join('') +
+    '<button class="btn" id="c-close" style="margin-top:6px">done</button>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+  $('card').querySelectorAll('[data-opt]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const k = el.dataset.opt;
+      opt[k] = !opt[k];
+      el.classList.toggle('on', opt[k]);
+      saveOpts();
+      if (k === 'sound' && opt.sound) { unlockAudio(); sfx('tap'); }
+      if (k === 'haptics' && opt.haptics) buzz(20);
+      if (k === 'ambient' && opt.ambient) { unlockAudio(); ambientVoice(); }
+    });
+  });
+}
+$('gear').addEventListener('click', openSettings);
 
 function closeCard() { $('modal').classList.remove('show'); }
 $('modal').addEventListener('click', function (e) { if (e.target === $('modal')) closeCard(); });
