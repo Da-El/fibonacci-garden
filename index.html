@@ -3676,9 +3676,37 @@ function barnValueAll() {
    takes five and a half just to reach the ceiling.
    Now a customer only asks for something you can actually grow, and the
    deadline is derived from how long that crop really takes. */
+/* The most a drop can earn you, across everything you have unlocked — the
+   yardstick a bed is measured against when it is given to a customer
+   instead of to the shelf. Base prices, so a customer's offer does not
+   swing with the weather between the moment it is made and the moment it
+   is filled. */
+function bestPerDrop() {
+  return SPECIES.filter(function (x) { return x.lvl <= state.level; })
+    .reduce(function (m, sp) {
+      return Math.max(m, (sp.price * STAR_MULT[2] - sp.seed) / sp.stages);
+    }, 1);
+}
+
 function makeOrder(n) {
-  const growable = SPECIES.filter(function (x) { return x.lvl <= state.level; });
-  const pool = growable.length ? growable : [SPECIES[0]];
+  /* Customers ask for the best things you can grow, not for anything you
+     can grow.
+
+     Drawing from the whole unlocked shelf meant the board spent most of its
+     time asking for plants you had left behind. An order pays about twice
+     what the market does for the same blooms — but twice an elm is still a
+     third of a pineapple, so a bed given to a cheap customer earns a third
+     of what it would have. Measured: a player who plants for the board fills
+     seven times as many orders and ends three weeks 24% poorer. That is not
+     a decision, it is a trap with a badge on it.
+
+     The top half of what you have unlocked, and never fewer than three, so
+     the board keeps pace with the shelf instead of dragging behind it. */
+  const growable = SPECIES.filter(function (x) { return x.lvl <= state.level; })
+    .sort(function (a, b) { return a.lvl - b.lvl; });
+  const keep = Math.max(3, Math.ceil(growable.length / 2));
+  const top = growable.slice(-keep);
+  const pool = top.length ? top : (growable.length ? growable : [SPECIES[0]]);
   const sp = pool[hash32(n * 2654435761 + 99991 >>> 0) % pool.length];
   const qty = 1 + hash32(n * 7 + 1 >>> 0) % 3;                 // 1..3
   const stars = 1 + hash32(n * 13 + 2 >>> 0) % 3;              // min quality 1..3
@@ -3689,7 +3717,24 @@ function makeOrder(n) {
   const mult = 1.5 + stars * 0.25 + qty * 0.05;                // premium over base
   return {
     n: n, s: sp.id, qty: qty, stars: stars,
-    pay: Math.round(sp.price * STAR_MULT[stars] * qty * mult * (hasPerk('connoisseur') ? 1.4 : 1)),
+    /* Paid for your time, not for the plant.
+       ------------------------------------------------------------------
+       A customer wanting three of something cheap was paying twice what
+       three cheap things fetch — which is still a third of what those three
+       beds would have earned growing the best thing on your shelf. So the
+       board could never be worth planting for: filling it seven times as
+       often left a three-week garden a fifth poorer, and the badge in the
+       planter was pointing at a trap.
+
+       The premium now sits on top of whichever is larger — what the blooms
+       are worth, or what the drops they cost would have earned on your best
+       species. A customer who wants elms pays elm-growing rates plus a
+       premium; a customer who wants pineapples pays pineapple rates plus
+       the same premium. What you give up is what you are paid for. */
+    pay: Math.round(Math.max(
+      sp.price * STAR_MULT[stars] * qty,
+      bestPerDrop() * sp.stages * qty
+    ) * mult * (hasPerk('connoisseur') ? 1.4 : 1)),
     exp: NOW() + hours * 3600 * 1000
   };
 }

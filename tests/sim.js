@@ -307,12 +307,56 @@ function run(cfg) {
     // plant the best affordable species in every empty plot
     const sp3 = S();
     const list = E('SPECIES').filter(function (x) { return x.lvl <= sp3.level; });
+
+    /* What the board is asking for, and how much of it is still wanted after
+       what is already in the barn. The planter in the real game flags these
+       with a badge; the simulation had never looked at the board at all when
+       deciding what to sow, which is why it delivered six orders in a
+       hundred days out of nearly four hundred offered. Planting for a
+       customer is the whole point of the board. */
+    const wanted = {};
+    if (cfg.forOrders !== false) {
+      /* How much of the board to chase. Giving it everything it asks for is
+         up to nine beds at a time, which is the whole garden — a person
+         picks one customer and grows for them while the rest of the beds
+         carry on earning. 'one' is that person; true is the maximalist. */
+      let list = (sp3.orders || []).slice();
+      if (cfg.forOrders === 'one') {
+        list.sort(function (a, b) { return b.pay - a.pay; });
+        list = list.slice(0, 1);
+      }
+      list.forEach(function (o) {
+        const sp = E('byId')[o.s];
+        if (!sp || sp.lvl > sp3.level) return;
+        /* Only if there is time to grow one before the deadline. */
+        const ceilMs = E('timerCeiling')(sp) * sp.growMin * 60000;
+        if (o.exp - E('NOW()') < ceilMs * 1.2) return;
+        const have = E('orderAvail') ? E('orderAvail')(o) : 0;
+        const short = Math.max(0, o.qty - have);
+        if (short) wanted[o.s] = (wanted[o.s] || 0) + short;
+      });
+    }
+    /* Count what is already growing towards each order, so nine beds do not
+       all go to one customer who wants two. */
+    sp3.plots.forEach(function (p) {
+      if (p && wanted[p.s]) wanted[p.s]--;
+    });
+
     for (let i = 0; i < sp3.plotCount; i++) {
       if (sp3.plots[i]) continue;
       const afford = list.filter(function (x) { return E('seedCostOf')(x) <= S().coins * 0.5; });
       if (!afford.length) continue;
-      afford.sort(function (a, b) { return E('seedCostOf')(b) - E('seedCostOf')(a); });
-      guardCall('plant', function () { E('plant(' + i + ',"' + afford[0].id + '")'); return true; });
+      const asked = afford.filter(function (x) { return wanted[x.id] > 0; });
+      let pick;
+      if (asked.length) {
+        asked.sort(function (a, b) { return E('seedCostOf')(b) - E('seedCostOf')(a); });
+        pick = asked[0];
+        wanted[pick.id]--;
+      } else {
+        afford.sort(function (a, b) { return E('seedCostOf')(b) - E('seedCostOf')(a); });
+        pick = afford[0];
+      }
+      guardCall('plant', function () { E('plant(' + i + ',"' + pick.id + '")'); return true; });
     }
   }
 
