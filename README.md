@@ -65,6 +65,29 @@ for 60–82% of every session no matter how well you played. Now it covers about
 of a careless run and most of a precise one, which is what a reward for accuracy should
 look like.
 
+## The hour you keep
+
+A drop is worth up to two care points and they come from different places: one for
+landing in the gold, and one for watering in the species' **favourite hours**. Care
+decides quality — ★★★ needs `ceil(stages × 2/3)` of them — and a plant the clock has
+carried halfway only has enough drops left to get there if it earns both.
+
+So the hour a gardener keeps is worth real money, and the evening is the worse shift.
+Eight of the fifteen species are day-lovers, five prefer the night, two are easygoing,
+and **both of the dearest plants on the shelf like the day**: at nine in the morning
+five species are out of hours and the dearest of them lists at 182, while at nine at
+night eight are and the dearest lists at 434. Simulated over a fortnight, the evening
+gardener earns roughly **a tenth less** for playing exactly as well. (Roughly is the
+honest word — four seeds put that gap at 18%, six at 8.6%, eight at 10.8%. The
+deterministic count above is the finding; the simulation only says it is worth caring
+about.)
+
+Dawn and dusk (05:00–07:00 and 18:00–20:00) are the **golden hours** and suit
+everything, which is the free answer. The 🏮 **lantern** is the bought one — it makes
+the garden think it is always dusk, and it is consistently worth about twice as much to
+the evening gardener as to the morning one. That asymmetry is the point: it is a fix for
+the gardener whose life doesn't fit the shelf, not a bonus everybody has to buy.
+
 ## Water is the currency
 
 A drop arrives every **13 minutes** — about 110 a day — and your can holds 13 to 89 of
@@ -229,7 +252,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 940 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 979 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

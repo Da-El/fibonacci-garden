@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-940 checks. Each one loads the game's inline `<script>` into a headless harness and
+979 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -78,6 +78,7 @@ if you add a system, add the counter that proves it fires.
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
 | `apprentice-check.js` | the apprentice at both ranks, net of what she is paid |
 | `glasshouse-check.js` | the glasshouse played for three weeks against an open garden |
+| `grow-check.js` | every species grown from seed to a perfect bloom through the real pour |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -129,6 +130,35 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**A perfect input is not a maximal outcome.** A perfect pour earns one care point; the
+species' favourite hour earns the other. Driving the tap dead-centre and reading the
+result as the best a plant can do said thirteen of the fifteen species could never reach
+★★★ — they can, at the right hour. When two independent things feed the same number,
+driving one of them to its limit measures the other, not the mechanic.
+
+**The harness pins `Date.now()`, so a check must ask the game what time it is.** Working
+out an offset from the host clock put every reading twelve hours out, which made a
+day-lover look like it preferred one in the morning and inverted the entire finding.
+Compute from `NOW()` and `Date.now()` *inside* the game, never from the host's.
+
+**Don't estimate a duration from a rate that moves.** Advancing the clock by
+`ceiling × growMin` left two species a stage short of their ceiling, because weather and
+season scale the growth rate and so scale every stage's real length. Advance further than
+you need and read the elapsed time back off the state the game wrote.
+
+**Don't edit a test file while the suite is running.** A mid-run edit to `sim.js` left it
+briefly unparseable and fourteen files finished with no verdict. The runner reported that
+honestly rather than passing them — which is the only reason it was obvious — but a whole
+fifteen-minute run was wasted. Let it finish.
+
+**If the deterministic version of a finding exists, assert that one.** The hour a player
+keeps was measured at 18% of a fortnight over four seeds, 8.6% over six and 10.8% over
+eight — the direction never moved but no figure was stable enough to bound. The thing
+underneath it is not noisy at all: at nine in the morning five of the fifteen species
+are out of hours and the dearest lists at 182, at nine at night eight are and the
+dearest lists at 434. That runs in a millisecond, cannot drift, and is the actual
+finding. The simulation's job was only to say it was worth caring about.
 
 **Gross is not net.** Every previous reading of the apprentice used `earned`, which is
 gross — her wage comes out of coins, not out of earnings. So every measurement of her

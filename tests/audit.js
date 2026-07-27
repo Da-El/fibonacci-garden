@@ -190,6 +190,26 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
              cu.indexOf('pollenTick()') > cu.indexOf('growthTick()');
     })()],
     ['the pour reads its zone from the captured copy', html.indexOf('pos < z.center') > -1],
+    /* Its own comment said "it thinks it's dusk" and dusk suits everything,
+       but the condition beside it only let night-lovers through — five of
+       fifteen, and neither of the two the money is in. */
+    ['the lantern suits every plant, as its blurb says',
+      (function () {
+        const lamp = E('DECOS').filter(function (d) { return d.id === 'lantern'; })[0];
+        const s = E('state');
+        const keep = s.offset, decos = s.decos;
+        /* Pin the clock to one in the morning first, or the golden hour makes
+           this pass whatever the lantern does. */
+        const d = new Date(E('NOW()'));
+        d.setHours(1, 0, 0, 0);
+        s.offset = d.getTime() - E('Date.now()');
+        s.decos = {};
+        const someFussy = E('SPECIES').some(function (sp) { return !E('prefMatch')(sp); });
+        s.decos = { lantern: true };
+        const all = E('SPECIES').every(function (sp) { return E('prefMatch')(sp); });
+        s.offset = keep; s.decos = decos;
+        return someFussy && all && !/night-lover/i.test(lamp.blurb);
+      })()],
     ['the season boost is trimmed to at most +22%',
       Math.max.apply(null, E('SEASONS').map(function (s) {
         return Math.max.apply(null, Object.keys(s.boost).map(function (k) { return s.boost[k]; }));

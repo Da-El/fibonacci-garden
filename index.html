@@ -3610,7 +3610,20 @@ function isDay()   { const h = hourNow(); return h >= 6 && h < 18; }
 function isDusk()  { const h = hourNow(); return h === 5 || h === 6 || h === 18 || h === 19; }
 function prefMatch(sp) {
   if (isDusk()) return true;                      // golden hour suits everything
-  if (hasDeco('lantern') && sp.pref === 'night') return true;   // it thinks it's dusk
+  /* The lantern makes the garden think it is dusk, and dusk suits everything
+     — which is what the line above already says and what this one used to
+     only half do. Restricted to night-lovers it covered five species of
+     fifteen, and neither of the two the money is actually in.
+
+     The hour a gardener keeps is worth real money, because a drop earns a
+     care point for landing in the gold and another for landing in the
+     species' hours, and a plant the clock carried halfway needs both to
+     reach ★★★. At nine in the morning five of the fifteen are out of hours
+     and the dearest of them lists at 182; at nine at night eight are, and the
+     dearest lists at 434. Simulated over a fortnight the evening gardener
+     earns something like a tenth less for playing the same game equally well.
+     This is the one thing they can buy that answers it. */
+  if (hasDeco('lantern')) return true;
   return sp.pref === 'any' || (sp.pref === 'day') === isDay();
 }
 function prefIcon(sp) { return sp.pref === 'day' ? '☀️' : sp.pref === 'night' ? '🌙' : '✦'; }
@@ -4625,6 +4638,10 @@ function lockPour() {
     // near-misses point the same way, so a good pour still teaches the timing
     floatText($('canvas'), 'good · a touch ' + side.toLowerCase(), 'var(--leaf)');
   }
+  /* A drop landed in the wrong hours earns half what it could, and there is
+     nothing on the pour bar to say so — the badge that does is on the screen
+     behind it. Said once, the first time it costs them something. */
+  if (!prefMatch(sp)) hint('hours');
   advanceStage('water', result === 'perfect');
   addXP(result === 'perfect' ? 3 : 1);
   setTimeout(function () { coachDid('poured'); }, 60);
@@ -5817,6 +5834,12 @@ const HINTS = {
   wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — a star every 6 hours. Harvest them while they\'re at their best.' },
   apprentice: { ic: '👩‍🌾', tx: 'Your <b>apprentice</b> makes the clock carry plants further, so each one costs you fewer drops, and she tends those stages for a little quality. <b>She never takes a pour off you</b> — the skill, the combos and the pristine blooms stay yours. She takes a share of the takings, so she costs more in a good week.' },
   thirsty: { ic: '💧', tx: 'That plant has grown as far as the clock will take it — it <b>leans and pales</b> when it is waiting on you. From here on, every stage is a drop from your can, and every drop is a chance at a care point.' },
+  /* The hour is worth about a tenth of a fortnight to a gardener who plays
+     once a day, and until iteration 86 the game never said so anywhere but in
+     the small print of the care bar. A perfect pour is one care point; the
+     hour is the other, and a plant the clock carried has only enough drops
+     left to reach ★★★ if it gets both. */
+  hours:   { ic: '🌅', tx: 'You watered that one <b>outside its hours</b>. A perfect pour is worth one care point and the right hour is worth the other — and a plant the clock has carried halfway has only enough drops left for ★★★ if it gets both. Dawn and dusk suit <b>every</b> plant, and a 🏮 lantern makes the garden think it is always dusk.' },
   dry:     { ic: '🌵', tx: 'A <b>dry spell</b> is coming: two days where a drop takes <b>twice as long</b>. You always get a day\'s notice — fill the can tonight and it costs you nothing. Prices run 15% higher throughout, so a gardener who prepared makes money out of it.' },
   glass:   { ic: '🔒', tx: 'You can now put <b>glass over a bed</b>. Nothing grows on its own in there, so every stage is yours to pour — which is what makes a <b>💎 pristine</b> possible without racing the clock. Nothing spoils under glass either. One spilled drop is all that stands between you and the best bloom in the game.' },
   bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' },
@@ -7206,8 +7229,8 @@ const DECOS = [
     blurb: 'the can refills 8% faster', spot: 'left', effect: 'water' },
   { id: 'bath',    icon: '🐦', name: 'Birdbath',     cost: 340,
     blurb: 'ladybirds visit more often', spot: 'right', effect: 'lady' },
-  { id: 'lantern', icon: '🏮', name: 'Lantern',      cost: 300,
-    blurb: 'night-lovers earn care by day too', spot: 'back', effect: 'night' },
+  { id: 'lantern', icon: '🏮', name: 'Lantern',      cost: 1200,
+    blurb: 'every hour is the golden hour', spot: 'back', effect: 'night' },
   { id: 'gnome',   icon: '🧙', name: 'Garden gnome', cost: 500,
     blurb: 'he does nothing. he is simply here.', spot: 'front2' }
 ];

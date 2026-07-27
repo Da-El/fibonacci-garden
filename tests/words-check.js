@@ -137,13 +137,21 @@ function near(a, b) { return Math.abs(a - b) < 0.005; }
               .map(function (d) { return d.id; }).join(', '));
   check('every decoration quotes a figure the game really uses',
         !wrong.length, wrong.join('; '));
-  /* And a decoration with an effect must say it has one, or nobody buys it
-     for the reason it exists. */
+  /* And a decoration with an effect must name that effect, or nobody buys it
+     for the reason it exists. This used to accept any blurb containing a
+     digit, "more often" or "too" — a grab-bag of whatever the four blurbs
+     happened to say, which passed a lantern that promised night-lovers a
+     benefit it gave to everything. Each effect now has to be named in the
+     game's own words for it. */
+  const NAMES = { storm: /storm/i, water: /refill|can\b/i,
+                  lady: /ladybird/i, night: /golden hour|dusk|hours?\b/i };
   const mute = E('DECOS').filter(function (d) {
-    return d.effect && !/\d|more often|too\b/.test(d.blurb);
+    if (!d.effect) return false;
+    const pat = NAMES[d.effect];
+    return !pat || !pat.test(d.blurb);
   });
-  check('and a decoration that does something says so',
-        !mute.length, mute.map(function (d) { return d.id; }).join(', '));
+  check('and a decoration that does something names what it does',
+        !mute.length, mute.map(function (d) { return d.id + ': ' + d.blurb; }).join('; '));
 }
 
 /* ---- the settings screen must describe the settings ---- */

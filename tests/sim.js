@@ -42,6 +42,9 @@ function run(cfg) {
   /* Grant exactly one perk and nothing else, so a draft's two sides can be
      compared without the level-up screen choosing for us. */
   if (cfg.forcePerk) st.perks[cfg.forcePerk] = true;
+  /* A decoration, granted rather than bought, so its effect can be read
+     without the price confounding the run. */
+  if (cfg.deco) { st.decos = st.decos || {}; st.decos[cfg.deco] = true; }
   const advance = function (ms) { S().offset += ms; };
 
   const log = { wagesPaid: 0, earned: 0, harvests: 0, sold: 0, days: [], appWater: 0, quit: 0, wageRates: [] };
@@ -369,6 +372,22 @@ function run(cfg) {
     twice: [10 * HOUR, 14 * HOUR]
   };
   const gaps = PROFILE[cfg.profile || 'diligent'];
+  /* Which hour of the day this player keeps. The gaps sum to 24h, so every
+     session of every day lands at the same hour — and since a drop only earns
+     a care point in the species' favourite hours, the hour is worth real
+     money. Nothing measured that until iteration 86. Set back by the first
+     gap so the first session lands on the hour asked for, and read from the
+     game's clock rather than the host's, which the harness has pinned. Only
+     ever wound forward: the state built at load stamped lastTick from the
+     clock as it was, and moving the clock behind that would hand the water
+     regen a negative interval to work with. */
+  if (cfg.startHour !== undefined) {
+    const d = new Date(E('NOW()'));
+    d.setHours(cfg.startHour, 0, 0, 0);
+    let t = d.getTime() - gaps[0];
+    while (t < E('NOW()')) t += DAY;
+    S().offset = t - E('Date.now()');
+  }
   /* Which day each journal chapter was first complete on. The journal exists
      to answer "what should I do next", and that question is only answerable
      by knowing when each one actually falls in a run rather than whether it
