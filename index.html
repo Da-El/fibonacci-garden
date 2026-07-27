@@ -571,6 +571,76 @@
   }
   #wbnothing { text-align: center; color: var(--dim); font-size: 13px; padding: 18px 8px; }
 
+  /* ---------- onboarding ---------- */
+  #coach { position: absolute; inset: 0; z-index: 42; display: none; }
+  #coach.show { display: block; }
+  #coachveil {
+    position: absolute; inset: 0; background: #050704d0;
+    transition: clip-path .35s ease, -webkit-clip-path .35s ease;
+  }
+  #coachring {
+    position: absolute; border-radius: 16px; pointer-events: none;
+    box-shadow: 0 0 0 2px var(--gold), 0 0 26px -2px #f2c53c99;
+    transition: all .35s ease; opacity: 0;
+  }
+  #coachring.on { opacity: 1; animation: ringpulse 1.6s ease-in-out infinite; }
+  @keyframes ringpulse {
+    0%,100% { box-shadow: 0 0 0 2px var(--gold), 0 0 22px -4px #f2c53c88; }
+    50%     { box-shadow: 0 0 0 3px var(--gold), 0 0 34px 0 #f2c53cbb; }
+  }
+  #coachbox {
+    position: absolute; left: 16px; right: 16px;
+    background: linear-gradient(160deg, #1f2618, #141a10);
+    border: 1px solid #4a5c39; border-radius: 16px; padding: 15px 16px;
+    box-shadow: 0 16px 40px -10px #000;
+    transition: top .35s ease, bottom .35s ease;
+  }
+  #coachbox h4 {
+    margin: 0 0 5px; font-size: 15px; font-weight: 620; color: var(--pale);
+  }
+  #coachbox p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  #coachbox p b { color: var(--gold); font-weight: 600; }
+  #coachfoot { display: flex; align-items: center; gap: 9px; margin-top: 13px; }
+  #coachstep {
+    font-family: var(--mono); font-size: 9.5px; color: var(--dim);
+    letter-spacing: .14em; flex: 1;
+  }
+  #coachskip {
+    font-family: var(--mono); font-size: 9.5px; color: var(--dim);
+    background: none; border: none; cursor: pointer; text-decoration: underline;
+    letter-spacing: .06em;
+  }
+  #coachskip:hover { color: var(--muted); }
+  #coachnext {
+    padding: 9px 18px; border-radius: 100px; border: none; cursor: pointer;
+    background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  #coachnext:active { transform: scale(.96); }
+  #coachhand {
+    position: absolute; font-size: 26px; pointer-events: none;
+    transition: all .35s ease; opacity: 0;
+    filter: drop-shadow(0 3px 5px #000a);
+  }
+  #coachhand.on { opacity: 1; animation: handbob 1.3s ease-in-out infinite; }
+  @keyframes handbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+
+  /* first-time contextual hint */
+  #hintbar {
+    position: absolute; left: 14px; right: 14px; bottom: 84px; z-index: 41;
+    background: #1a2113f2; border: 1px solid #4a5c39; border-radius: 13px;
+    padding: 11px 14px; display: none; align-items: flex-start; gap: 10px;
+    box-shadow: 0 10px 30px -8px #000;
+  }
+  #hintbar.show { display: flex; animation: wbin .35s ease-out; }
+  #hintbar .hic { font-size: 18px; }
+  #hintbar .htx { flex: 1; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  #hintbar .htx b { color: var(--pale); }
+  #hintbar .hx {
+    font-size: 15px; color: var(--dim); cursor: pointer; padding: 0 2px; line-height: 1;
+  }
+
   /* ---------- settings ---------- */
   #gear {
     position: absolute; top: 22px; right: 16px; z-index: 12;
@@ -723,6 +793,25 @@
       <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
     </div>
 
+    <div id="coach">
+      <div id="coachveil"></div>
+      <div id="coachring"></div>
+      <span id="coachhand">👆</span>
+      <div id="coachbox">
+        <h4 id="coachtitle"></h4>
+        <p id="coachtext"></p>
+        <div id="coachfoot">
+          <span id="coachstep"></span>
+          <button id="coachskip">skip</button>
+          <button id="coachnext">next</button>
+        </div>
+      </div>
+    </div>
+    <div id="hintbar">
+      <span class="hic" id="hintic">💡</span>
+      <span class="htx" id="hinttx"></span>
+      <span class="hx" id="hintx">✕</span>
+    </div>
     <div id="gear" title="Settings">⚙</div>
     <div id="feverbar">🔥 FIBONACCI FEVER · prices ×1.618 · <span id="fevertime"></span></div>
     <div id="modal"><div id="card"></div></div>
@@ -1133,6 +1222,7 @@ function startFever() {
   shakeApp();
   toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for ' + Math.round(ms / 1000) + 's!');
   paintFever();
+  hint('fever');
 }
 function paintFever() {
   const on = feverActive();
@@ -2220,6 +2310,7 @@ function paintPlots() {
 /* ---- planting ---- */
 function openPlanter(plotIdx) {
   ensureOrders();                       // so the order badges below are current
+  setTimeout(function () { coachDid('planter'); }, 30);
   let rows = '';
   SPECIES.forEach(function (sp) {
     const cost = seedCostOf(sp);
@@ -2278,6 +2369,7 @@ function plant(plotIdx, spId) {
   sfx('plant');
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
+  setTimeout(function () { coachDid('planted'); }, 60);
 }
 
 /* ---- grow view ---- */
@@ -2435,6 +2527,7 @@ function startPour() {
   sfx('pourStart');
   $('pourwrap').classList.add('show');
   $('actrow').style.display = 'none';
+  setTimeout(function () { coachDid('pourStarted'); }, 30);
   (function anim() {
     if (!pour) return;
     $('pourmarker').style.left = (markerPos() * 100) + '%';
@@ -2470,6 +2563,7 @@ function lockPour() {
     floatText($('canvas'), 'SPILLED!', 'var(--bad)');
     burstCenter($('canvas'), ['💦', '💧', '😖']);
     paintGrowFoot(); paintTop();
+    setTimeout(function () { coachDid('poured'); }, 60);   // a miss still teaches it
     return;
   }
   if (result === 'perfect') {
@@ -2492,6 +2586,7 @@ function lockPour() {
   }
   advanceStage('water', result === 'perfect');
   addXP(result === 'perfect' ? 3 : 1);
+  setTimeout(function () { coachDid('poured'); }, 60);
 }
 
 /* advance one stage; via==='water' spends a drop and can earn care
@@ -2979,6 +3074,143 @@ $('grow-name').addEventListener('click', function () {
   $('c-close').addEventListener('click', closeCard);
 });
 
+/* ============================================================
+   Onboarding — a spotlight coach that teaches the loop, plus
+   one-time contextual hints for systems you meet later.
+   ============================================================ */
+const TUTOR_KEY = 'fibgarden.tutor';
+let tutor = { done: false, step: 0, hints: {} };
+try {
+  const raw = localStorage.getItem(TUTOR_KEY);
+  if (raw) tutor = Object.assign(tutor, JSON.parse(raw));
+} catch (e) {}
+function saveTutor() { try { localStorage.setItem(TUTOR_KEY, JSON.stringify(tutor)); } catch (e) {} }
+
+/* Each step spotlights an element and waits either for the Next
+   button or for the player to actually do the thing (`await`). */
+const STEPS = [
+  { sel: null, title: 'Welcome to your garden',
+    text: 'Nine plants, every one shaped by the <b>Fibonacci sequence</b> — the same maths that shapes real sunflowers. Let\'s grow one.' },
+  { sel: '#plots .plot', title: 'This is a plot',
+    text: 'Tap an empty plot to plant a seed. You start with three plots and enough coins for a few seeds.',
+    await: 'planter', hand: true },
+  { sel: '#card', title: 'Pick a seed',
+    text: 'Cheap and quick, or slow and valuable? The <b>📋 badge</b> marks anything a customer is waiting on. Tap <b>Elm Sprig</b> to begin.',
+    await: 'planted', hand: false },
+  { sel: '#growtimer', title: 'It grows by itself',
+    text: 'Plants grow on a timer — even while the app is closed. This bar is the next stage. You could simply walk away.' },
+  { sel: '#act', title: 'Or water it to skip ahead',
+    text: 'Watering skips a whole stage <b>instantly</b>. Tap it — a droplet will start sweeping.',
+    await: 'pourStarted', hand: true },
+  { sel: '#pourbar', title: 'Tap in the gold',
+    text: 'Hit the <b>gold zone</b> for a perfect pour: a care point and a combo. Green is fine. Miss and the drop spills.',
+    await: 'poured', hand: true },
+  { sel: '#carebar', title: 'Care becomes quality',
+    text: 'Care points decide the harvest\'s <b>★ to ★★★</b> quality, and stars multiply the price. Perfect pours and watering at a plant\'s favourite hour both earn them.' },
+  { sel: '#sky', title: 'The sky matters',
+    text: 'Real time of day and weather drive the garden. Plants earn care in their favourite hours, rain speeds growth, and <b>storms can damage</b> what isn\'t sheltered.' },
+  { sel: '#tabs', title: 'Grow, sell, master',
+    text: 'Harvest into the <b>barn</b>, sell at the <b>market</b> (prices move daily), and track everything in the <b>almanac</b>. That\'s the whole loop — enjoy your garden.' }
+];
+
+let coachIdx = -1, coachAwait = null;
+function coachActive() { return coachIdx >= 0; }
+function startTutorial(fromStart) {
+  if (fromStart) { tutor.step = 0; tutor.done = false; saveTutor(); }
+  coachIdx = tutor.step || 0;
+  $('coach').classList.add('show');
+  renderCoach();
+}
+function endTutorial() {
+  coachIdx = -1; coachAwait = null;
+  tutor.done = true; saveTutor();
+  $('coach').classList.remove('show');
+  $('coachring').classList.remove('on');
+  $('coachhand').classList.remove('on');
+}
+function coachAdvance() {
+  coachIdx++;
+  tutor.step = coachIdx; saveTutor();
+  if (coachIdx >= STEPS.length) return endTutorial();
+  renderCoach();
+}
+/* the player did the thing a step was waiting for */
+function coachDid(what) {
+  if (!coachActive()) return;
+  if (coachAwait && coachAwait === what) { coachAwait = null; coachAdvance(); }
+}
+function renderCoach() {
+  const s = STEPS[coachIdx];
+  if (!s) return endTutorial();
+  coachAwait = s.await || null;
+  $('coachtitle').textContent = s.title;
+  $('coachtext').innerHTML = s.text;
+  $('coachstep').textContent = (coachIdx + 1) + ' / ' + STEPS.length;
+  $('coachnext').style.display = s.await ? 'none' : '';
+
+  const app = $('app').getBoundingClientRect();
+  const el = s.sel ? document.querySelector(s.sel) : null;
+  const ring = $('coachring'), veil = $('coachveil'), hand = $('coachhand');
+
+  if (el && el.offsetParent !== null) {
+    const r = el.getBoundingClientRect();
+    const x = r.left - app.left - 6, y = r.top - app.top - 6;
+    const w = r.width + 12, h = r.height + 12;
+    ring.style.left = x + 'px'; ring.style.top = y + 'px';
+    ring.style.width = w + 'px'; ring.style.height = h + 'px';
+    ring.classList.add('on');
+    // punch a hole in the veil around the target
+    veil.style.clipPath = 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ' + y + 'px, ' +
+      (x + w) + 'px ' + y + 'px, ' + (x + w) + 'px ' + (y + h) + 'px, ' +
+      x + 'px ' + (y + h) + 'px, ' + x + 'px ' + y + 'px, 0 ' + y + 'px)';
+    veil.style.webkitClipPath = veil.style.clipPath;
+    // box goes below the target unless that would run off the bottom
+    const below = y + h + 14;
+    if (below + 150 < app.height - 70) { $('coachbox').style.top = below + 'px'; $('coachbox').style.bottom = 'auto'; }
+    else { $('coachbox').style.top = 'auto'; $('coachbox').style.bottom = (app.height - y + 14) + 'px'; }
+    if (s.hand) {
+      hand.style.left = (x + w / 2 - 13) + 'px';
+      hand.style.top = (y + h - 4) + 'px';
+      hand.classList.add('on');
+    } else hand.classList.remove('on');
+  } else {
+    ring.classList.remove('on');
+    hand.classList.remove('on');
+    veil.style.clipPath = 'none';
+    veil.style.webkitClipPath = 'none';
+    $('coachbox').style.top = 'auto';
+    $('coachbox').style.bottom = '90px';
+  }
+  // the veil must not eat taps meant for the spotlighted control
+  veil.style.pointerEvents = s.await ? 'none' : 'auto';
+  ring.style.pointerEvents = 'none';
+}
+$('coachnext').addEventListener('click', function (e) { e.stopPropagation(); sfx('tap'); coachAdvance(); });
+$('coachskip').addEventListener('click', function (e) { e.stopPropagation(); endTutorial(); toast('Tutorial skipped — replay it from ⚙ settings'); });
+
+/* ---- one-time contextual hints ---- */
+const HINTS = {
+  orders:  { ic: '📋', tx: '<b>Customer orders</b> pay well over market for a specific plant at a minimum quality — but they expire. The planter flags what\'s wanted.' },
+  fever:   { ic: '🔥', tx: '<b>Fibonacci Fever!</b> Eight perfect pours in a row lit the market up — everything sells at ×1.618 for the next minute and a half. Sell now.' },
+  storm:   { ic: '⛈️', tx: 'A <b>storm</b> is coming. Unsheltered plants can be knocked back a stage — buy a <b>trellis</b> from a plant\'s screen to protect that plot.' },
+  aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
+  prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
+  wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' }
+};
+function hint(key) {
+  if (tutor.hints[key] || coachActive()) return;
+  const h = HINTS[key];
+  if (!h) return;
+  tutor.hints[key] = true; saveTutor();
+  $('hintic').textContent = h.ic;
+  $('hinttx').innerHTML = h.tx;
+  $('hintbar').classList.add('show');
+  sfx('gift');
+  clearTimeout(hint._t);
+  hint._t = setTimeout(function () { $('hintbar').classList.remove('show'); }, 11000);
+}
+$('hintx').addEventListener('click', function () { $('hintbar').classList.remove('show'); });
+
 /* ---- welcome back -----------------------------------------------
    Run the whole world forward with the ledger armed, then show the
    player an account of what happened rather than changed numbers. */
@@ -3037,9 +3269,16 @@ function openSettings() {
         '<div class="tinfo"><h4>' + o.name + '</h4><p>' + o.desc + '</p></div>' +
         '<div class="switch"></div></div>';
     }).join('') +
-    '<button class="btn" id="c-close" style="margin-top:6px">done</button>';
+    '<button class="btn" id="c-tut" style="margin-bottom:8px">replay the tutorial</button>' +
+    '<button class="btn" id="c-close">done</button>';
   $('modal').classList.add('show');
   $('c-close').addEventListener('click', closeCard);
+  $('c-tut').addEventListener('click', function () {
+    closeCard();
+    tutor.hints = {}; saveTutor();
+    GO('garden');
+    setTimeout(function () { startTutorial(true); }, 120);
+  });
   $('card').querySelectorAll('[data-opt]').forEach(function (el) {
     el.addEventListener('click', function () {
       const k = el.dataset.opt;
@@ -3064,9 +3303,9 @@ function GO(v) {
   });
   document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
   if (v === 'garden')  paintPlots();
-  if (v === 'market')  paintMarket();
+  if (v === 'market')  { paintMarket(); hint('orders'); }
   if (v === 'almanac') paintAlmanac();
-  if (v === 'shop')    paintShop();
+  if (v === 'shop')    { paintShop(); if (state.runEarned > 400) hint('prestige'); }
 }
 document.querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () { GO(t.dataset.v); });
@@ -3099,7 +3338,9 @@ checkAch();               // catch anything a migrated save already qualifies fo
 paintAll();
 paintFever();
 GO('garden');
-if (caught.awayMs >= WB_MIN_AWAY && Object.keys(caught.l).length) {
+if (!tutor.done && state.harvested === 0 && state.prestiges === 0) {
+  setTimeout(function () { startTutorial(false); }, 400);   // a brand-new gardener
+} else if (caught.awayMs >= WB_MIN_AWAY && Object.keys(caught.l).length) {
   showWelcomeBack(caught.awayMs, caught.l);
 } else {
   checkDailyGift();       // greet a new day with its gift
@@ -3135,7 +3376,12 @@ setInterval(function () {
   }
   if (state.water !== before || bugsNow !== bugsBefore || grew) { paintPlots(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
-  if (bugsNow > bugsBefore) toast('Aphids! 🐛 tap the plant and squash them');
+  if (bugsNow > bugsBefore) { toast('Aphids! 🐛 tap the plant and squash them'); hint('aphid'); }
+  // a storm in the next two slots is worth warning about once
+  if (tickN % 15 === 0) {
+    for (let k = 1; k <= 2; k++) if (weatherAt(weatherSlot() + k).id === 'storm') { hint('storm'); break; }
+  }
+  if (state.plots.some(function (p) { return p && p.ripeAt && NOW() - p.ripeAt > WILT_MS * 0.6; })) hint('wilt');
   // keep order countdowns honest while the market is open
   if (++tickN % 30 === 0 && !$('v-market').classList.contains('hidden')) paintMarket();
 }, 1000);
