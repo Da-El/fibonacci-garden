@@ -6198,9 +6198,22 @@ function catchUpWithLedger() {
      first meant they inspected the garden as it was when you closed the app —
      everything you had just sown still at stage 0 — and found nothing to
      visit. Thirteen pollinations in three weeks, for a hive that costs 650. */
+  /* Order matters, because all of this is a week or a month replayed in one
+     go and each step acts on what the last one left behind.
+
+     Growth first, so the bees have something to visit — that one was found in
+     iteration 37, when they were being shown the garden as it stood when the
+     app closed and finding nothing.
+
+     Then the apprentice, and only then the storms. She lifts a ripe bloom
+     within an hour of it ripening, but stormTick used to run first and apply a
+     whole week of battering to a plant she had conceptually picked on the
+     first day. Come back from a holiday and the ★★★ blooms she was paid to
+     rescue had been beaten down to ★ by weather that fell on an empty bed. */
   tickWater(); noteDryPreparedness();
-  stormTick(); growthTick(); pollenTick(); bugTick(); weedTick();
-  appWages(); appTick(); ensureOrders();
+  growthTick(); appWages(); appTick();
+  stormTick(); pollenTick(); bugTick(); weedTick();
+  ensureOrders();
   const l = ledger;
   ledger = null;
   state.lastSeen = NOW();

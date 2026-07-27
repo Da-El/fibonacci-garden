@@ -205,7 +205,15 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       html.indexOf("hasPerk('richsoil') ? 1 : 0") > -1],
     ['deep well scales with the can', html.indexOf("hasPerk('deepwell') ? 1.25 : 1") > -1],
     ['a ripe bloom wilts in hours, not a day', E('WILT_MS') <= 8 * 3600000],
-    ['the wilt warning arrives before the damage', html.indexOf('wiltSoon') > -1]
+    ['the wilt warning arrives before the damage', html.indexOf('wiltSoon') > -1],
+    ['the apprentice picks before the storms fall',
+      html.indexOf('growthTick(); appWages(); appTick();') > -1],
+    ['fever no longer widens the gold zone', html.indexOf('feverActive() ? 1.5 : 1') < 0],
+    ['fever is a combo of 13 for 34 seconds',
+      E('FEVER_COMBO') === 13 && E('FEVER_MS') === 34000],
+    ['a long absence is described in days, weeks or years',
+      /year/.test(E('fmtLong')(3650 * DAY))],
+    ['the garden name is capped where it is read', html.indexOf('GARDEN_NAME_MAX') > -1]
   ];
   claims.forEach(function (c) { console.log('  ' + (c[1] ? 'ok   ' : 'WRONG') + ' ' + c[0]); });
 }

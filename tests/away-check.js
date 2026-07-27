@@ -174,6 +174,43 @@ GAPS.forEach(function (g) {
   }
 }
 
+/* ---- the apprentice must rescue blooms however long you are away ----
+   She lifts a ripe bloom within an hour of it ripening, so what she banks
+   should not depend on whether you came back after four hours or a month. It
+   used to: stormTick ran before her and applied a month of battering to a
+   plant she had conceptually picked on the first day, so the ★★★ blooms she is
+   paid to rescue came back as ★. */
+{
+  const banked = {};
+  [['4 hours', 4 * HOUR], ['a day', DAY], ['a week', 7 * DAY], ['a month', 30 * DAY]]
+    .forEach(function (g) {
+      const h = H.build(); const E = h.evalIn; const s = E('state');
+      s.offset = 0; s.coins = 9999; s.level = 12;
+      for (let i = 0; i < s.plotCount; i++) E('plant(' + i + ',"elm")');
+      E('hireApprentice()');
+      const sp = E('byId')['elm'];
+      s.plots.forEach(function (p) {
+        if (p) { p.stage = sp.stages; p.ripeAt = E('NOW()'); p.q = 9; }
+      });
+      s.offset += g[1];
+      E('catchUpWithLedger()');
+      const tiers = [];
+      Object.keys(s.barn).forEach(function (id) {
+        Object.keys(s.barn[id]).forEach(function (t) { tiers.push(t); });
+      });
+      banked[g[0]] = tiers.sort().join(',');
+    });
+  const keys = Object.keys(banked);
+  console.log('\n  what she banks: ' + keys.map(function (k) {
+    return k + ' -> ' + (banked[k] || 'nothing');
+  }).join('   '));
+  check('what she rescues does not decay with how long you were away',
+        keys.every(function (k) { return banked[k] === banked[keys[0]]; }),
+        keys.map(function (k) { return k + ':' + banked[k]; }).join(' '));
+  check('and she really did rescue them at full quality',
+        /3/.test(banked[keys[0]] || ''), banked[keys[0]]);
+}
+
 console.log('\nPASS ' + ok.length + ' / FAIL ' + bugs.length);
 ok.forEach(function (t) { console.log('  ok   ' + t); });
 bugs.forEach(function (t) { console.log('  FAIL ' + t); });

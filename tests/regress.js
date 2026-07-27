@@ -418,9 +418,13 @@ function check(name, cond, detail) { (cond ? ok : bugs).push(name + (detail ? ' 
         ((res.l || {}).pollinated | 0) > 0,
         'pollinated ' + ((res.l || {}).pollinated | 0));
 
-  /* growth has to run before pollen: bees skip seeds, so the other order
-     showed them the garden as it was when the app closed */
-  const order = html.indexOf('growthTick(); pollenTick()');
+  /* Growth has to run before pollen — bees skip seeds, so the other order
+     showed them the garden as it stood when the app closed. Checked by
+     position rather than by the two calls being adjacent, because the
+     apprentice now runs between them. */
+  const cu = html.slice(html.indexOf('function catchUpWithLedger'),
+                        html.indexOf('function showWelcomeBack'));
+  const order = cu.indexOf('pollenTick()') > cu.indexOf('growthTick()') ? 1 : -1;
   check('the clock runs before the bees do', order > -1);
 
   // and the honey premium must be big enough to repay a hive
