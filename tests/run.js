@@ -30,7 +30,8 @@ const FILES = [
   ['postcard-check','the postcard: draws for every garden, and stays inside the picture'],
   ['scene-check',   'the garden lays out inside its bounds at every size and bed count'],
   ['fever-check',   'fever: how often it fires, what it is worth, and that it ends'],
-  ['away-check',    'coming back after a day, a month, a decade, or a corrected clock']
+  ['away-check',    'coming back after a day, a month, a decade, or a corrected clock'],
+  ['shelf-check',   'every species measured against every other: is any one of them dead?']
 ];
 
 let pass = 0, fail = 0, broken = [];

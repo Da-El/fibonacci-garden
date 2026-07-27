@@ -1460,18 +1460,23 @@ const SPECIES = [
   },
   {
     id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day', growMin: 8, lvl: 1,
-    stages: 9, seed: 7, price: 33, petals: 34, seedR: 2.6,
+    /* 33 made this the one plant nobody should ever grow: slower than an elm
+       to reach its ceiling and paying less per drop, so it lost on both of
+       the only two things a bed costs you. Slower has to mean richer. */
+    stages: 9, seed: 7, price: 38, petals: 34, seedR: 2.6,
     disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
     fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
   },
   {
     id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day', growMin: 8, lvl: 2,
-    stages: 7, seed: 7, price: 29, leafHue: 128, leafSat: 34,
+    /* raised with the daisy: every rung of the shelf has to be either the
+       quickest or the richest thing you own, and 29 left this one neither */
+    stages: 7, seed: 7, price: 33, leafHue: 128, leafSat: 34,
     fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
   },
   {
     id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night', growMin: 13, lvl: 3,
-    stages: 7, seed: 9, price: 34, leafHue: 88, leafSat: 44,
+    stages: 7, seed: 9, price: 36, leafHue: 88, leafSat: 44,
     fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
   },
   {
@@ -1482,7 +1487,10 @@ const SPECIES = [
   },
   {
     id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night', growMin: 21, lvl: 5,
-    stages: 7, seed: 15, price: 47, leafHue: 116, leafSat: 30,
+    /* Same trap as the daisy, five levels later: at 47 a chamomile reached
+       its ceiling sooner and paid more per drop, so unlocking the houseleek
+       gave you a picture and no reason to plant it. */
+    stages: 7, seed: 15, price: 50, leafHue: 116, leafSat: 30,
     fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
   },
   {
