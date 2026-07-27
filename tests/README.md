@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-821 checks. Each one loads the game's inline `<script>` into a headless harness and
+837 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -70,6 +70,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `storm-check.js` | the storm and the trellis: how often it lands, and what shelter is worth |
 | `buttons-check.js` | every button pressed three times, on a state that should refuse it |
 | `screens-check.js` | every secondary screen opened and read against what the game knows |
 | `world-check.js` | two gardens on the same day see the same sky, and no amount of play bends it |
@@ -117,6 +118,12 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**A one per cent effect needs more than one run.** The simulation is chaotic: change any
+setting and both runs draw different numbers from then on, so a seeded pair with one flag
+flipped compares two different afternoons. Comparing a single pair said the trellis was
+worthless and the storm decorative; averaging six seeds said it returns 3.7x its price.
+Average before concluding, and before changing the game.
 
 **A button can always be pressed again.** The daily gift had no guard of its own, because
 closing the card hides the button without destroying it. Every purchase, claim and

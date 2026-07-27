@@ -252,7 +252,8 @@ function run(cfg) {
       const s = S();
       const tc = E('TRELLIS_COST');
       const sheltered = (s.trellised || []).filter(Boolean).length;
-      if (sheltered < 3 && s.coins > tc * 6) {
+      const want = cfg.trellises === undefined ? 3 : cfg.trellises;
+      if (sheltered < want && s.coins > tc * 6) {
         for (let i = 0; i < s.plotCount; i++) {
           if (s.trellised[i]) continue;
           E('curPlot = ' + i);
