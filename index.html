@@ -133,13 +133,59 @@
   #scene.dusk  .hill { background: #4a3d52; opacity: .6; }
   #scene.night .hill { background: #16203a; opacity: .8; }
   #scenesky .hill.far { transform: scaleY(.72) translateX(-7%); filter: brightness(.82); }
-  #scenewx { position: absolute; inset: 0; pointer-events: none; }
-  #scene.rain #scenewx, #scene.storm #scenewx {
-    background: repeating-linear-gradient(103deg, transparent 0 6px, #cfe6fa55 6px 7px, transparent 7px 13px);
-    animation: rainfall .5s linear infinite;
+  #scenewx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  /* real falling particles, not a scrolling gradient */
+  .wxp { position: absolute; pointer-events: none; will-change: transform; }
+  .wxp.drop {
+    width: 1.5px; border-radius: 1px;
+    background: linear-gradient(#cfe6fa00, #cfe6facc);
+    animation: fall linear infinite;
   }
-  #scene.storm #scenewx { animation: rainfall .3s linear infinite, lightning 4.4s steps(1) infinite; }
-  #scene.heat #scenewx { background: linear-gradient(#e2703a26, transparent 60%); animation: heatthrob 2.8s ease-in-out infinite; }
+  @keyframes fall { from { transform: translateY(-24px); } to { transform: translateY(360px); } }
+  .wxp.flake {
+    border-radius: 50%; background: #ffffffdd;
+    box-shadow: 0 0 3px #ffffff88;
+    animation: flutter linear infinite;
+  }
+  @keyframes flutter {
+    from { transform: translate(0, -20px) rotate(0deg); }
+    to   { transform: translate(26px, 340px) rotate(320deg); }
+  }
+  .wxp.leaf, .wxp.petal {
+    animation: tumble linear infinite; font-size: 11px; line-height: 1;
+  }
+  @keyframes tumble {
+    from { transform: translate(0, -20px) rotate(0deg); }
+    to   { transform: translate(-46px, 340px) rotate(420deg); }
+  }
+  .wxp.shimmer {
+    border-radius: 50%; background: radial-gradient(#ffdca855, transparent 70%);
+    animation: rise linear infinite;
+  }
+  @keyframes rise {
+    from { transform: translateY(0) scale(.7); opacity: 0; }
+    30%  { opacity: .7; }
+    to   { transform: translateY(-60px) scale(1.5); opacity: 0; }
+  }
+  #flashlayer {
+    position: absolute; inset: 0; background: #dfe9ff; opacity: 0;
+    pointer-events: none; mix-blend-mode: screen;
+  }
+  #flashlayer.go { animation: strike .55s ease-out; }
+  @keyframes strike {
+    0% { opacity: 0; } 6% { opacity: .82; } 12% { opacity: .1; }
+    20% { opacity: .6; } 40% { opacity: 0; } 100% { opacity: 0; }
+  }
+  #scene.heat #scenewx { background: linear-gradient(#e2703a1c, transparent 60%); }
+  /* the bed and hills take the season's colour */
+  #scene.s-spring .hill { filter: hue-rotate(-8deg) saturate(1.15) brightness(1.06); }
+  #scene.s-summer .hill { filter: saturate(1.2) brightness(1.02); }
+  #scene.s-autumn .hill { filter: hue-rotate(-42deg) saturate(1.3) brightness(.95); }
+  #scene.s-winter .hill { filter: saturate(.35) brightness(1.3); }
+  #scene.s-autumn #bed { filter: hue-rotate(-10deg) saturate(1.1); }
+  #scene.s-winter #bed { filter: saturate(.5) brightness(1.12); }
+  #scene.s-winter #bedgrass { filter: saturate(.2) brightness(1.7); opacity: .35; }
+  #scene.s-autumn #bedgrass { filter: hue-rotate(-35deg) saturate(1.4); }
   #scenelabel {
     position: absolute; right: 9px; top: 7px; z-index: 6;
     font-family: var(--mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
@@ -954,6 +1000,7 @@
         </div>
         <div id="bed"><div id="bedgrass"></div></div>
         <div id="scenewx"></div>
+        <div id="flashlayer"></div>
         <div id="sceneforecast"></div>
         <span id="scenelabel"></span>
         <span id="scenelocked"></span>
@@ -2771,7 +2818,11 @@ function paintSky() {
   const h = hourNow(), m = new Date(NOW()).getMinutes();
   const wx = weatherNow();
   const phase = isDusk() ? 'dusk' : (isDay() ? 'day' : 'night');
-  scene.className = phase + (wx.id === 'rain' || wx.id === 'heat' || wx.id === 'storm' ? ' ' + wx.id : '');
+  scene.className = phase +
+    (wx.id === 'rain' || wx.id === 'heat' || wx.id === 'storm' ? ' ' + wx.id : '') +
+    ' s-' + seasonNow().id;
+  buildWeatherParticles();
+  maybeLightning();
   $('wxicon').textContent = wx.icon;
   $('p-weather').title = wx.name + ' — ' + wx.blurb;
 
@@ -2812,6 +2863,95 @@ function paintSky() {
   } else if (!isDay() || !opt.motion) {
     Array.prototype.slice.call(clouds).forEach(function (c) { c.remove(); });
   }
+}
+
+/* ---- weather & seasonal particles --------------------------------
+   CSS-animated so they cost nothing per frame in JS. Rebuilt only
+   when the weather or season actually changes, never per tick.    */
+let wxKey = '';
+function buildWeatherParticles(force) {
+  const box = $('scenewx');
+  if (!box) return;
+  const wx = weatherNow().id, season = seasonNow().id;
+  const key = wx + '|' + season + '|' + (opt.motion ? 1 : 0) + '|' + (isDay() ? 'd' : 'n');
+  if (key === wxKey && !force) return;
+  wxKey = key;
+  box.innerHTML = '';
+  if (!opt.motion) return;
+
+  const W = $('scene').clientWidth || 340;
+  const add = function (cls, n, make) {
+    for (let i = 0; i < n; i++) {
+      const e = document.createElement('span');
+      e.className = 'wxp ' + cls;
+      e.style.left = (Math.random() * W) + 'px';
+      make(e, i);
+      box.appendChild(e);
+    }
+  };
+
+  if (wx === 'rain' || wx === 'storm') {
+    const heavy = wx === 'storm';
+    add('drop', heavy ? 46 : 26, function (e) {
+      const len = (heavy ? 14 : 9) + Math.random() * 10;
+      e.style.height = len + 'px';
+      e.style.top = (-Math.random() * 200) + 'px';
+      e.style.animationDuration = ((heavy ? 0.42 : 0.7) + Math.random() * 0.3) + 's';
+      e.style.animationDelay = (-Math.random() * 1.2) + 's';
+      e.style.opacity = 0.5 + Math.random() * 0.5;
+    });
+  }
+  if (season === 'winter') {
+    add('flake', 22, function (e) {
+      const r = 1.6 + Math.random() * 2.6;
+      e.style.width = r + 'px'; e.style.height = r + 'px';
+      e.style.top = (-Math.random() * 160) + 'px';
+      e.style.animationDuration = (7 + Math.random() * 7) + 's';
+      e.style.animationDelay = (-Math.random() * 12) + 's';
+      e.style.opacity = 0.5 + Math.random() * 0.5;
+    });
+  } else if (season === 'autumn') {
+    const leaves = ['🍂', '🍁'];
+    add('leaf', 9, function (e, i) {
+      e.textContent = leaves[i % 2];
+      e.style.top = (-Math.random() * 200) + 'px';
+      e.style.animationDuration = (8 + Math.random() * 7) + 's';
+      e.style.animationDelay = (-Math.random() * 14) + 's';
+      e.style.opacity = 0.75 + Math.random() * 0.25;
+    });
+  } else if (season === 'spring') {
+    add('petal', 10, function (e) {
+      e.textContent = '🌸';
+      e.style.fontSize = (7 + Math.random() * 5) + 'px';
+      e.style.top = (-Math.random() * 200) + 'px';
+      e.style.animationDuration = (9 + Math.random() * 8) + 's';
+      e.style.animationDelay = (-Math.random() * 15) + 's';
+      e.style.opacity = 0.6 + Math.random() * 0.4;
+    });
+  } else if (season === 'summer' && isDay() && (wx === 'sun' || wx === 'heat')) {
+    add('shimmer', wx === 'heat' ? 9 : 5, function (e) {
+      const r = 14 + Math.random() * 22;
+      e.style.width = r + 'px'; e.style.height = r + 'px';
+      e.style.top = (50 + Math.random() * 42) + '%';
+      e.style.animationDuration = (3.5 + Math.random() * 3) + 's';
+      e.style.animationDelay = (-Math.random() * 6) + 's';
+    });
+  }
+}
+/* lightning lights the whole scene, not just the rain layer */
+let lastFlashSlot = -1;
+function maybeLightning() {
+  if (!opt.motion || weatherNow().id !== 'storm') return;
+  const slot = Math.floor(NOW() / 6000);
+  if (slot === lastFlashSlot) return;
+  lastFlashSlot = slot;
+  if (hash32((slot * 7717 + 3) >>> 0) % 100 >= 30) return;
+  const f = $('flashlayer');
+  if (!f) return;
+  f.classList.remove('go');
+  void f.offsetWidth;
+  f.classList.add('go');
+  if (opt.sound) noise(0.9, { freq: 90, gain: 0.16, type: 'lowpass', q: 0.6, delay: 0.25 });
 }
 
 /* ---- particles ---- */
@@ -4818,7 +4958,7 @@ function openSettings() {
       if (k === 'ambient' && opt.ambient) { unlockAudio(); ambientVoice(); }
       if (k === 'music') { if (opt.music) { unlockAudio(); startMusic(); } else stopMusic(); }
       if (k === 'cb') applyA11y();
-      if (k === 'motion') { paintPlots(); spawnBees(); }
+      if (k === 'motion') { buildWeatherParticles(true); paintPlots(); spawnBees(); }
     });
   });
 }
