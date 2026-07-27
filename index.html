@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Fibonacci Garden</title>
+<meta name="description" content="An idle planting game where the Fibonacci sequence shapes every plant — real phyllotaxis, grown one drop at a time.">
+<meta name="theme-color" content="#0e120c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fib Garden">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
 
@@ -30,6 +38,9 @@
   body {
     margin: 0; font-family: var(--sans); color: var(--text);
     background: #070906;
+    /* installed to a home screen there is no browser chrome, so respect the notch */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
     -webkit-font-smoothing: antialiased;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
@@ -967,6 +978,8 @@
       <div id="canlist"></div>
       <div class="sectitle">Land</div>
       <div id="landlist"></div>
+      <div class="sectitle">App</div>
+      <div id="installwrap"></div>
       <div class="sectitle">Records</div>
       <div id="records"></div>
       <div id="devbox">
@@ -3374,6 +3387,24 @@ function paintShop() {
   Object.keys(PERK_CHOICES).forEach(function (lv) {
     PERK_CHOICES[lv].forEach(function (pk) { if (state.perks[pk.id]) owned.push(pk); });
   });
+  // install / offline status
+  const installed = isInstalled();
+  $('installwrap').innerHTML =
+    '<div class="row-item"><div class="thumb" style="font-size:20px">📲</div>' +
+    '<div class="info"><h4>' + (installed ? 'Installed' : 'Install the garden') + '</h4><p>' +
+    (installed
+      ? 'running from your home screen · works with no connection'
+      : (installPrompt
+          ? 'add it to your home screen — own icon, fullscreen,<br>and it keeps working offline'
+          : (pwaSupported()
+              ? 'use your browser\'s <b>add to home screen</b><br>the garden works offline once loaded'
+              : 'open the online version to install it'))) +
+    '</p></div>' +
+    (installPrompt && !installed
+      ? '<div class="actions"><button class="mini gold" id="doinstall">install</button></div>'
+      : '') + '</div>';
+  if ($('doinstall')) $('doinstall').addEventListener('click', doInstall);
+
   $('records').innerHTML =
     '<div class="row-item"><div class="info">' +
     '<p style="font-size:11px;line-height:1.9">' +
@@ -4353,6 +4384,46 @@ function openPostcard() {
       sfx('gift');
       toast('Saved fibonacci-garden.png');
     });
+  });
+}
+
+/* ============================================================
+   Install & offline
+   The game has no network calls of its own, so once the shell is
+   cached it runs with no connection at all — on a plane, on the
+   underground, anywhere.
+   ============================================================ */
+let installPrompt = null;
+let swReg = null;
+function pwaSupported() { return 'serviceWorker' in navigator && location.protocol !== 'file:'; }
+function isInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+if (pwaSupported()) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js')
+      .then(function (r) { swReg = r; })
+      .catch(function () { /* offline support is a bonus, never a blocker */ });
+  });
+}
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  installPrompt = e;
+  paintShop();                          // reveal the install row
+});
+window.addEventListener('appinstalled', function () {
+  installPrompt = null;
+  sfx('jackpot');
+  toast('Installed — the garden lives on your home screen now');
+  paintShop();
+});
+function doInstall() {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  installPrompt.userChoice.then(function (r) {
+    if (r && r.outcome === 'accepted') installPrompt = null;
+    paintShop();
   });
 }
 

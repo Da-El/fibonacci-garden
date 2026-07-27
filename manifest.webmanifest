@@ -1,0 +1,17 @@
+{
+  "name": "Fibonacci Garden",
+  "short_name": "Fib Garden",
+  "description": "An idle planting game where the Fibonacci sequence shapes every plant — real phyllotaxis, grown one drop at a time.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e120c",
+  "theme_color": "#0e120c",
+  "categories": ["games", "education"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
