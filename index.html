@@ -1068,6 +1068,9 @@ const SPECIES = [
 
 const byId = {};
 SPECIES.forEach(function (s, i) { byId[s.id] = s; s.idx = i; });
+/* the nine wild species — bred hybrids get appended to SPECIES later,
+   so anything that means "the original nine" must use this list */
+const BASE_SPECIES = SPECIES.slice();
 
 function totalFor(sp) {
   let t = 0;
@@ -1235,6 +1238,8 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    hybrids: {},                     // id -> {a,b} crosses the player has bred
+    bred: 0,
     hive: false,                     // bees pollinate growing plants
     hiveLevel: 0,
     pollenSlot: 0,
@@ -1298,6 +1303,8 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.hybrids = p.hybrids || {};
+        p.bred = p.bred | 0;
         p.hive = !!p.hive;
         p.hiveLevel = p.hiveLevel | 0;
         p.pollenSlot = p.pollenSlot | 0;
@@ -1448,6 +1455,8 @@ function doPrestige() {
     earned: state.earned,
     harvested: state.harvested,
     ach: state.ach,
+    hybrids: state.hybrids,          // bred plants are knowledge, not stock
+    bred: state.bred,
     ordersDelivered: state.ordersDelivered,
     goldenHarvests: state.goldenHarvests,
     xp: state.xp,
@@ -1662,7 +1671,16 @@ const ACHIEVEMENTS = [
   { id: 'c13',   name: 'Golden rhythm (combo 13)',   coins: 150, test: function (s) { return s.bestCombo >= 13; } },
   { id: 'flaw',  name: 'Flawless — a pristine bloom', golden: 1, test: function (s) { return s.pristineHarvests >= 1; } },
   { id: 'lvl8',  name: 'Master gardener (level 8)',  coins: 300, test: function (s) { return s.level >= 8; } },
-  { id: 'roll3', name: 'High roller (spin a ×3)',    coins: 200, test: function (s) { return s.wheelBest >= 3; } }
+  { id: 'roll3', name: 'High roller (spin a ×3)',    coins: 200, test: function (s) { return s.wheelBest >= 3; } },
+  { id: 'bred1', name: 'Bred a new plant',           coins: 200, test: function (s) { return (s.bred | 0) >= 1; } },
+  { id: 'bred5', name: 'Five crosses in the book',   golden: 1,  test: function (s) { return (s.bred | 0) >= 5; } },
+  { id: 'ladder', name: 'Climbed the phyllotactic ladder', golden: 1,
+    test: function (s) {
+      return Object.keys(s.hybrids || {}).some(function (id) {
+        const sp = byId[id];
+        return sp && sp.frac && isFibFraction(sp.frac);
+      });
+    } }
 ];
 function checkAch() {
   const got = [];
@@ -2924,7 +2942,7 @@ function harvest() {
   if (!state.almanac[sp.id] || stars > state.almanac[sp.id]) state.almanac[sp.id] = stars;
   let goldenNote = '';
   if (!state.almanacRewarded &&
-      SPECIES.every(function (s) { return state.almanac[s.id] === 3; })) {
+      BASE_SPECIES.every(function (s) { return state.almanac[s.id] === 3; })) {
     state.almanacRewarded = true;
     state.golden++;
     goldenNote = ' · almanac complete! +1 ✨';
@@ -3104,10 +3122,12 @@ function paintAlmanac() {
     d.className = 'alcard' + (best ? '' : ' unknown');
     d.innerHTML =
       '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
-      '<div class="nm">' + (best ? sp.name + '<br><span class="stars">' + starStr(best) + '</span>'
+      '<div class="nm">' + (best ? (sp.hybrid ? '🧬 ' : '') + sp.name +
+                                   '<br><span class="stars">' + starStr(best) + '</span>'
                                  : '???<br><span style="color:#3a4630">not yet grown</span>') + '</div>';
     if (best) {
       d.addEventListener('click', function () {
+        if (sp.hybrid) return showHybridCard(sp, false);
         const diff = Math.abs(angleOf(sp) - GOLDEN);
         $('card').innerHTML =
           '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
@@ -3126,9 +3146,11 @@ function paintAlmanac() {
     }
     wrap.appendChild(d);
   });
+  const wildMastered = BASE_SPECIES.filter(function (s) { return state.almanac[s.id] === 3; }).length;
   $('alinfo').textContent = found + '/' + SPECIES.length + ' grown · ' +
-    mastered + '/' + SPECIES.length + ' at ★★★ · best combo ' + state.bestCombo +
-    ' · 💎×' + state.pristineHarvests;
+    wildMastered + '/' + BASE_SPECIES.length + ' wild at ★★★' +
+    (SPECIES.length > BASE_SPECIES.length ? ' · 🧬' + (SPECIES.length - BASE_SPECIES.length) + ' bred' : '') +
+    ' · best combo ' + state.bestCombo;
 
   // achievements
   const al = $('achlist');
@@ -3221,6 +3243,19 @@ function paintShop() {
     saveState(); paintTop(); paintShop(); paintGrowFoot();
     toast('+3 compost 🪱');
   });
+
+  // the breeding bench
+  const bRow = document.createElement('div');
+  bRow.className = 'row-item';
+  const bredCount = Object.keys(state.hybrids || {}).length;
+  bRow.innerHTML =
+    '<div class="thumb" style="font-size:20px">🧬</div>' +
+    '<div class="info"><h4>The breeding bench</h4><p>' +
+    'cross two plants you have grown<br>the child\'s angle is the <b>mediant</b> of its parents' +
+    (bredCount ? ' · <b>' + bredCount + '</b> bred' : '') + '</p></div>' +
+    '<div class="actions"><button class="mini gold" id="openbreed">' + BREED_COST + '🪙</button></div>';
+  canWrap2.appendChild(bRow);
+  $('openbreed').addEventListener('click', openBreeder);
 
   // the hive
   const hiveRow = document.createElement('div');
@@ -3455,7 +3490,8 @@ const HINTS = {
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
   wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' },
-  bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' }
+  bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' },
+  breed:   { ic: '🧬', tx: 'The <b>breeding bench</b> is open in the shop. Cross two plants you have grown and the child\'s angle is the <b>mediant</b> of its parents — that\'s how the real phyllotactic ladder is built.' }
 };
 function hint(key) {
   if (tutor.hints[key] || coachActive()) return;
@@ -3753,6 +3789,211 @@ function flyBees() {
   });
 }
 
+/* ============================================================
+   Crossbreeding
+   Cross two plants and the child's divergence angle is the MEDIANT
+   of its parents' fractions: a/b ⊕ c/d = (a+c)/(b+d). That isn't a
+   invented rule — it is exactly how the phyllotactic ladder is
+   built. 1/2 ⊕ 1/3 = 2/5. 2/5 ⊕ 3/8 = 5/13. Every mediant of two
+   neighbours in the ladder is the next Fibonacci fraction, and the
+   whole sequence converges on the golden angle. Breeding your way
+   up that ladder IS the maths of the game.
+   ============================================================ */
+const BREED_COST = 400;
+function fracOf(sp) { return sp.frac ? sp.frac : null; }     // golden-angle species have none
+function mediant(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function reduceFrac(f) { const g = gcd(f[0], f[1]) || 1; return [f[0] / g, f[1] / g]; }
+const FIBSET_N = { 1:1, 2:1, 3:1, 5:1, 8:1, 13:1, 21:1, 34:1, 55:1, 89:1, 144:1 };
+function isFibFraction(f) { return !!(FIBSET_N[f[0]] && FIBSET_N[f[1]]); }
+
+function hybridId(aId, bId) {
+  return 'hy_' + [aId, bId].sort().join('_');
+}
+/* build the species record for a cross — deterministic, so the same
+   pairing always yields the same plant */
+function makeHybrid(aId, bId) {
+  const A = byId[aId], B = byId[bId];
+  if (!A || !B) return null;
+  const fa = fracOf(A), fb = fracOf(B);
+  let frac = null;
+  if (fa && fb) frac = reduceFrac(mediant(fa, fb));
+  else if (fa || fb) frac = null;                    // crossing into a golden-angle parent stays golden
+  const id = hybridId(aId, bId);
+  const seed = Math.round((A.seed + B.seed) / 2 * 1.35);
+  const price = Math.round((A.price + B.price) / 2 * 1.55);
+  const stages = Math.max(A.stages, B.stages);
+  const growMin = Math.round((A.growMin + B.growMin) / 2);
+  // the child takes the rarer parent's form, and a blended hue
+  const form = A.price >= B.price ? A.form : B.form;
+  const donor = A.form === form ? A : B;
+  const h = {
+    id: id, hybrid: true, parents: [aId, bId],
+    name: hybridName(A, B),
+    form: form, frac: frac,
+    pref: A.pref === B.pref ? A.pref : 'any',
+    stages: stages, seed: seed, price: price,
+    growMin: growMin, lvl: 1,
+    leafHue: Math.round((A.leafHue + B.leafHue) / 2),
+    leafSat: Math.round(((A.leafSat || 38) + (B.leafSat || 38)) / 2),
+    petals: donor.petals, seedR: donor.seedR,
+    disc: donor.disc, petal: donor.petal,
+    fact: hybridFact(A, B, frac)
+  };
+  if (form === 'disc' && !h.disc) { h.disc = [44, 76, 48]; h.petal = '#f3efdf'; h.petals = 21; h.seedR = 2.7; }
+  return h;
+}
+const HY_PREFIX = ['Dawn', 'Ember', 'Quiet', 'Gilded', 'Wander', 'Hollow', 'Bright', 'Silver', 'Amber', 'Vesper'];
+const HY_SUFFIX = ['bloom', 'crown', 'spire', 'wreath', 'coil', 'fern', 'star', 'whorl', 'drift', 'braid'];
+function hybridName(A, B) {
+  const h = hash32((A.idx * 7919 + B.idx * 104729 + 17) >>> 0);
+  return HY_PREFIX[h % HY_PREFIX.length] + ' ' + HY_SUFFIX[(h >> 8) % HY_SUFFIX.length];
+}
+function hybridFact(A, B, frac) {
+  if (!frac) {
+    return 'A cross of ' + A.name.toLowerCase() + ' and ' + B.name.toLowerCase() +
+      '. One parent already packs at the golden angle, so the child does too — the ladder has nowhere further to climb.';
+  }
+  const fa = fracOf(A), fb = fracOf(B);
+  const deg = (frac[0] / frac[1]) * 360;
+  const gap = Math.abs(deg - GOLDEN);
+  return 'Crossing ' + fa[0] + '/' + fa[1] + ' with ' + fb[0] + '/' + fb[1] +
+    ' gives the <b>mediant</b>: (' + fa[0] + '+' + fb[0] + ')/(' + fa[1] + '+' + fb[1] + ') = <b>' +
+    frac[0] + '/' + frac[1] + '</b>, or ' + deg.toFixed(2) + '°. ' +
+    (isFibFraction(frac)
+      ? 'Both numbers are Fibonacci — this child sits one rung further up the real phyllotactic ladder, ' +
+        gap.toFixed(2) + '° from the golden angle.'
+      : 'A rung off the classic ladder, ' + gap.toFixed(2) + '° from the golden angle — a plant that does not exist in nature.');
+}
+
+/* hybrids the player has actually bred get registered into the world */
+function registerHybrids() {
+  Object.keys(state.hybrids || {}).forEach(function (id) {
+    if (byId[id]) return;
+    const rec = state.hybrids[id];
+    const h = makeHybrid(rec.a, rec.b);
+    if (!h) return;
+    h.idx = SPECIES.length;
+    SPECIES.push(h);
+    byId[id] = h;
+  });
+}
+function canBreed() {
+  // any species you've grown at least once is breeding stock
+  return SPECIES.filter(function (s) { return state.almanac[s.id]; });
+}
+function doBreed(aId, bId) {
+  if (aId === bId) return toast('Cross two different plants');
+  if (state.coins < BREED_COST) return toast('Crossing costs ' + BREED_COST + '🪙');
+  const id = hybridId(aId, bId);
+  if (byId[id]) return toast('You have already bred that pair');
+  const h = makeHybrid(aId, bId);
+  if (!h) return;
+  state.coins -= BREED_COST;
+  state.hybrids = state.hybrids || {};
+  state.hybrids[id] = { a: aId, b: bId };
+  registerHybrids();
+  state.bred = (state.bred | 0) + 1;
+  saveState();
+  sfx('jackpot');
+  shakeApp();
+  addXP(30);
+  showHybridCard(byId[id], true);
+  checkAch();
+}
+function showHybridCard(sp, isNew) {
+  const diff = sp.frac ? Math.abs(angleOf(sp) - GOLDEN) : 0;
+  $('card').innerHTML =
+    (isNew ? '<div class="sub" style="color:var(--leaf)">a new plant exists</div>' : '') +
+    '<div class="art" style="height:140px;display:flex;align-items:center;justify-content:center">' +
+      plantSVG(sp, totalFor(sp)) + '</div>' +
+    '<h3>' + sp.name + '</h3>' +
+    '<div class="sub">' + fracLabel(sp) + '</div>' +
+    '<div class="fact">' + sp.fact + '</div>' +
+    '<div class="stats">' +
+      '<div><dt>Parents</dt><dd style="font-size:9px">' +
+        (byId[sp.parents[0]] ? byId[sp.parents[0]].name : sp.parents[0]) + '<br>' +
+        (byId[sp.parents[1]] ? byId[sp.parents[1]].name : sp.parents[1]) + '</dd></div>' +
+      '<div><dt>Sells for</dt><dd>' + priceOf(sp) + '🪙</dd></div>' +
+      '<div><dt>Seed</dt><dd>' + seedCostOf(sp) + '🪙</dd></div>' +
+      '<div><dt>From golden</dt><dd>' + (sp.frac ? diff.toFixed(2) + '°' : 'exact') + '</dd></div>' +
+    '</div>' +
+    '<button class="btn" id="c-close">' + (isNew ? 'wonderful' : 'close') + '</button>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+}
+function openBreeder() {
+  const stock = canBreed();
+  if (stock.length < 2) {
+    $('card').innerHTML = '<h3>The breeding bench</h3>' +
+      '<div class="fact">Grow at least two different species first — you can only cross plants you have actually harvested.</div>' +
+      '<button class="btn" id="c-close">close</button>';
+    $('modal').classList.add('show');
+    $('c-close').addEventListener('click', closeCard);
+    return;
+  }
+  let a = breedPick.a && byId[breedPick.a] && state.almanac[breedPick.a] ? breedPick.a : stock[0].id;
+  let b = breedPick.b && byId[breedPick.b] && state.almanac[breedPick.b] ? breedPick.b : (stock[1] || stock[0]).id;
+  breedPick = { a: a, b: b };
+  renderBreeder();
+}
+let breedPick = { a: null, b: null };
+function renderBreeder() {
+  const stock = canBreed();
+  const a = byId[breedPick.a], b = byId[breedPick.b];
+  const same = breedPick.a === breedPick.b;
+  const id = hybridId(breedPick.a, breedPick.b);
+  const already = !!byId[id];
+  const preview = (!same && !already) ? makeHybrid(breedPick.a, breedPick.b) : null;
+  const afford = state.coins >= BREED_COST;
+
+  const pickRow = function (side, cur) {
+    return '<div style="margin-bottom:8px"><div style="font-family:var(--mono);font-size:9px;color:var(--dim);' +
+      'letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px">parent ' + side + '</div>' +
+      '<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:3px">' +
+      stock.map(function (s) {
+        return '<div data-pick="' + side + ':' + s.id + '" style="flex:0 0 auto;width:52px;cursor:pointer;' +
+          'border:1px solid ' + (s.id === cur ? 'var(--gold)' : 'var(--line)') + ';border-radius:10px;padding:3px;' +
+          'background:' + (s.id === cur ? '#f2c53c1a' : 'var(--panel-2)') + '">' +
+          '<div style="height:38px">' + plantSVG(s, totalFor(s)) + '</div>' +
+          '<div style="font-family:var(--mono);font-size:6.5px;text-align:center;color:var(--muted);' +
+          'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + s.name + '</div></div>';
+      }).join('') + '</div></div>';
+  };
+
+  $('card').innerHTML =
+    '<h3>The breeding bench</h3>' +
+    '<div class="sub">a cross takes the <b>mediant</b> of the parents\' fractions</div>' +
+    pickRow('a', breedPick.a) + pickRow('b', breedPick.b) +
+    '<div class="fact" style="text-align:center">' +
+      (same ? 'Pick two <b>different</b> plants.'
+       : already ? 'You have already bred <b>' + byId[id].name + '</b> from this pair.'
+       : (a.frac && b.frac
+          ? a.frac[0] + '/' + a.frac[1] + ' ⊕ ' + b.frac[0] + '/' + b.frac[1] + ' = <b style="color:var(--gold)">' +
+            preview.frac[0] + '/' + preview.frac[1] + '</b> · ' + angleOf(preview).toFixed(2) + '°' +
+            (isFibFraction(preview.frac) ? '<br><span style="color:var(--leaf)">a true Fibonacci fraction</span>' : '')
+          : 'One parent uses the golden angle — the child will too.')) +
+    '</div>' +
+    '<div class="btnrow2">' +
+      '<button class="btn" id="b-go"' + ((same || already || !afford) ? ' disabled' : '') +
+      ' style="background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">' +
+      'cross · ' + BREED_COST + '🪙</button>' +
+      '<button class="btn" id="c-close">done</button>' +
+    '</div>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+  const go = $('b-go');
+  if (go) go.addEventListener('click', function () { doBreed(breedPick.a, breedPick.b); });
+  $('card').querySelectorAll('[data-pick]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const kv = el.dataset.pick.split(':');
+      breedPick[kv[0]] = kv[1];
+      sfx('tap');
+      renderBreeder();
+    });
+  });
+}
+
 /* ---- the postcard ---- */
 function drawPostcard() {
   const W = 640, H = 400;
@@ -3917,7 +4158,11 @@ function GO(v) {
   if (v === 'garden')  { paintPlots(); spawnBees(); setTimeout(flyBees, 60); }
   if (v === 'market')  { paintMarket(); hint('orders'); }
   if (v === 'almanac') paintAlmanac();
-  if (v === 'shop')    { paintShop(); if (state.runEarned > 400) hint('prestige'); }
+  if (v === 'shop')    {
+    paintShop();
+    if (state.runEarned > 400) hint('prestige');
+    if (canBreed().length >= 2) hint('breed');
+  }
 }
 document.querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () { GO(t.dataset.v); });
@@ -3944,6 +4189,7 @@ function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); p
 
 /* Catch the world up with the ledger armed, then either show the
    digest or (for a quick return) just carry on. */
+registerHybrids();        // bred plants must exist before anything reads a plot
 const caught = catchUpWithLedger();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
