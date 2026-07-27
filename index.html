@@ -1829,6 +1829,9 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    appLevel: 0,                     // 0 = no apprentice
+    appSlot: 0,
+    appPaidDay: 0,
     history: [],                     // per-day ledger rows, capped
     speciesGrown: {},                // lifetime harvests per species
     qualityMix: {},                  // lifetime harvests per quality tier
@@ -1901,6 +1904,9 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.appLevel = p.appLevel | 0;
+        p.appSlot = p.appSlot | 0;
+        p.appPaidDay = p.appPaidDay | 0;
         p.history = Array.isArray(p.history) ? p.history : [];
         p.speciesGrown = p.speciesGrown || {};
         p.qualityMix = p.qualityMix || {};
@@ -3462,7 +3468,7 @@ function plant(plotIdx, spId) {
   if (state.coins < cost) return;
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
-  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0 };
+  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0, hired: false };
   sfx('plant');
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
@@ -3761,7 +3767,8 @@ function harvest() {
   // Failing that: a flawless grow — every single stage perfect-poured,
   // not one drop spilled, full quality — mints a pristine 💎
   const isGolden = hash32((state.harvested * 2654435761 + 777) >>> 0) % 100 < goldChance();
-  const isPristine = !isGolden && p.perfects >= sp.stages && !(p.spills | 0) && stars === 3;
+  const isPristine = !isGolden && !p.hired &&
+                     p.perfects >= sp.stages && !(p.spills | 0) && stars === 3;
   if (!state.barn[sp.id]) state.barn[sp.id] = {};
   if (isGolden) {
     state.barn[sp.id].g = (state.barn[sp.id].g || 0) + 1;
@@ -4389,6 +4396,35 @@ function paintShop() {
   canWrap2.appendChild(bRow);
   $('openbreed').addEventListener('click', openBreeder);
 
+  // the apprentice
+  const aRow = document.createElement('div');
+  aRow.className = 'row-item';
+  const aHired = hasApprentice();
+  const aMaxed = state.appLevel >= APP_TIERS.length;
+  const aCost = aHired ? (aMaxed ? 0 : APP_UPGRADE[state.appLevel]) : APPRENTICE_HIRE;
+  const aAfford = state.coins >= aCost;
+  const t = aHired ? appTier() : APP_TIERS[0];
+  aRow.innerHTML =
+    '<div class="thumb" style="font-size:20px">👩‍🌾</div>' +
+    '<div class="info"><h4>' + (aHired ? t.name : 'Hire an apprentice') + '</h4><p>' +
+    (aHired
+      ? 'waters ' + t.waters + '×/hour while you are away<br>' +
+        'clears ' + t.weeds + ' weed' + (t.weeds > 1 ? 's' : '') + ', squashes ' + t.bugs +
+        ' aphid' + (t.bugs > 1 ? 's' : '') + ' · <b>' + t.wage + '🪙/day</b>' +
+        (aMaxed ? '' : '<br>promote for a steadier hand')
+      : 'she tends the garden while the app is closed<br>' +
+        'never perfectly — no combos, no pristine blooms') +
+    '</p></div>' +
+    '<div class="actions">' +
+      (aMaxed ? '<span class="badge up">top rank</span>'
+              : '<button class="mini gold" id="hireapp"' + (aAfford ? '' : ' disabled') + '>' +
+                aCost + '🪙</button>') +
+      (aHired ? '<button class="mini" id="fireapp">dismiss</button>' : '') +
+    '</div>';
+  canWrap2.appendChild(aRow);
+  if ($('hireapp')) $('hireapp').addEventListener('click', hireApprentice);
+  if ($('fireapp')) $('fireapp').addEventListener('click', dismissApprentice);
+
   // the hive
   const hiveRow = document.createElement('div');
   hiveRow.className = 'row-item';
@@ -4670,6 +4706,7 @@ const HINTS = {
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
   wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' },
+  apprentice: { ic: '👩‍🌾', tx: 'Your <b>apprentice</b> works while the app is closed — watering, weeding and squashing aphids. She is paid daily whether you visit or not, and she never pours perfectly, so <b>combos and pristine blooms stay yours alone</b>.' },
   bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' },
   breed:   { ic: '🧬', tx: 'The <b>breeding bench</b> is open in the shop. Cross two plants you have grown and the child\'s angle is the <b>mediant</b> of its parents — that\'s how the real phyllotactic ladder is built.' }
 };
@@ -4872,6 +4909,121 @@ function paintJournal() {
   });
 }
 
+/* ============================================================
+   The Apprentice
+   Hired help who tends the garden while the app is closed. She
+   waters — but never perfectly, so no combos, no fever, and never
+   a pristine bloom. Skill is still yours alone; she buys you time.
+   Charges a daily wage whether or not you visit.
+   ============================================================ */
+const APPRENTICE_HIRE = 900;
+const APP_TIERS = [
+  { lvl: 1, wage: 40,  waters: 3, weeds: 1, bugs: 1, name: 'Apprentice' },
+  { lvl: 2, wage: 90,  waters: 6, weeds: 2, bugs: 2, name: 'Journeyman' },
+  { lvl: 3, wage: 190, waters: 10, weeds: 4, bugs: 3, name: 'Head gardener' }
+];
+const APP_UPGRADE = [0, 1400, 2600];
+function appTier() { return APP_TIERS[Math.max(0, Math.min(APP_TIERS.length - 1, state.appLevel - 1))]; }
+function hasApprentice() { return state.appLevel > 0; }
+function appSlot() { return Math.floor(NOW() / (60 * 60 * 1000)); }   // she works by the hour
+
+function hireApprentice() {
+  if (hasApprentice()) {
+    const idx = state.appLevel;
+    if (idx >= APP_TIERS.length) return toast('She is already head gardener');
+    const cost = APP_UPGRADE[idx];
+    if (state.coins < cost) return toast('Promotion costs ' + cost + '🪙');
+    state.coins -= cost;
+    state.appLevel++;
+    saveState(); sfx('levelUp'); paintTop(); paintShop();
+    return toast('Promoted to ' + appTier().name + ' — wage now ' + appTier().wage + '🪙/day');
+  }
+  if (state.coins < APPRENTICE_HIRE) return toast('Hiring costs ' + APPRENTICE_HIRE + '🪙');
+  state.coins -= APPRENTICE_HIRE;
+  state.appLevel = 1;
+  state.appSlot = appSlot();
+  state.appPaidDay = dayIndex();
+  saveState(); sfx('gift'); paintTop(); paintShop();
+  toast('👩‍🌾 Hired! She works while you are away — ' + appTier().wage + '🪙 a day');
+  hint('apprentice');
+}
+function dismissApprentice() {
+  state.appLevel = 0;
+  saveState(); paintTop(); paintShop();
+  toast('She has gone. The garden is yours alone again.');
+}
+/* wages come out whether you visited or not — that is the deal */
+function appWages() {
+  if (!hasApprentice()) return;
+  const today = dayIndex();
+  const owed = Math.max(0, today - (state.appPaidDay | 0));
+  if (!owed) return;
+  const bill = owed * appTier().wage;
+  state.appPaidDay = today;
+  if (state.coins >= bill) {
+    state.coins -= bill;
+    logEvent('wages', bill);
+  } else {
+    // she does not work for free, and she does not leave you bankrupt
+    logEvent('quit', 1);
+    state.appLevel = 0;
+  }
+  saveState();
+}
+/* the actual work, retroactive and capped per hour */
+function appTick() {
+  if (!hasApprentice()) return false;
+  const cur = appSlot();
+  if (typeof state.appSlot !== 'number') { state.appSlot = cur; saveState(); return false; }
+  if (cur <= state.appSlot) return false;
+  const hours = Math.min(24, cur - state.appSlot);
+  const t = appTier();
+  state.appSlot = cur;
+  let didWater = 0, didWeed = 0, didBug = 0;
+
+  for (let h = 0; h < hours; h++) {
+    // she clears a few weeds
+    for (let i = 0; i < t.weeds; i++) {
+      const k = Object.keys(state.weeds)[0];
+      if (k === undefined) break;
+      delete state.weeds[k];
+      didWeed++;
+    }
+    // and squashes a few aphids
+    let squashed = 0;
+    state.plots.forEach(function (p, i) {
+      if (squashed >= t.bugs || !p || !p.bug) return;
+      p.bug = false; p.bugSlot = bugSlot();
+      squashed++; didBug++;
+    });
+    // then waters whatever is closest to ripe, plainly
+    for (let w = 0; w < t.waters; w++) {
+      if (state.water <= 0) break;
+      const cand = state.plots.map(function (p, i) { return [p, i]; })
+        .filter(function (x) { return x[0] && !x[0].bug && x[0].stage < byId[x[0].s].stages; })
+        .sort(function (a, b) {
+          return (byId[a[0].s].stages - a[0].stage) - (byId[b[0].s].stages - b[0].stage);
+        });
+      if (!cand.length) break;
+      const p = cand[0][0], sp = byId[p.s];
+      state.water--;
+      p.stage++;
+      p.stageAt = NOW();
+      p.hired = true;                     // a hired plant can never be pristine
+      if (p.stage >= sp.stages) p.ripeAt = NOW();
+      didWater++;
+    }
+  }
+  if (didWater || didWeed || didBug) {
+    logEvent('appWater', didWater);
+    logEvent('appWeed', didWeed);
+    logEvent('appBug', didBug);
+    saveState();
+    return true;
+  }
+  return false;
+}
+
 /* ---- welcome back -----------------------------------------------
    Run the whole world forward with the ledger armed, then show the
    player an account of what happened rather than changed numbers. */
@@ -4879,7 +5031,8 @@ const WB_MIN_AWAY = 4 * 60 * 1000;          // don't nag for a quick tab-switch
 function catchUpWithLedger() {
   const awayMs = Math.max(0, NOW() - state.lastSeen);
   ledger = {};
-  tickWater(); stormTick(); pollenTick(); growthTick(); bugTick(); weedTick(); ensureOrders();
+  tickWater(); stormTick(); pollenTick(); growthTick(); bugTick(); weedTick();
+  appWages(); appTick(); ensureOrders();
   const l = ledger;
   ledger = null;
   state.lastSeen = NOW();
@@ -4895,6 +5048,12 @@ function showWelcomeBack(awayMs, l) {
   };
   if (l.ripened)    add('gold', '🌼', '<b>' + l.ripened + '</b> plant' + (l.ripened > 1 ? 's' : '') + ' finished growing', 'ready');
   if (l.pollinated) add('gold', '🐝', 'your bees pollinated <b>' + l.pollinated + '</b> plant' + (l.pollinated > 1 ? 's' : ''), '🍯');
+  if (l.appWater)   add('good', '👩‍🌾', 'your ' + (hasApprentice() ? appTier().name.toLowerCase() : 'gardener') +
+                        ' watered <b>' + l.appWater + '</b> time' + (l.appWater > 1 ? 's' : ''), '');
+  if (l.appWeed)    add('good', '🌾', 'she cleared <b>' + l.appWeed + '</b> plot' + (l.appWeed > 1 ? 's' : '') + ' of weeds', '');
+  if (l.appBug)     add('good', '🐛', 'she squashed aphids on <b>' + l.appBug + '</b> plant' + (l.appBug > 1 ? 's' : ''), '');
+  if (l.wages)      add('bad',  '💰', 'wages paid', '−' + l.wages + '🪙');
+  if (l.quit)       add('bad',  '👋', '<b>she left</b> — there were no coins to pay her', '');
   if (l.stages)     add('good', '🌱', 'grew <b>' + l.stages + '</b> stage' + (l.stages > 1 ? 's' : '') + ' on their own', '');
   if (l.water)      add('good', '💧', 'the can refilled', '+' + l.water);
   if (l.aphids)     add('bad',  '🐛', '<b>' + l.aphids + '</b> plant' + (l.aphids > 1 ? 's' : '') + ' picked up aphids', 'tap!');
@@ -5780,6 +5939,8 @@ setInterval(function () {
   tickWater();
   stormTick();
   const pollinated = pollenTick();
+  appWages();
+  const helped = appTick();
   const grew = growthTick();
   bugTick();
   weedTick();
@@ -5796,7 +5957,7 @@ setInterval(function () {
     const dot = $('dots').children[p.stage - 1];
     if (dot) dot.classList.add('on');
   }
-  if (state.water !== before || bugsNow !== bugsBefore || grew || pollinated) { paintPlots(); spawnBees(); paintGrowFoot(); }
+  if (state.water !== before || bugsNow !== bugsBefore || grew || pollinated || helped) { paintPlots(); spawnBees(); paintGrowFoot(); }
   else if (state.water === 0 || curPlot >= 0) paintGrowFoot();
   if (bugsNow > bugsBefore) { toast('Aphids! 🐛 tap the plant and squash them'); hint('aphid'); }
   // a storm in the next two slots is worth warning about once
