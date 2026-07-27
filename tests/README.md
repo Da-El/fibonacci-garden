@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-218 checks. Each one loads the game's inline `<script>` into a headless harness and
+227 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -48,6 +48,7 @@ if you add a system, add the counter that proves it fires.
 | `market-check.js` | the price spread, and whether the market explains it |
 | `daily-check.js` | a year of Dailies: every one winnable, fair, and worth winning |
 | `breed-check.js` | the mediant is really the mediant, the price cap holds, every rung is reachable |
+| `wheel-check.js` | the gamble's expected value, its odds, and that losing cannot kill a save |
 | `sound-check.js` | every sound defined, triggered, and mixed within a sane range |
 | `a11y-check.js` | colour, motion, screen readers, tap targets |
 | `audit.js` | the sweep: which ledger events never fire, stated-vs-actual, drawing weight |

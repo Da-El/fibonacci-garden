@@ -22,7 +22,8 @@ const FILES = [
   ['market-check',  'the price spread, and whether the market explains it'],
   ['save-check',    'old saves, corrupt saves, export codes, a failing localStorage'],
   ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning'],
-  ['breed-check',   'the mediant, the price cap, and every rung reachable']
+  ['breed-check',   'the mediant, the price cap, and every rung reachable'],
+  ['wheel-check',   "the gamble's expected value, its odds, and its worst outcome"]
 ];
 
 let pass = 0, fail = 0, broken = [];

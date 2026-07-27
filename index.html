@@ -2747,15 +2747,25 @@ function buyTrellis() {
 /* ---- the merchant's wheel ---------------------------------------
    Gamble the whole barn instead of selling it. Slightly better
    than fair on average — but one slice in four pays nothing.      */
+/* The eight slices are equally likely, so the wheel's expected value is just
+   their mean — and it used to be ×1.25. That made spinning strictly better
+   than selling: a 25% edge to the player, free, for anyone willing to sit
+   through the variance. A gamble that beats the safe option is not a gamble,
+   it is the correct move with extra steps.
+
+   Half the wheel is empty now and the wins are bigger for it, which comes to
+   ×0.9375 — a small house edge, so selling is the safe default and spinning
+   is something you choose. Losses and wins alternate around the rim so the
+   odds are legible before you commit. */
 const WHEEL = [
   { m: 0,   label: '×0',  color: '#3a2420' },
   { m: 1.5, label: '×1.5', color: '#2a3320' },
-  { m: 1,   label: '×1',  color: '#2c2a1c' },
+  { m: 0,   label: '×0',  color: '#3a2420' },
   { m: 2,   label: '×2',  color: '#3d3221' },
   { m: 0,   label: '×0',  color: '#3a2420' },
-  { m: 1.5, label: '×1.5', color: '#2a3320' },
-  { m: 3,   label: '×3',  color: '#6a5322' },
-  { m: 1,   label: '×1',  color: '#2c2a1c' }
+  { m: 1,   label: '×1',  color: '#2c2a1c' },
+  { m: 0,   label: '×0',  color: '#3a2420' },
+  { m: 3,   label: '×3',  color: '#6a5322' }
 ];
 function pickSegment(r01) { return Math.floor(r01 * WHEEL.length) % WHEEL.length; }
 function wheelSVGBg() {

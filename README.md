@@ -85,7 +85,8 @@ making level 1 as good as level 16.
    perfect-poured with *not one drop spilled*, sells 2×
 5. **Sell** at market, where price moves with the day, the weather, the season, fever
    and your golden seeds — or **gamble the whole barn** on the Speculator's wheel
-   (×0 / ×1 / ×1.5 / ×2 / ×3, and one slice in four takes everything)
+   (×0 / ×1 / ×1.5 / ×2 / ×3 — **half the wheel is empty**, and it pays ×0.94 on average,
+   so selling is the safe play and spinning is a choice)
 6. **Deliver customer orders** — premium contracts with quality minimums. A customer
    only ever asks for something you can already grow, and the deadline is derived from
    how long that crop actually takes
@@ -211,7 +212,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 218 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 227 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
