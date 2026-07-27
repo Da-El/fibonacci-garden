@@ -88,9 +88,17 @@ function check(name, cond, detail) { (cond ? ok : bugs).push(name + (detail ? ' 
     s.plots[0] = { s: 'pinecone', stage: 0, q: 0, stageAt: E('NOW()'), perfects: 0, spills: 0, hired: false };
     s.offset += 10 * DAY;
     E('growthTick()');
-    const allow = E('APP_TIERS')[rank - 1].care;
+    /* Her allowance is no longer a flat number per rank. It is two care for
+       every stage her reach carries the clock past where it would have
+       stopped, with her rank's figure as a floor — because care comes only
+       from pours, and a reach that takes a pour off you takes the care with
+       it. A flat two left the twelve-stage sunflower two short. */
+    const allow = E('appCareFor')(E('byId')['pinecone']);
     check('rank ' + rank + ' care allowance respected', s.plots[0].q === allow,
           'q=' + s.plots[0].q + ' allow=' + allow);
+    check('and rank ' + rank + ' never tends less than its own figure',
+          allow >= E('APP_TIERS')[rank - 1].care,
+          allow + ' against ' + E('APP_TIERS')[rank - 1].care);
   });
 }
 

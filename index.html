@@ -3110,7 +3110,7 @@ function growthTick() {
       logEvent('stages');
       /* but if you employ someone, she is out there tending these stages
          properly, and that is worth quality up to her rank's allowance */
-      if (hasApprentice() && (p.appQ | 0) < appTier().care) {
+      if (hasApprentice() && (p.appQ | 0) < appCareFor(sp)) {
         p.q++; p.appQ = (p.appQ | 0) + 1;
         logEvent('appCare');
       }
@@ -6110,6 +6110,27 @@ function appWage(tier) {
 }
 const APP_UPGRADE = [0, 900];
 function appTier() { return APP_TIERS[Math.max(0, Math.min(APP_TIERS.length - 1, state.appLevel - 1))]; }
+
+/* How much quality she is allowed to put into one plant.
+
+   Her reach carries the clock further, which sounds like a pure gift and is
+   not: care comes only from pours, so every stage her reach takes off you is
+   up to two care points you no longer earn. A flat allowance of two covered
+   that exactly for fourteen of the fifteen species and left the sunflower —
+   the one with twelve stages, where her reach takes two — two points short.
+   Measured, she was worth less than nothing at rank one for a twice-a-day
+   gardener.
+
+   So the allowance is what she takes, rather than a number chosen once:
+   two care for every stage the clock now carries past where it would have
+   stopped without her, and her rank's own figure as a floor. She can never
+   cost you quality; she can only save you water. */
+function appCareFor(sp) {
+  const tier = appTier();
+  const mine = Math.max(1, Math.min(sp.stages - 1, Math.ceil(sp.stages * TIMER_REACH)));
+  const hers = Math.max(1, Math.min(sp.stages - 1, Math.ceil(sp.stages * tier.reach)));
+  return Math.max(tier.care, (hers - mine) * 2);
+}
 function hasApprentice() { return state.appLevel > 0; }
 function appSlot() { return Math.floor(NOW() / (60 * 60 * 1000)); }   // she works by the hour
 

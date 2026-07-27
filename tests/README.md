@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-923 checks. Each one loads the game's inline `<script>` into a headless harness and
+940 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -76,6 +76,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `apprentice-check.js` | the apprentice at both ranks, net of what she is paid |
 | `glasshouse-check.js` | the glasshouse played for three weeks against an open garden |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
@@ -128,6 +129,11 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**Gross is not net.** Every previous reading of the apprentice used `earned`, which is
+gross — her wage comes out of coins, not out of earnings. So every measurement of her
+counted her benefit and none of her cost, and her first rank has been a net loss for two
+of the three visit rates the whole time.
 
 **A perk measured by a bot that never uses the mechanic reads as worthless.** perk-check
 reported long fever at exactly +0 and called it unmeasurable, while fever-check — which

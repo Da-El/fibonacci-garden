@@ -35,6 +35,7 @@ const FILES = [
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['apprentice-check','the apprentice at both ranks, net of what she is paid'],
   ['glasshouse-check','the glasshouse played for three weeks against an open garden'],
   ['skip-check',    'the opening played with the coach switched off: what is never explained'],
   ['return-check',  'everything a returning player is told: the hints, the digest, the title'],
