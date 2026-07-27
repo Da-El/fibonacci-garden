@@ -239,6 +239,22 @@ function run(cfg) {
         }
       }
     }
+    /* Replant the whole garden once enough has been earned to be worth
+       golden seeds. A player does this deliberately and rarely, so the bar
+       is a real one: at least the asked-for number of seeds, and never
+       before the beds and the can have been bought, since those go. */
+    if (cfg.prestigeAt) {
+      const s = S();
+      const claim = E('claimableGolden()');
+      if (claim >= cfg.prestigeAt && s.plotCount >= E('MAX_PLOTS')) {
+        log.prestiges = (log.prestiges || 0) + 1;
+        log.prestigeDays = log.prestigeDays || [];
+        log.prestigeDays.push({ day: log.days.length + 1, seeds: claim,
+                                earned: s.runEarned });
+        guardCall('doPrestige', function () { E('doPrestige()'); return true; });
+      }
+    }
+
     // plant the best affordable species in every empty plot
     const sp3 = S();
     const list = E('SPECIES').filter(function (x) { return x.lvl <= sp3.level; });
@@ -305,6 +321,14 @@ function run(cfg) {
        reported this, so the achievement audit was reading undefined */
     ach: Object.assign({}, s.ach),
     chapterTrail: chapterTrail,
+    /* runEarned resets on a replant; state.earned is the lifetime figure and
+       is the only one that can compare a player who prestiges against one
+       who does not. */
+    lifetime: s.earned | 0,
+    prestiges: log.prestiges || 0,
+    prestigeDays: log.prestigeDays || [],
+    golden: s.golden | 0,
+    goldenMult: E("goldenMult()"),
     errs: errs,
     days: log.days
   };

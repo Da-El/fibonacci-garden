@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-648 checks. Each one loads the game's inline `<script>` into a headless harness and
+676 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -58,6 +58,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `prestige2-check.js` | a second and third run: what a replant costs, what it keeps, what it is worth |
 | `keys-check.js` | the whole loop played by keyboard: plant, pour, take the shot, escape out |
 | `chapter-check.js` | the journal walked against a real run: when each chapter actually falls |
 | `broken-check.js` | a save that is perfectly well-formed and describes a garden the game cannot read |
