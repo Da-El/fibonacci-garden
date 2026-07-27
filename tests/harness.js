@@ -60,6 +60,10 @@ function makeEl(tag) {
     children: [], childNodes: [], style: makeStyle(), dataset: {}, classList: null,
     _cls: {}, _html: '', _text: '', attrs: {},
     parentNode: null, scrollTop: 0, scrollHeight: 0, offsetWidth: 320, offsetHeight: 480,
+    /* The scene lays its beds out from clientWidth, so leaving this at zero
+       would silently fall back to the game's own default and every layout
+       check would be measuring the fallback rather than the size asked for. */
+    clientWidth: 0, clientHeight: 0,
     value: '', checked: false, disabled: false,
     appendChild: function (c) { this.children.push(c); this.childNodes.push(c); c.parentNode = this; return c; },
     removeChild: function (c) { const i = this.children.indexOf(c); if (i > -1) { this.children.splice(i, 1); this.childNodes.splice(i, 1); } return c; },
@@ -151,6 +155,11 @@ function build(opts) {
   const idRe = /\bid="([A-Za-z0-9_-]+)"/g;
   let g;
   while ((g = idRe.exec(html))) ids[g[1]] = makeEl('div');
+  /* Give the scene and its bed a real size, so a layout can be measured at a
+     chosen viewport rather than at whatever the game's fallback happens to be. */
+  const vw = opts.width || 390;
+  if (ids.scene) { ids.scene.clientWidth = vw; ids.scene.clientHeight = Math.round(vw * 0.62); }
+  if (ids.bed) { ids.bed.clientWidth = vw; ids.bed.clientHeight = Math.round(vw * 0.42); }
 
   /* Seed the store before the game boots, so loading an existing save can be
      tested at all. Without this every build starts from a blank slate and the
