@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-875 checks. Each one loads the game's inline `<script>` into a headless harness and
+889 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -52,6 +52,9 @@ That turned out to be the pattern, not the exception:
 - **Fever** covered 67% of a precise player's pours across a hundred days. Thirteen
   pours takes about as long as fever lasts, so the next streak was assembled inside the
   current one and it never lapsed. Only the careless end had ever been bounded.
+- **Weeds** were explained by nothing at all. A toast said they had taken an empty bed and
+  stopped there — never that tapping clears them, never that there is sometimes a worm
+  underneath — while a journal chapter set an objective for clearing one.
 - The hint that **explains fever** the first time you see it said eight perfect pours for
   ninety seconds. It has been thirteen for thirty-four seconds since iteration 56, and
   the wilt hint still said a star a day when wilting was sped up to six hours in 52.
@@ -73,6 +76,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
 | `storm-check.js` | the storm and the trellis: how often it lands, and what shelter is worth |

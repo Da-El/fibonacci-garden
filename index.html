@@ -2851,7 +2851,10 @@ function weedTick() {
   state.weedChecked = cur;
   saveState();
   if (ledger) return;
-  if (sprouted) toast('🌾 Weeds took over ' + sprouted + ' empty plot' + (sprouted > 1 ? 's' : ''));
+  if (sprouted) {
+    toast('🌾 Weeds took over ' + sprouted + ' empty plot' + (sprouted > 1 ? 's' : ''));
+    hint('weeds');
+  }
 }
 function clearWeed(i) {
   if (!state.weeds[i]) return;
@@ -5802,6 +5805,12 @@ const HINTS = {
   fever:   { ic: '🔥', tx: '<b>Fibonacci Fever!</b> Thirteen perfect pours in a row lit the market up — everything sells at ×1.618 for the next 34 seconds. Sell now.' },
   storm:   { ic: '⛈️', tx: 'A <b>storm</b> is coming. Unsheltered plants can be knocked back a stage — buy a <b>trellis</b> from a plant\'s screen to protect that plot.' },
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
+  /* Weeds were the one mechanic in the game explained by nothing at all.
+     A toast said they had taken over an empty bed and stopped there — it
+     never said tapping clears them, that it costs nothing, or that there is
+     sometimes a worm underneath. The journal asks you to clear a patch, so
+     the game was setting an objective for something it had never taught. */
+  weeds:   { ic: '🌾', tx: '<b>Weeds</b> move into any bed you leave empty. Tap one to clear it — it costs nothing but a moment, and now and then there is a worm underneath worth a 🪱 of compost.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
   /* Six hours, not a day. Wilting was sped up four-fold in iteration 52
      precisely because at a star a day it never once fired. */
