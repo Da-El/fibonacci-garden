@@ -707,49 +707,49 @@ const MAX_PLOTS      = 9;
    earns a care point; care points decide the harvest's star quality. */
 const SPECIES = [
   {
-    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any', growMin: 5,
+    id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any', growMin: 5, lvl: 1,
     stages: 6, seed: 4, price: 16, leafHue: 104, leafSat: 46,
     fact: 'Elm leaves advance half a turn each time, so they simply alternate left and right. This is the crudest Fibonacci fraction — 1/2 — and the start of the whole ladder.'
   },
   {
-    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day', growMin: 8,
+    id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day', growMin: 8, lvl: 1,
     stages: 9, seed: 8, price: 32, petals: 34, seedR: 2.6,
     disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
     fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
   },
   {
-    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day', growMin: 8,
+    id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day', growMin: 8, lvl: 2,
     stages: 7, seed: 10, price: 32, leafHue: 128, leafSat: 34,
     fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
   },
   {
-    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night', growMin: 13,
+    id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night', growMin: 13, lvl: 3,
     stages: 7, seed: 14, price: 42, leafHue: 88, leafSat: 44,
     fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
   },
   {
-    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day', growMin: 13,
+    id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day', growMin: 13, lvl: 4,
     stages: 10, seed: 20, price: 70, petals: 21, seedR: 2.5,
     disc: [44, 78, 50], petal: '#f7f4ea', leafHue: 100,
     fact: 'Chamomile commonly carries 21 ray florets. Its domed centre uses the same golden angle as the sunflower, with fewer seeds to pack.'
   },
   {
-    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night', growMin: 21,
+    id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night', growMin: 21, lvl: 5,
     stages: 7, seed: 26, price: 68, leafHue: 116, leafSat: 30,
     fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
   },
   {
-    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day', growMin: 21,
+    id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day', growMin: 21, lvl: 6,
     stages: 8, seed: 34, price: 90, leafHue: 94, leafSat: 42,
     fact: 'Three eighths of a turn: walk up eight pear leaves and you have spiralled the twig exactly three times. Both numbers, again, are Fibonacci.'
   },
   {
-    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night', growMin: 34,
+    id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night', growMin: 34, lvl: 7,
     stages: 9, seed: 48, price: 120, leafHue: 28, leafSat: 38,
     fact: 'Eight twenty-firsts of a turn, 137.14°, almost the golden angle. On a real cone the scales fall into two sets of spirals — 8 running one way and 13 the other.'
   },
   {
-    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day', growMin: 34,
+    id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day', growMin: 34, lvl: 8,
     stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
     disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
     fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
@@ -925,6 +925,11 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    xp: 0,                           // progress into the current level
+    level: 1,                        // gardener level — gates species
+    perks: {},                       // perkId -> true (permanent choices)
+    pristineHarvests: 0,
+    wheelBest: 0,                    // best wheel multiplier ever hit
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -978,6 +983,11 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.xp = p.xp | 0;
+        p.level = Math.max(1, p.level | 0);
+        p.perks = p.perks || {};
+        p.pristineHarvests = p.pristineHarvests | 0;
+        p.wheelBest = p.wheelBest || 0;
         // plants from before the living clock get a timer starting now
         p.plots.forEach(function (pl) {
           if (pl && typeof pl.stageAt !== 'number') pl.stageAt = Date.now();
@@ -998,7 +1008,7 @@ function saveState() {
 }
 
 function NOW()      { return Date.now() + state.offset; }
-function waterCap() { return CAN_TIERS[state.canTier]; }
+function waterCap() { return CAN_TIERS[state.canTier] + (hasPerk('deepwell') ? 5 : 0); }
 function dayIndex() { return Math.floor(NOW() / DAY_MS); }
 
 /* Spending your last coins on land or a can could otherwise leave you with
@@ -1058,10 +1068,11 @@ const PHI = 1.6180339887;
 const FEVER_MS = 90 * 1000;
 function feverActive() { return NOW() < state.feverUntil; }
 function startFever() {
-  state.feverUntil = NOW() + FEVER_MS;
+  const ms = hasPerk('longfever') ? 150 * 1000 : FEVER_MS;
+  state.feverUntil = NOW() + ms;
   saveState();
   shakeApp();
-  toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for 90s!');
+  toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for ' + Math.round(ms / 1000) + 's!');
   paintFever();
 }
 function paintFever() {
@@ -1073,22 +1084,24 @@ function paintFever() {
 function priceOf(sp) {
   return Math.max(1, Math.round(
     sp.price * priceMult(sp) * weatherNow().sell * goldenMult() * seasonMult(sp) *
-    (feverActive() ? PHI : 1)));
+    (feverActive() ? PHI : 1) * (hasPerk('greenthumb') ? 1.10 : 1)));
 }
 
 /* golden mutation: a harvest occasionally comes up gilded and sells
    for 3× the 3★ price. Prestiging makes it more likely.           */
 const GOLD_PRICE_X = 3;
-function goldChance() { return 3 + Math.min(5, state.prestiges); }   // 3..8 %
+function goldChance() {
+  return 3 + Math.min(5, state.prestiges) + (hasPerk('goldentouch') ? 3 : 0);   // 3..11 %
+}
 function goldPriceOf(sp) { return priceOfQ(sp, 3) * GOLD_PRICE_X; }
 
 /* ---- prestige ---------------------------------------------------
    Replant the garden: everything resets except the almanac and
    golden seeds. Each successive seed costs 15% more run-earnings
    than the last, so the spiral tightens as it climbs.            */
-const PRESTIGE_UNIT = 1500;
+const PRESTIGE_UNIT = 2500;
 function goldenSeedCost(nOwned) {
-  return Math.round(PRESTIGE_UNIT * Math.pow(1.15, nOwned));
+  return Math.round(PRESTIGE_UNIT * Math.pow(1.45, nOwned));
 }
 function prestigeInfo() {
   let claim = 0, spent = 0;
@@ -1115,6 +1128,14 @@ function doPrestige() {
     ach: state.ach,
     ordersDelivered: state.ordersDelivered,
     goldenHarvests: state.goldenHarvests,
+    xp: state.xp,
+    level: state.level,
+    perks: state.perks,
+    pristineHarvests: state.pristineHarvests,
+    wheelBest: state.wheelBest,
+    bestCombo: state.bestCombo,
+    lastGiftDay: state.lastGiftDay,
+    giftStreak: state.giftStreak,
     offset: state.offset
   };
   state = freshState();
@@ -1172,7 +1193,7 @@ function ladyTick() {
   if (slot === state.ladySlot) return;
   state.ladySlot = slot;
   saveState();
-  if (hash32((slot * 97 + 41) >>> 0) % 100 >= 18) return;
+  if (hash32((slot * 97 + 41) >>> 0) % 100 >= (hasPerk('ladymagnet') ? 36 : 18)) return;
   if (document.getElementById('ladybug')) return;
   spawnLadybug(slot);
 }
@@ -1239,6 +1260,67 @@ function harvestReveal(sp, stars, isGolden, value) {
   }, 1150);
 }
 
+/* ---- gardener level & perks -------------------------------------
+   XP from everything you actually do; levels unlock species and,
+   at the odd milestones, a permanent choice of two perks. Level,
+   XP and perks are mastery — they survive replanting.             */
+function xpForNext() { return FIB[Math.min(state.level + 2, FIB.length - 1)] * 10; }
+function hasPerk(id) { return !!state.perks[id]; }
+const PERK_CHOICES = {
+  3: [{ id: 'greenthumb', icon: '🌿', name: 'Green thumb', desc: 'all sale prices +10%' },
+      { id: 'deepwell',   icon: '🪣', name: 'Deep well',   desc: 'watering can holds +5 drops' }],
+  5: [{ id: 'ladymagnet', icon: '🐞', name: 'Ladybird magnet', desc: 'lucky ladybugs visit twice as often' },
+      { id: 'weedless',   icon: '🌾', name: 'Weedless',        desc: 'weeds never take your plots' }],
+  7: [{ id: 'stormsense', icon: '🛡️', name: 'Storm sense', desc: 'storms damage plants half as often' },
+      { id: 'richsoil',   icon: '🪨', name: 'Rich soil',   desc: 'plants grow 20% faster on their own' }],
+  9: [{ id: 'goldentouch', icon: '✨', name: 'Golden touch', desc: 'golden blooms +3% more likely' },
+      { id: 'longfever',   icon: '🔥', name: 'Long fever',   desc: 'fever lasts 150s instead of 90s' }],
+  12:[{ id: 'steadyhand', icon: '🎯', name: 'Steady hand', desc: 'the gold pour zone is 30% wider' },
+      { id: 'dawndew',    icon: '💧', name: 'Dawn dew',    desc: 'water refills 25% faster' }],
+  15:[{ id: 'connoisseur', icon: '🏵️', name: 'Connoisseur', desc: 'customer orders pay 40% more' },
+      { id: 'evergreen',   icon: '🌲', name: 'Evergreen',   desc: 'ripe plants take twice as long to wilt' }]
+};
+function addXP(n) {
+  state.xp += n;
+  let leveled = false;
+  while (state.xp >= xpForNext()) {
+    state.xp -= xpForNext();
+    state.level++;
+    leveled = true;
+  }
+  saveState();
+  if (!leveled) return;
+  shakeApp();
+  const unlocked = SPECIES.filter(function (s) { return s.lvl === state.level; });
+  toast('🌟 Level ' + state.level + '!' +
+        (unlocked.length ? ' ' + unlocked[0].name + ' unlocked' : ''));
+  paintTop();
+  if (PERK_CHOICES[state.level]) offerPerks(state.level);
+  checkAch();
+}
+function offerPerks(lvl) {
+  const pair = PERK_CHOICES[lvl];
+  if (!pair || pair.some(function (pk) { return state.perks[pk.id]; })) return;
+  $('card').innerHTML =
+    '<h3>Level ' + lvl + ' — choose a perk</h3>' +
+    '<div class="sub">permanent · survives replanting</div>' +
+    pair.map(function (pk, i) {
+      return '<div class="row-item" style="cursor:pointer" data-perk="' + i + '">' +
+        '<div class="thumb" style="font-size:20px">' + pk.icon + '</div>' +
+        '<div class="info"><h4>' + pk.name + '</h4><p>' + pk.desc + '</p></div></div>';
+    }).join('');
+  $('modal').classList.add('show');
+  $('card').querySelectorAll('[data-perk]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const pk = pair[+el.dataset.perk];
+      state.perks[pk.id] = true;
+      if (pk.id === 'deepwell') state.water = Math.min(state.water, waterCap());
+      saveState(); closeCard(); paintTop(); paintShop();
+      toast(pk.icon + ' ' + pk.name + ' — yours forever');
+    });
+  });
+}
+
 /* ---- achievements -----------------------------------------------
    One-time trophies, paid on the spot. They survive replanting.   */
 const ACHIEVEMENTS = [
@@ -1252,7 +1334,11 @@ const ACHIEVEMENTS = [
   { id: 'land9', name: 'All nine plots',             coins: 200, test: function (s) { return s.plotCount >= MAX_PLOTS; } },
   { id: 'gold1', name: 'A golden bloom',             coins: 150, test: function (s) { return s.goldenHarvests >= 1; } },
   { id: 'p1',    name: 'Replanted the garden',       coins: 100, test: function (s) { return s.prestiges >= 1; } },
-  { id: 'alm',   name: 'Almanac complete at ★★★',    golden: 1,  test: function (s) { return s.almanacRewarded; } }
+  { id: 'alm',   name: 'Almanac complete at ★★★',    golden: 1,  test: function (s) { return s.almanacRewarded; } },
+  { id: 'c13',   name: 'Golden rhythm (combo 13)',   coins: 150, test: function (s) { return s.bestCombo >= 13; } },
+  { id: 'flaw',  name: 'Flawless — a pristine bloom', golden: 1, test: function (s) { return s.pristineHarvests >= 1; } },
+  { id: 'lvl8',  name: 'Master gardener (level 8)',  coins: 300, test: function (s) { return s.level >= 8; } },
+  { id: 'roll3', name: 'High roller (spin a ×3)',    coins: 200, test: function (s) { return s.wheelBest >= 3; } }
 ];
 function checkAch() {
   const got = [];
@@ -1273,7 +1359,8 @@ function checkAch() {
    Aphids roll once per 10-minute slot per plot, deterministically.
    While a plant has aphids, watering is wasted — squash them first. */
 const BUG_SLOT_MS = 10 * 60 * 1000;
-const BUG_CHANCE = 12;                       // % per slot per growing plant
+const BUG_CHANCE = 12;                       // % per slot per growing plant (base)
+function bugChance() { return Math.min(22, BUG_CHANCE + state.prestiges * 2); }
 function bugSlot() { return Math.floor(NOW() / BUG_SLOT_MS); }
 function bugTick() {
   const slot = bugSlot();
@@ -1284,7 +1371,7 @@ function bugTick() {
     if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
     if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
     p.bugSlot = slot;
-    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < BUG_CHANCE) p.bug = true;
+    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < bugChance()) p.bug = true;
     changed = true;
   });
   if (changed) saveState();
@@ -1299,6 +1386,7 @@ function squashBug() {
   $('bugBtn').classList.remove('show');
   burstCenter($('canvas'), ['💥', '🐛', '✨']);
   toast('Aphids squashed!');
+  addXP(2);
   paintGrowFoot();
 }
 
@@ -1311,6 +1399,7 @@ function weedSlot() { return Math.floor(NOW() / WEED_SLOT_MS); }
 function weedTick() {
   const cur = weedSlot();
   if (typeof state.weedChecked !== 'number') { state.weedChecked = cur; saveState(); return; }
+  if (hasPerk('weedless')) { state.weedChecked = cur; return; }
   if (cur <= state.weedChecked) return;
   let sprouted = 0;
   for (let s = state.weedChecked + 1; s <= cur; s++) {
@@ -1331,6 +1420,7 @@ function clearWeed(i) {
   saveState();
   shakeApp();
   toast(worm ? 'Cleared — and found a worm! +1 🪱' : 'Weeds cleared');
+  addXP(2);
   paintPlots();
 }
 
@@ -1400,6 +1490,7 @@ function spinWheel() {
   setTimeout(function () {
     const mult = WHEEL[idx].m;
     const payout = Math.round(value * mult);
+    state.wheelBest = Math.max(state.wheelBest, mult);
     state.barn = {};
     if (payout) { state.coins += payout; state.earned += payout; state.runEarned += payout; }
     saveState();
@@ -1421,9 +1512,10 @@ function spinWheel() {
 /* ---- wilt -------------------------------------------------------
    A ripe plant left standing loses one star per full day.         */
 const WILT_MS = 24 * 3600 * 1000;
+function wiltMs() { return WILT_MS * (hasPerk('evergreen') ? 2 : 1); }
 function wiltPenalty(p) {
   if (!p.ripeAt) return 0;
-  return Math.floor(Math.max(0, NOW() - p.ripeAt) / WILT_MS);
+  return Math.floor(Math.max(0, NOW() - p.ripeAt) / wiltMs());
 }
 function harvestStars(sp, p) {
   return Math.max(1, starsFor(sp, p.q) - wiltPenalty(p));
@@ -1440,6 +1532,7 @@ function growthRate(p, sp) {
   let r = 1;
   if (prefMatch(sp) && sp.pref !== 'any') r *= 1.25;
   if (weatherNow().id === 'rain') r *= 1.5;
+  if (hasPerk('richsoil')) r *= 1.2;
   return r;
 }
 function stageDurMs(sp, p) {
@@ -1526,11 +1619,18 @@ function weatherAt(slot) {
   return WEATHERS[r < 27 ? 0 : r < 54 ? 1 : r < 77 ? 2 : r < 92 ? 3 : 4];
 }
 function weatherNow() { return weatherAt(weatherSlot()); }
-function regenIntervalMs() { return Math.round(WATER_REGEN_MS / weatherNow().regen); }
+function regenIntervalMs() {
+  return Math.round(WATER_REGEN_MS / weatherNow().regen / (hasPerk('dawndew') ? 1.25 : 1));
+}
 
 /* storms roll damage per slot per unprotected plot — deterministic,
    so the same storm plays out however long the app was closed */
-const STORM_DMG_CHANCE = 30;
+/* storms and aphids both bite harder the more you've prestiged —
+   mastery earns richer prices AND rougher weather */
+function stormDmgChance() {
+  if (hasPerk('stormsense')) return 15;
+  return Math.min(45, 30 + state.prestiges * 5);
+}
 function stormTick() {
   const cur = weatherSlot();
   if (typeof state.stormChecked !== 'number') { state.stormChecked = cur; saveState(); return; }
@@ -1540,7 +1640,7 @@ function stormTick() {
     if (weatherAt(s).id !== 'storm') continue;
     state.plots.forEach(function (p, i) {
       if (!p || state.trellised[i]) return;
-      if (hash32((s * 53 + i * 17 + 29) >>> 0) % 100 >= STORM_DMG_CHANCE) return;
+      if (hash32((s * 53 + i * 17 + 29) >>> 0) % 100 >= stormDmgChance()) return;
       const sp = byId[p.s];
       if (p.stage >= sp.stages) {
         p.q = Math.max(0, p.q - Math.ceil(sp.stages / 3));   // ripe: battered, ~1 star
@@ -1587,11 +1687,16 @@ function barnCountAll() {
   });
   return n;
 }
+function tierPrice(sp, t) {
+  if (t === 'g') return goldPriceOf(sp);
+  if (t === 'p') return priceOfQ(sp, 3) * 2;
+  return priceOfQ(sp, +t);
+}
 function barnValueAll() {
   let v = 0;
   Object.keys(state.barn).forEach(function (id) {
     Object.keys(state.barn[id]).forEach(function (t) {
-      v += state.barn[id][t] * (t === 'g' ? goldPriceOf(byId[id]) : priceOfQ(byId[id], +t));
+      v += state.barn[id][t] * tierPrice(byId[id], t);
     });
   });
   return v;
@@ -1609,7 +1714,7 @@ function makeOrder(n) {
   const mult = 1.5 + stars * 0.25 + qty * 0.05;                // premium over base
   return {
     n: n, s: sp.id, qty: qty, stars: stars,
-    pay: Math.round(sp.price * STAR_MULT[stars] * qty * mult),
+    pay: Math.round(sp.price * STAR_MULT[stars] * qty * mult * (hasPerk('connoisseur') ? 1.4 : 1)),
     exp: NOW() + hours * 3600 * 1000
   };
 }
@@ -1626,17 +1731,25 @@ function ensureOrders() {
   }
   if (changed) saveState();
 }
+/* tiers that satisfy a minimum star requirement, cheapest first —
+   pristine and golden count as ★★★ but are spent only as a last
+   resort, so premium stock is never wasted on a modest order */
+function qualifyingTiers(minStars) {
+  const t = [];
+  for (let s = minStars; s <= 3; s++) t.push(String(s));
+  t.push('p', 'g');
+  return t;
+}
 function orderAvail(o) {
   const tiers = state.barn[o.s] || {};
-  let n = 0;
-  for (let t = o.stars; t <= 3; t++) n += tiers[t] || 0;
-  return n;
+  return qualifyingTiers(o.stars).reduce(function (n, t) { return n + (tiers[t] || 0); }, 0);
 }
 function deliverOrder(idx) {
   const o = state.orders[idx];
   if (!o || orderAvail(o) < o.qty) return;
   let need = o.qty;
-  for (let t = o.stars; t <= 3 && need > 0; t++) {             // spend lowest tier that qualifies
+  qualifyingTiers(o.stars).forEach(function (t) {
+    if (need <= 0) return;
     const have = state.barn[o.s][t] || 0;
     const take = Math.min(have, need);
     if (take) {
@@ -1644,7 +1757,7 @@ function deliverOrder(idx) {
       if (state.barn[o.s][t] <= 0) delete state.barn[o.s][t];
       need -= take;
     }
-  }
+  });
   if (Object.keys(state.barn[o.s] || {}).length === 0) delete state.barn[o.s];
   state.coins += o.pay;
   state.earned += o.pay;
@@ -1654,6 +1767,7 @@ function deliverOrder(idx) {
   ensureOrders();
   saveState(); paintTop(); paintMarket(); paintShop();
   toast('Order delivered · +' + o.pay + '🪙');
+  addXP(25);
   checkAch();
 }
 
@@ -1702,6 +1816,8 @@ function toast(msg) {
 
 function paintTop() {
   $('coins').textContent = state.coins;
+  $('brandsub').textContent = 'level ' + state.level + ' gardener · ' +
+    state.xp + '/' + xpForNext() + ' xp';
   $('golden').textContent = state.golden;
   $('p-golden').classList.toggle('show', state.golden > 0);
   $('p-golden').title = state.golden + ' golden seeds · all sale prices ×' + goldenMult().toFixed(3);
@@ -1848,20 +1964,38 @@ function paintPlots() {
 
 /* ---- planting ---- */
 function openPlanter(plotIdx) {
+  ensureOrders();                       // so the order badges below are current
   let rows = '';
   SPECIES.forEach(function (sp) {
     const cost = seedCostOf(sp);
+    const locked = sp.lvl > state.level;
+    if (locked) {
+      rows +=
+        '<div class="row-item" style="opacity:.35">' +
+          '<div class="thumb" style="filter:grayscale(1) brightness(.5)">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+          '<div class="info"><h4>' + sp.name + '</h4>' +
+          '<p>🔒 unlocks at gardener level ' + sp.lvl + '</p></div>' +
+        '</div>';
+      return;
+    }
     const afford = state.coins >= cost;
     const profit = priceOf(sp) - cost;
     const match = prefMatch(sp);
     const sm = seedMult(sp);
     const deal = sm < 0.85 ? ' <span class="discount">seed sale!</span>'
                : sm > 1.15 ? ' <span class="markup">seeds dear</span>' : '';
+    // is anyone waiting on this species right now?
+    const want = state.orders.filter(function (o) { return o.s === sp.id; });
+    const wantTag = want.length
+      ? ' <span class="prefbadge match">📋 order: ' + want[0].qty + '× ' +
+        starStr(want[0].stars) + '+ pays ' + want[0].pay + '🪙</span>'
+      : '';
     rows +=
-      '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') + '">' +
+      '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') +
+        (want.length ? ';border-color:#6a5322' : '') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match && sp.pref !== 'any' ? ' match' : '') +
-          '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span></h4>' +
+          '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
           'water to skip stages · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
         '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
@@ -1880,11 +2014,12 @@ function openPlanter(plotIdx) {
 
 function plant(plotIdx, spId) {
   const sp = byId[spId];
+  if (sp.lvl > state.level) return;
   const cost = seedCostOf(sp);
   if (state.coins < cost) return;
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
-  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0 };
+  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0 };
   saveState(); closeCard(); paintTop(); paintPlots();
   openGrow(plotIdx);
 }
@@ -1928,7 +2063,7 @@ function paintGrowFoot() {
   $('carebar').innerHTML = done
     ? 'quality <span class="stars">' + starStr(stars) + '</span> · sells ' + priceOfQ(sp, stars) + '🪙' +
       (wiltPenalty(p) > 0 ? ' · <span class="wilttag">wilting — harvest!</span>'
-        : ' · wilts in ' + fmtLong(p.ripeAt + WILT_MS - NOW()))
+        : ' · wilts in ' + fmtLong(p.ripeAt + wiltMs() - NOW()))
     : '<span class="stars">' + starStr(stars) + '</span> ' + p.q + ' care · ' +
       '<span class="prefbadge' + (match ? ' match' : '') + '">' + prefIcon(sp) + ' ' + prefWord(sp) +
       (sp.pref === 'any' ? '' : (match ? ' — now!' : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark'))) +
@@ -2006,7 +2141,8 @@ function pourZonesFor(stage) {
   return {
     center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
     gw: Math.max(0.08, 0.20 - stage * 0.012) *
-        (feverActive() ? 1.5 : 1),                        // fever widens the gold
+        (feverActive() ? 1.5 : 1) *                       // fever widens the gold
+        (hasPerk('steadyhand') ? 1.3 : 1),
     goodw: 0.14
   };
 }
@@ -2068,6 +2204,7 @@ function lockPour() {
     if (state.water === waterCap() - 1) state.lastTick = NOW();
     if (state.combo >= 5) toast('Combo lost at ' + state.combo + '!');
     state.combo = 0;
+    p.spills = (p.spills | 0) + 1;                 // pristine is off the table now
     saveState();
     hurtFlash(); shakeApp();
     floatText($('canvas'), 'SPILLED!', 'var(--bad)');
@@ -2091,6 +2228,7 @@ function lockPour() {
     floatText($('canvas'), 'good', 'var(--leaf)');
   }
   advanceStage('water', result === 'perfect');
+  addXP(result === 'perfect' ? 3 : 1);
 }
 
 /* advance one stage; via==='water' spends a drop and can earn care
@@ -2163,18 +2301,25 @@ function harvest() {
   const wilted = wiltPenalty(p) > 0;
   let stars = harvestStars(sp, p);
 
-  // golden mutation roll — deterministic on the lifetime harvest count
+  // golden mutation roll — deterministic on the lifetime harvest count.
+  // Failing that: a flawless grow — every single stage perfect-poured,
+  // not one drop spilled, full quality — mints a pristine 💎
   const isGolden = hash32((state.harvested * 2654435761 + 777) >>> 0) % 100 < goldChance();
+  const isPristine = !isGolden && p.perfects >= sp.stages && !(p.spills | 0) && stars === 3;
   if (!state.barn[sp.id]) state.barn[sp.id] = {};
   if (isGolden) {
     state.barn[sp.id].g = (state.barn[sp.id].g || 0) + 1;
     state.goldenHarvests++;
     stars = 3;                                   // counts as a perfect bloom
+  } else if (isPristine) {
+    state.barn[sp.id].p = (state.barn[sp.id].p || 0) + 1;
+    state.pristineHarvests++;
   } else {
     state.barn[sp.id][stars] = (state.barn[sp.id][stars] || 0) + 1;
   }
   state.plots[curPlot] = null;
   state.harvested++;
+  addXP(10);
 
   // almanac: remember the best quality ever grown
   if (!state.almanac[sp.id] || stars > state.almanac[sp.id]) state.almanac[sp.id] = stars;
@@ -2197,9 +2342,11 @@ function harvest() {
   }
   saveState();
   curPlot = -1;
-  harvestReveal(sp, stars, isGolden, isGolden ? goldPriceOf(sp) : priceOfQ(sp, stars));
+  harvestReveal(sp, stars, isGolden || isPristine,
+    isGolden ? goldPriceOf(sp) : isPristine ? priceOfQ(sp, 3) * 2 : priceOfQ(sp, stars));
   toast((isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '!'
-                  : 'Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() + (wilted ? ' (wilted)' : '')) +
+       : isPristine ? '💎 PRISTINE — every pour perfect!'
+       : 'Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() + (wilted ? ' (wilted)' : '')) +
         (bonus ? ' · new species +' + bonus + '🪙' : '') + goldenNote);
   checkAch();
 }
@@ -2263,21 +2410,24 @@ function paintMarket() {
     const eff = priceOf(sp) / sp.price;                    // day × weather × season × φ
     const cls = eff > 1.08 ? 'up' : (eff < 0.92 ? 'down' : '');
     const seasonTag = seasonMult(sp) > 1 ? ' ' + season.icon : '';
-    ['g', 3, 2, 1].forEach(function (tier) {
+    ['g', 'p', 3, 2, 1].forEach(function (tier) {
       const n = state.barn[id][tier] || 0;
       if (!n) return;
-      const gold = tier === 'g';
-      const each = gold ? goldPriceOf(sp) : priceOfQ(sp, tier);
+      const gold = tier === 'g', prist = tier === 'p';
+      const each = tierPrice(sp, tier);
       const row = document.createElement('div');
       row.className = 'row-item';
       row.innerHTML =
         '<div class="thumb">' + plantSVG(sp, totalFor(sp)) + '</div>' +
         '<div class="info"><h4>' + sp.name + ' ' +
         (gold ? '<span class="stars">✨ golden</span>'
+              : prist ? '<span class="stars">💎 pristine</span>'
               : '<span class="stars">' + starStr(tier) + '</span>') +
         ' <span class="badge ' + cls + '">×' + eff.toFixed(2) + seasonTag + '</span></h4>' +
         '<p>holding ' + n + ' · ' + each + '🪙 each' +
-        (gold ? ' (mutation ×' + GOLD_PRICE_X + ')' : (tier > 1 ? ' (quality ×' + STAR_MULT[tier] + ')' : '')) +
+        (gold ? ' (mutation ×' + GOLD_PRICE_X + ')'
+              : prist ? ' (flawless ×2)'
+              : (tier > 1 ? ' (quality ×' + STAR_MULT[tier] + ')' : '')) +
         '</p></div>' +
         '<div class="actions">' +
           '<button class="mini gold" data-sell="' + id + ':' + tier + '">sell 1</button>' +
@@ -2304,13 +2454,13 @@ function paintMarket() {
   list.querySelectorAll('button[data-sell]').forEach(function (b) {
     b.addEventListener('click', function () {
       const kv = b.dataset.sell.split(':');
-      sell(kv[0], kv[1] === 'g' ? 'g' : +kv[1], 1);
+      sell(kv[0], kv[1] === 'g' || kv[1] === 'p' ? kv[1] : +kv[1], 1);
     });
   });
   list.querySelectorAll('button[data-sellall]').forEach(function (b) {
     b.addEventListener('click', function () {
       const kv = b.dataset.sellall.split(':');
-      sell(kv[0], kv[1] === 'g' ? 'g' : +kv[1], state.barn[kv[0]][kv[1]] || 0);
+      sell(kv[0], kv[1] === 'g' || kv[1] === 'p' ? kv[1] : +kv[1], state.barn[kv[0]][kv[1]] || 0);
     });
   });
 }
@@ -2320,8 +2470,7 @@ function sell(id, tier, n) {
   const have = (state.barn[id] && state.barn[id][tier]) || 0;
   n = Math.min(n, have);
   if (n <= 0) return;
-  const gold = tier === 'g';
-  const gain = n * (gold ? goldPriceOf(sp) : priceOfQ(sp, tier));
+  const gain = n * tierPrice(sp, tier);
   state.barn[id][tier] -= n;
   if (state.barn[id][tier] <= 0) delete state.barn[id][tier];
   if (Object.keys(state.barn[id]).length === 0) delete state.barn[id];
@@ -2329,7 +2478,8 @@ function sell(id, tier, n) {
   state.earned += gain;
   state.runEarned += gain;
   saveState(); paintTop(); paintMarket(); paintShop();
-  toast('Sold ' + n + ' × ' + (gold ? '✨ golden' : starStr(tier)) + ' ' +
+  toast('Sold ' + n + ' × ' +
+        (tier === 'g' ? '✨ golden' : tier === 'p' ? '💎 pristine' : starStr(tier)) + ' ' +
         sp.name.toLowerCase() + ' · +' + gain + '🪙');
 }
 function sellAll() {
@@ -2379,7 +2529,8 @@ function paintAlmanac() {
     wrap.appendChild(d);
   });
   $('alinfo').textContent = found + '/' + SPECIES.length + ' grown · ' +
-    mastered + '/' + SPECIES.length + ' at ★★★' + (state.almanacRewarded ? ' · ✨ earned' : '');
+    mastered + '/' + SPECIES.length + ' at ★★★ · best combo ' + state.bestCombo +
+    ' · 💎×' + state.pristineHarvests;
 
   // achievements
   const al = $('achlist');
@@ -2493,15 +2644,30 @@ function paintShop() {
     landWrap.innerHTML = '<div class="empty-note">All ' + MAX_PLOTS + ' plots cleared.</div>';
   }
 
+  // perks earned so far
+  const owned = [];
+  Object.keys(PERK_CHOICES).forEach(function (lv) {
+    PERK_CHOICES[lv].forEach(function (pk) { if (state.perks[pk.id]) owned.push(pk); });
+  });
   $('records').innerHTML =
     '<div class="row-item"><div class="info">' +
     '<p style="font-size:11px;line-height:1.9">' +
+    'gardener level &nbsp;<b style="color:var(--leaf)">' + state.level + '</b>' +
+    ' · xp &nbsp;<b style="color:var(--pale)">' + state.xp + '/' + xpForNext() + '</b><br>' +
     'plants harvested &nbsp;<b style="color:var(--pale)">' + state.harvested + '</b>' +
-    ' · golden blooms &nbsp;<b style="color:#ffd97a">' + state.goldenHarvests + '</b><br>' +
+    ' · golden &nbsp;<b style="color:#ffd97a">' + state.goldenHarvests + '</b>' +
+    ' · pristine &nbsp;<b style="color:var(--pale)">' + state.pristineHarvests + '</b><br>' +
     'coins earned (lifetime) &nbsp;<b style="color:var(--gold)">' + state.earned + '</b><br>' +
     'orders delivered &nbsp;<b style="color:var(--pale)">' + state.ordersDelivered + '</b>' +
-    ' · gardens replanted &nbsp;<b style="color:var(--pale)">' + state.prestiges + '</b>' +
-    '</p></div></div>';
+    ' · best combo &nbsp;<b style="color:var(--amber)">' + state.bestCombo + '</b>' +
+    ' · replants &nbsp;<b style="color:var(--pale)">' + state.prestiges + '</b>' +
+    (state.prestiges ? '<br><span style="color:var(--bad)">storms & aphids grow bolder each replant</span>' : '') +
+    '</p></div></div>' +
+    (owned.length
+      ? '<div class="row-item"><div class="info"><h4>Perks</h4><p>' +
+        owned.map(function (pk) { return pk.icon + ' ' + pk.name + ' — ' + pk.desc; }).join('<br>') +
+        '</p></div></div>'
+      : '');
 }
 
 function buyCan() {
