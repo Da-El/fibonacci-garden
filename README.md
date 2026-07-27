@@ -165,8 +165,23 @@ that swing used to be invisible, which made it a tax on knowing rather than a de
 The market now tells you both halves of it: whether **today** is a good day, measured
 against the last ten days the game actually recorded, and whether the **next hour** will
 beat it, read straight off the weather forecast. Selling at the peak beats an average
-moment by about 57%, so patience pays — but the board says so out loud, and sell-all is
+moment by about 42%, so patience pays — but the board says so out loud, and sell-all is
 still one tap away.
+
+**Nothing in the barn spoils.** Wilt is pressure to *harvest*, not to sell: once a bloom
+is crated the clock stops, and a barn left ninety days is exactly the barn you left. So
+the cost of holding is not decay, it's liquidity — every seed, plot, can and pane is
+bought with coins you didn't hold. And patience has a ceiling: across a full year the
+best day is only 53% over the average, which is less than a single **Fibonacci Fever**
+(×1.618) earns for thirty-four seconds of accurate pouring. Waiting a year is worth less
+than one good streak. That is deliberate — the game would rather reward the hand than
+the calendar.
+
+The board grades the day in five words, and two of them used to be unreachable: "a very
+good day" wanted ×1.18 and "a poor day" ×0.85, while the ratio never leaves 0.895–1.156
+across 1,198 measured days — because a ten-day window judges today against a mean that
+already contains days like today. They're cut from the real distribution now, so all
+five fire and "ordinary" stays the commonest thing to read.
 
 ## The glasshouse
 
@@ -267,7 +282,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,055 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,083 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

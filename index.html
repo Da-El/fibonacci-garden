@@ -4950,10 +4950,22 @@ function priceStanding() {
   if (seen.length < 3) return null;                  // not enough to compare yet
   const avg = seen.reduce(function (a, b) { return a + b; }, 0) / seen.length;
   const r = today / avg;
+  /* Thresholds taken from the distribution rather than guessed at. The old
+     ones asked for ×1.18 to call a day very good and ×0.85 to call it poor,
+     and the ratio simply never goes there: measured over 1,198 days it stays
+     inside 0.895–1.156, so two of these five verdicts were copy no player
+     could ever see. The ten-day window is what narrows it — today is judged
+     against a mean that already contains days like today.
+
+     Set from the measured percentiles — 90th, 25th and 10th — so the
+     extremes are the best and worst days of a fortnight rather than words
+     for weather the game does not have, and "ordinary" stays the commonest
+     thing to read. The spread is not symmetric because the ten-day mean is
+     pulled up by its own spikes, so a typical day sits a little under it. */
   return { ratio: r,
-           word: r >= 1.18 ? 'a very good day' : r >= 1.06 ? 'a good day'
-               : r <= 0.85 ? 'a poor day' : r <= 0.95 ? 'a slow day' : 'an ordinary day',
-           cls: r >= 1.06 ? 'up' : r <= 0.95 ? 'down' : '' };
+           word: r >= 1.108 ? 'a very good day' : r >= 1.02 ? 'a good day'
+               : r <= 0.933 ? 'a poor day' : r <= 0.951 ? 'a slow day' : 'an ordinary day',
+           cls: r >= 1.02 ? 'up' : r <= 0.951 ? 'down' : '' };
 }
 
 function paintMarket() {

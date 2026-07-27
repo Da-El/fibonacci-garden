@@ -3,7 +3,7 @@
    caching the shell is enough to make it work with no connection
    at all. Bump CACHE when the game changes and the old one is
    dropped on activate. */
-const CACHE = 'fibgarden-v67';
+const CACHE = 'fibgarden-v68';
 const SHELL = [
   './',
   './index.html',

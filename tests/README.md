@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,055 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,083 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -81,6 +81,7 @@ if you add a system, add the counter that proves it fires.
 | `grow-check.js` | every species grown from seed to a perfect bloom through the real pour |
 | `edge-check.js` | the pour at its edges: the ends of the bar, the last drop, the timeout |
 | `deep-check.js` | the deepening pass over 84-87: her chores, the panes, the planter, the digest |
+| `barn-check.js` | the barn as a decision: what waiting pays, and whether a hoarder ever loses |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -153,6 +154,13 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**A check that repeats a constant goes stale the moment the constant moves.** The market
+board's verdict was held to `ratio >= 1.06` by a copy of the threshold in the test. The
+threshold was retuned — because two of its five words turned out to be unreachable — and
+the check failed on a day it should have passed. Rewritten as monotonicity (sort the days
+by ratio; the verdict must never go backwards) it tests the property that actually
+matters and cannot drift with the number.
 
 **If the deterministic version of a finding exists, assert that one.** The hour a player
 keeps was measured at 18% of a fortnight over four seeds, 8.6% over six and 10.8% over
