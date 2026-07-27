@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-516 checks. Each one loads the game's inline `<script>` into a headless harness and
+529 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -32,6 +32,9 @@ That turned out to be the pattern, not the exception:
 - The **market** drew a full botanical illustration into every 44-pixel row of your
   barn — up to eight rows per species, near a megabyte of markup, with a romanesco bud
   under half a pixel across.
+- **Winter** told you to grow evergreens for +18%. It gave evergreens +10% and
+  succulents +18%. Every number in the blurb was a number the season really gives and
+  every plant it named was one it really boosts, so a check on either alone passed.
 - The **simulation** sold the whole barn and then looked in it for something to fill a
   customer order with, so three weeks of play reported zero deliveries. Every judgement
   ever made about the order board was made against a player who could not deliver one.
@@ -47,6 +50,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, and lets a test step the intervals by hand |
+| `words-check.js` | every figure the game states out loud, checked against the constant behind it |
 | `ach-check.js` | every achievement: the counter it waits on is really written, it is reachable, and it pays once |
 | `tutor-check.js` | the first five minutes walked step by step, each one advanced by the action it waits for |
 | `budget-check.js` | what each screen hands the browser: DOM nodes, markup, wasted rebuilds |

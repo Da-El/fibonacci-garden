@@ -2315,9 +2315,9 @@ const SEASONS = [
   { id: 'summer', icon: '🌻', name: 'summer', boost: { disc: 1.18, fractal: 1.18 },
     blurb: 'discs & romanesco +18%' },
   { id: 'autumn', icon: '🍂', name: 'autumn', boost: { cone: 1.22, rosette: 1.1, fractal: 1.12 },
-    blurb: 'cones +22%, rosettes +10%' },
+    blurb: 'cones +22%, romanesco +12%, rosettes +10%' },
   { id: 'winter', icon: '❄️', name: 'winter', boost: { rosette: 1.18, cone: 1.1, frond: 1.12 },
-    blurb: 'evergreens +18%, ferns +12%' }
+    blurb: 'succulents +18%, ferns +12%, cones +10%' }
 ];
 function seasonNow() { return SEASONS[Math.floor(dayIndex() / 7) % 4]; }
 function seasonMult(sp) { return seasonNow().boost[sp.form] || 1; }
