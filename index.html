@@ -6929,6 +6929,11 @@ setInterval(function () {
   if (state.plots.some(function (p) { return p && p.ripeAt && NOW() - p.ripeAt > WILT_MS * 0.6; })) hint('wilt');
   // the first time the clock hands a plant back, say what that means
   if (thirstyCount() > 0) hint('thirsty');
+  /* Also check preparedness while the app is open. It was only checked on
+     reopen, so someone sitting in the garden when a spell began at midnight
+     — with a full can, having done exactly what the warning asked — was
+     never credited for it. */
+  noteDryPreparedness();
   // and a dry spell only teaches anything if it is explained before it lands
   if (dryDaysAway() === 1 || dryNow()) hint('dry');
   if (state.level >= GLASS_LVL) hint('glass');
