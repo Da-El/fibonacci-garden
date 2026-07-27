@@ -45,6 +45,7 @@ const FILES = [
   ['hybrid-check','every cross bred, then planted, drawn, poured, lifted and reloaded'],
   ['fit-check','the text at 320px: what cannot wrap, and whether it fits the row'],
   ['deep2-check','the deepening pass over 89-92: every counter, every nowrap, the bench'],
+  ['begin-check','the opening played the way a beginner plays it: slowly and imprecisely'],
   ['skip-check',    'the opening played with the coach switched off: what is never explained'],
   ['return-check',  'everything a returning player is told: the hints, the digest, the title'],
   ['orders-check',  'the order board: what it pays, and whether it is ever worth planting for'],

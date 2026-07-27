@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,166 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,181 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -86,6 +86,7 @@ if you add a system, add the counter that proves it fires.
 | `hybrid-check.js` | every cross bred, then planted, drawn, poured, lifted and reloaded |
 | `fit-check.js` | the text at 320px: what cannot wrap, and whether it fits the row |
 | `deep2-check.js` | the deepening pass over 89-92: every counter, every nowrap, the bench |
+| `begin-check.js` | the opening played the way a beginner plays it: slowly and imprecisely |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -158,6 +159,14 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**A check that finds nothing is still worth having, if the thing it drove had never been
+driven.** Nothing in the game changed for iteration 94 — the beginner path holds up under
+a player who taps 80ms wide, plants in the evening and knows none of the rules. That is a
+finding: it says the opening was already right, and it was said by a run rather than by
+an assumption. The reason it holds is one deliberate decision, now written down: the elm
+is easygoing, so the first plant everybody grows cannot punish them for the hour they
+opened the app.
 
 **A branch that carries the numbers will hide them in its other arm.** The breeding
 bench put price, seed and stages inside the "both parents have a fraction" branch, so a

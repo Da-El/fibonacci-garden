@@ -109,6 +109,12 @@ are terse because that badge is `white-space: nowrap`: a 320px phone gives a pla
 222px of text, and the longer phrasing measured 223px, exactly where the view's hidden
 overflow starts eating it. The icon already says which half of the day a plant wants.
 
+The **elm** is easygoing on purpose. It is the first thing on the shelf, and the first
+plant a new gardener grows must not punish them for the hour they happen to open the app
+— so the one species everybody starts with earns its care point at any time of day.
+Measured: a beginner tapping 80ms wide of the gold, in the evening, reaches their first
+bloom in 25 minutes and 4 taps, and it comes out ★★★.
+
 ## Water is the currency
 
 A drop arrives every **13 minutes** — about 110 a day — and your can holds 13 to 89 of
@@ -295,7 +301,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,166 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,181 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
