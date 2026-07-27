@@ -1651,6 +1651,7 @@ let gradSeq = 0;
    a third of the paths. Set by plantSVG, read by the renderers. */
 let LOD = 'high';
 function hiDetail() { return LOD === 'high'; }
+function iconDetail() { return LOD === 'icon'; }
 function defsFor(sp, uid) {
   const h = sp.leafHue, s = sp.leafSat || 38;
   const d = sp.disc || [44, 76, 48];
@@ -1910,8 +1911,13 @@ function renderFrond(sp, n, total, freshFrom) {
   }
   // recursion depth is what makes a fern expensive; two levels reads
   // as self-similar already, three only when we can afford it
+  /* Recursion is what a fern costs, and it multiplies: each level is another
+     five or eight pinnae on every rachis. Capping the element count alone
+     barely helps here — thirteen fronds at depth two is still 172 nodes —
+     so an icon draws one level and reads as a frond. */
   const depth = hiDetail() ? Math.min(3, Math.max(1, fronds.length - 2))
-                           : Math.min(2, Math.max(1, fronds.length - 3));
+              : iconDetail() ? 1
+              : Math.min(2, Math.max(1, fronds.length - 3));
   const bottom = 140;
   s += stemShape(0, bottom, 0, bottom - 46, 5, 3.4, 3, uid);
 
@@ -1984,7 +1990,7 @@ function renderFractal(sp, n, total, freshFrom) {
        facet each. At this size a bud is three pixels across: the facet is
        invisible and the group is only needed by the ones animating in. */
     const animating = i >= freshFrom;
-    const spiral = hiDetail() ? size > 8 : i < FRACTAL_INNER;
+    const spiral = hiDetail() ? size > 8 : (!iconDetail() && i < FRACTAL_INNER);
     if (!hiDetail() && !animating && !spiral) {
       s += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + size.toFixed(1) +
         '" fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)"/>';
@@ -2017,6 +2023,13 @@ const DETAIL_BUDGET = 900;
    dropped. The second level is the entire reason this plant is drawn as a
    fractal, so it survives on the biggest few rather than being switched off. */
 const FRACTAL_INNER = 21;
+/* A thumbnail is 44 pixels across and the viewBox inside it is 300 units, so
+   one unit is a seventh of a pixel and a seed of radius three is under half
+   of one. Drawing 232 romanesco buds into that is drawing 232 things none of
+   which is a whole pixel — and the market does it once per row, for up to
+   eight rows per species. An icon draws the first thirteen elements and
+   stops; the colour and the shape are all a 44-pixel picture can say. */
+const ICON_ELEMENTS = 13;
 function estimateElements(sp, n) {
   if (sp.form === 'stem')    return n * 5 + 3;
   if (sp.form === 'frond')   return n * 6;
@@ -2035,7 +2048,9 @@ function plantSVG(sp, n, freshFrom, lod) {
 
      The budget only ever guards a single close-up: everything that draws
      nine at once already asks for 'low' by name. */
-  LOD = (lod === 'low' || estimateElements(sp, totalFor(sp)) > DETAIL_BUDGET) ? 'low' : 'high';
+  if (lod === 'icon') n = Math.min(n, ICON_ELEMENTS);
+  LOD = lod === 'icon' ? 'icon'
+      : (lod === 'low' || estimateElements(sp, totalFor(sp)) > DETAIL_BUDGET) ? 'low' : 'high';
   const cacheable = freshFrom === undefined || freshFrom === Infinity;
   const key = cacheable ? sp.id + '|' + n + '|' + LOD : null;
   if (key && svgCache[key] !== undefined) { svgCacheHits++; return svgCache[key]; }
@@ -4100,7 +4115,7 @@ function openPlanter(plotIdx) {
              a 637-node sunflower, drawn at 44 pixels, greyed out and at a
              third opacity, for every species you have not unlocked yet */
           '<div class="thumb" style="filter:grayscale(1) brightness(.5)">' +
-            plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
+            plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
           '<div class="info"><h4>' + sp.name + '</h4>' +
           '<p>🔒 unlocks at gardener level ' + sp.lvl + '</p></div>' +
         '</div>';
@@ -4121,7 +4136,7 @@ function openPlanter(plotIdx) {
     rows +=
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') +
         (want.length ? ';border-color:#6a5322' : '') + '">' +
-        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match ? ' match' : '') +
           '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
@@ -4615,7 +4630,7 @@ function paintOrders() {
     const row = document.createElement('div');
     row.className = 'row-item';
     row.innerHTML =
-      '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
+      '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
       '<div class="info"><h4>' + o.qty + '× ' + sp.name +
         ' <span class="stars">' + starStr(o.stars) + (o.stars < 3 ? '+' : '') + '</span></h4>' +
         '<p>have ' + avail + ' of ' + o.qty +
@@ -4639,7 +4654,7 @@ function paintDailyRow() {
   $('dailyrow').innerHTML =
     '<div class="row-item" style="cursor:pointer;border-color:' +
       (d.done ? '#5c6b3f' : 'var(--line)') + '" id="dailycard">' +
-    '<div class="thumb">' + plantSVG(spec.sp, totalFor(spec.sp), Infinity, 'low') + '</div>' +
+    '<div class="thumb">' + plantSVG(spec.sp, totalFor(spec.sp), Infinity, 'icon') + '</div>' +
     '<div class="info"><h4>The Daily ' + (d.done ? '<span class="badge up">beaten</span>' : '') + '</h4>' +
     '<p>' + spec.sp.name + ' · ' + spec.drops + ' drops · par ' + spec.par + '🪙<br>' +
     '💧' + d.water + ' left · scored ' + d.score + ' · best ' + best + '</p></div>' +
@@ -4742,7 +4757,7 @@ function paintMarket() {
       const row = document.createElement('div');
       row.className = 'row-item';
       row.innerHTML =
-        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
+        '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
         '<div class="info"><h4>' + sp.name + ' <span class="stars">' + tierLabel(tier) + '</span>' +
         ' <span class="badge ' + cls + '">×' + eff.toFixed(2) + seasonTag + '</span></h4>' +
         '<p>holding ' + n + ' · ' + each + '🪙 each' +
@@ -6136,7 +6151,7 @@ function dailyRender(spec, d) {
     const done = p.stage >= spec.sp.stages;
     const stars = starsFor(spec.sp, p.q);
     return '<div class="row-item"' + (done ? '' : ' style="cursor:pointer" data-dwater="' + i + '"') + '>' +
-      '<div class="thumb">' + plantSVG(spec.sp, elementsAt(spec.sp, p.stage), Infinity, 'low') + '</div>' +
+      '<div class="thumb">' + plantSVG(spec.sp, elementsAt(spec.sp, p.stage), Infinity, 'icon') + '</div>' +
       '<div class="info"><h4>' + spec.sp.name + ' <span class="stars">' + starStr(stars) + '</span></h4>' +
       '<p>' + (done ? 'ready · worth ' + Math.round(spec.sp.price * STAR_MULT[stars]) + '🪙'
                     : 'stage ' + p.stage + '/' + spec.sp.stages + ' · tap to water') + '</p></div>' +

@@ -174,7 +174,46 @@ function makeEl(tag) {
       if (!this._q[sel]) { const e = makeEl('div'); e.parentNode = this; this._q[sel] = e; }
       return this._q[sel];
     },
-    querySelectorAll: function (sel) { return [this.querySelector(sel)]; },
+    /* A real walk of the tree, matching the selector shapes the game uses:
+       `.cls`, `#id`, `tag`, `[attr]`, `tag[attr]`, and comma lists of those.
+
+       This used to hand back a single cached stub, which meant every piece of
+       code that finds elements and removes them — the scene tearing down its
+       beds before rebuilding them, most of all — could not be exercised at
+       all. A test that painted the garden twenty times saw the beds pile up
+       and would have reported a leak that is not there. */
+    querySelectorAll: function (sel) {
+      const out = [];
+      String(sel).split(',').forEach(function (one) {
+        const s = one.trim();
+        if (!s) return;
+        const parts = s.match(/^([a-zA-Z]*)((?:[.#][\w-]+|\[[\w-]+(?:="[^"]*")?\])*)$/);
+        if (!parts) return;                     // shapes the game does not use
+        const tag = parts[1].toUpperCase();
+        const conds = parts[2].match(/[.#][\w-]+|\[[\w-]+(?:="[^"]*")?\]/g) || [];
+        (function walk(node) {
+          (node.children || []).forEach(function (c) {
+            let ok = !tag || c.tagName === tag;
+            conds.forEach(function (cd) {
+              if (!ok) return;
+              if (cd[0] === '.') ok = !!(c._cls && c._cls[cd.slice(1)]);
+              else if (cd[0] === '#') ok = c.id === cd.slice(1);
+              else {
+                const m = cd.slice(1, -1).split('=');
+                const k = m[0];
+                ok = c.attrs && (k in c.attrs) &&
+                     (m.length < 2 || c.attrs[k] === m[1].replace(/^"|"$/g, ''));
+              }
+            });
+            if (ok && out.indexOf(c) < 0) out.push(c);
+            walk(c);
+          });
+        })(this);
+      }, this);
+      /* Nothing in the tree is usually a test working with a synthetic
+         fragment rather than a real defect, so fall back to the stub. */
+      return out.length ? out : [this.querySelector(sel)];
+    },
     getBoundingClientRect: function () { return { left: 0, top: 0, width: 320, height: 480, right: 320, bottom: 480 }; },
     focus: function () {}, blur: function () {}, click: function () {}, select: function () {},
     animate: function () { return { finished: Promise.resolve(), cancel: function () {} }; },
@@ -282,7 +321,46 @@ function build(opts) {
       if (!this._q[sel]) this._q[sel] = makeEl('div');
       return this._q[sel];
     },
-    querySelectorAll: function (sel) { return [this.querySelector(sel)]; },
+    /* A real walk of the tree, matching the selector shapes the game uses:
+       `.cls`, `#id`, `tag`, `[attr]`, `tag[attr]`, and comma lists of those.
+
+       This used to hand back a single cached stub, which meant every piece of
+       code that finds elements and removes them — the scene tearing down its
+       beds before rebuilding them, most of all — could not be exercised at
+       all. A test that painted the garden twenty times saw the beds pile up
+       and would have reported a leak that is not there. */
+    querySelectorAll: function (sel) {
+      const out = [];
+      String(sel).split(',').forEach(function (one) {
+        const s = one.trim();
+        if (!s) return;
+        const parts = s.match(/^([a-zA-Z]*)((?:[.#][\w-]+|\[[\w-]+(?:="[^"]*")?\])*)$/);
+        if (!parts) return;                     // shapes the game does not use
+        const tag = parts[1].toUpperCase();
+        const conds = parts[2].match(/[.#][\w-]+|\[[\w-]+(?:="[^"]*")?\]/g) || [];
+        (function walk(node) {
+          (node.children || []).forEach(function (c) {
+            let ok = !tag || c.tagName === tag;
+            conds.forEach(function (cd) {
+              if (!ok) return;
+              if (cd[0] === '.') ok = !!(c._cls && c._cls[cd.slice(1)]);
+              else if (cd[0] === '#') ok = c.id === cd.slice(1);
+              else {
+                const m = cd.slice(1, -1).split('=');
+                const k = m[0];
+                ok = c.attrs && (k in c.attrs) &&
+                     (m.length < 2 || c.attrs[k] === m[1].replace(/^"|"$/g, ''));
+              }
+            });
+            if (ok && out.indexOf(c) < 0) out.push(c);
+            walk(c);
+          });
+        })(this);
+      }, this);
+      /* Nothing in the tree is usually a test working with a synthetic
+         fragment rather than a real defect, so fall back to the stub. */
+      return out.length ? out : [this.querySelector(sel)];
+    },
     addEventListener: function () {}, removeEventListener: function () {},
     activeElement: null,
     fonts: { ready: Promise.resolve() }

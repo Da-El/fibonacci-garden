@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-417 checks. Each one loads the game's inline `<script>` into a headless harness and
+427 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -29,6 +29,9 @@ That turned out to be the pattern, not the exception:
 - Every **succulent** was drawn a sixth too large for its frame and clipped on all four
   sides. The one check that had ever looked at the drawing read raw coordinates and
   ignored the rotation that put the leaves there.
+- The **market** drew a full botanical illustration into every 44-pixel row of your
+  barn — up to eight rows per species, near a megabyte of markup, with a romanesco bud
+  under half a pixel across.
 - The **score** went double-time the first time fever fired and stayed there for the
   rest of the session, because it was re-timed from one place — the moment fever starts
   — and there is no fever-*ending* code in the game at all.
@@ -41,6 +44,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, and lets a test step the intervals by hand |
+| `budget-check.js` | what each screen hands the browser: DOM nodes, markup, wasted rebuilds |
 | `draw-check.js` | the markup every plant renders to: bounds under rotation, growth, detail, distinctness |
 | `score-check.js` | the generative score: mode by season, tempo by hour and fever, and whether it ever changes back |
 | `shelf-check.js` | every species against every other — anything slower has to be richer |

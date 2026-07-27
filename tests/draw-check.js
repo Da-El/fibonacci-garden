@@ -306,15 +306,19 @@ function viewBox(svg) {
   lines.forEach(function (l, i) {
     if (l.indexOf('plantSVG(') < 0) return;
     if (l.indexOf('function plantSVG') > -1) return;
-    if (l.indexOf("'low'") > -1) return;
-    /* A .thumb is 44 pixels square. Anything drawn into one at full detail
-       is hundreds of nodes the player cannot possibly resolve — and the
-       list of locked seeds drew one per species, greyed out, at a third
-       opacity, because it was the single row that forgot to ask. */
+    if (l.indexOf("'icon'") > -1) return;
+    /* A .thumb is 44 pixels square, and the viewBox inside it is 300 units
+       across — a romanesco bud is under half a pixel. Anything drawn into
+       one at a size meant for the scene, let alone for a close-up, is
+       hundreds of nodes nobody can resolve; the market did it once per row
+       for up to eight rows per species. Thumbnails ask for an icon, and
+       there is no exception to that. */
     if (/class="thumb"/.test(l)) greedy.push((i + 1) + ': ' + l.trim().slice(0, 70));
+    const prev = i > 0 ? lines[i - 1] : '';
+    if (/class="thumb"/.test(prev)) greedy.push((i + 1) + ': ' + l.trim().slice(0, 70));
   });
-  console.log('\n  thumbnails drawn at full detail: ' + (greedy.length || 'none'));
-  check('no 44-pixel thumbnail is drawn at full detail', !greedy.length,
+  console.log('\n  thumbnails not drawn as icons: ' + (greedy.length || 'none'));
+  check('every 44-pixel thumbnail asks for an icon', !greedy.length,
         greedy.join(' | '));
 
   /* The scene is the one place nine plants draw at once, so it must ask for
