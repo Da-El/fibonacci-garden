@@ -670,6 +670,22 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- save codes & postcard ---------- */
+  #savecode {
+    width: 100%; height: 96px; resize: none; margin-bottom: 10px;
+    background: #0d1109; border: 1px solid var(--line); border-radius: 11px;
+    color: var(--leaf); font-family: var(--mono); font-size: 10px;
+    padding: 10px; line-height: 1.5; word-break: break-all;
+  }
+  #savecode:focus { outline: none; border-color: #4a5c39; }
+  .btnrow2 { display: flex; gap: 8px; margin-bottom: 8px; }
+  .btnrow2 .btn { margin: 0; }
+  #pcwrap {
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    margin-bottom: 10px; background: #0d1109;
+  }
+  #pcwrap canvas { width: 100%; height: auto; display: block; }
+
   /* ---------- toast ---------- */
   #toast {
     position: absolute; left: 50%; bottom: 88px; transform: translate(-50%, 14px);
@@ -3253,6 +3269,230 @@ function showWelcomeBack(awayMs, l) {
   if (l.ripened) sfx('gift');
 }
 
+/* ============================================================
+   The Keepsake — move a garden between devices, and take a
+   picture of it worth showing someone.
+   ============================================================ */
+
+/* base64 of UTF-8, safely (btoa alone chokes on non-ASCII) */
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64decode(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+/* a short checksum so a truncated paste is caught rather than
+   half-loaded over someone's real garden */
+function sumOf(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36).toUpperCase();
+}
+const SAVE_PREFIX = 'FIBGDN1';
+function exportSave() {
+  const payload = JSON.stringify({ s: state, t: tutor });
+  const body = b64encode(payload);
+  return SAVE_PREFIX + '.' + sumOf(body) + '.' + body;
+}
+function importSave(code) {
+  const raw = (code || '').replace(/\s+/g, '');
+  const parts = raw.split('.');
+  if (parts.length !== 3 || parts[0] !== SAVE_PREFIX) return { ok: false, why: 'That doesn\'t look like a garden code.' };
+  if (sumOf(parts[2]) !== parts[1]) return { ok: false, why: 'The code looks incomplete — copy the whole thing.' };
+  let obj;
+  try { obj = JSON.parse(b64decode(parts[2])); }
+  catch (e) { return { ok: false, why: 'The code could not be read.' }; }
+  if (!obj || !obj.s || !Array.isArray(obj.s.plots)) return { ok: false, why: 'No garden inside that code.' };
+  return { ok: true, data: obj };
+}
+function applyImport(obj) {
+  try { localStorage.setItem(STORE, JSON.stringify(obj.s)); } catch (e) {}
+  if (obj.t) { try { localStorage.setItem(TUTOR_KEY, JSON.stringify(obj.t)); } catch (e) {} }
+  location.reload();
+}
+
+function openKeepsake() {
+  const code = exportSave();
+  $('card').innerHTML =
+    '<h3>Move your garden</h3>' +
+    '<div class="sub">this device only — saves don\'t sync on their own</div>' +
+    '<div class="fact">Copy this code and paste it into the game on another computer. ' +
+    'Importing <b>replaces</b> whatever garden is there.</div>' +
+    '<textarea id="savecode" readonly>' + code + '</textarea>' +
+    '<div class="btnrow2">' +
+      '<button class="btn" id="k-copy">copy code</button>' +
+      '<button class="btn" id="k-file">save as file</button>' +
+    '</div>' +
+    '<div class="btnrow2">' +
+      '<button class="btn" id="k-paste">paste a code…</button>' +
+      '<button class="btn" id="k-close">done</button>' +
+    '</div>';
+  $('modal').classList.add('show');
+  $('k-close').addEventListener('click', closeCard);
+  $('k-copy').addEventListener('click', function () {
+    const ta = $('savecode');
+    ta.select(); ta.setSelectionRange(0, 999999);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(code).catch(function () {});
+    sfx('tap');
+    toast(ok || navigator.clipboard ? 'Code copied — paste it on the other machine' : 'Select the code and copy it');
+  });
+  $('k-file').addEventListener('click', function () {
+    const blob = new Blob([code], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fibonacci-garden-save.txt';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    sfx('tap');
+    toast('Saved as fibonacci-garden-save.txt');
+  });
+  $('k-paste').addEventListener('click', openImport);
+}
+function openImport() {
+  $('card').innerHTML =
+    '<h3>Load a garden</h3><div class="sub">this replaces your current one</div>' +
+    '<textarea id="savecode" placeholder="paste the FIBGDN1… code here"></textarea>' +
+    '<div id="importmsg" style="font-family:var(--mono);font-size:10.5px;color:var(--bad);min-height:16px;margin-bottom:8px"></div>' +
+    '<div class="btnrow2">' +
+      '<button class="btn" id="k-load" style="background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">load it</button>' +
+      '<button class="btn" id="k-back">back</button>' +
+    '</div>';
+  $('savecode').removeAttribute('readonly');
+  $('k-back').addEventListener('click', openKeepsake);
+  $('k-load').addEventListener('click', function () {
+    const res = importSave($('savecode').value);
+    if (!res.ok) { $('importmsg').textContent = res.why; sfx('fail'); return; }
+    const g = res.data.s;
+    $('card').innerHTML =
+      '<h3>Load this garden?</h3><div class="sub">your current garden will be replaced</div>' +
+      '<div class="fact">Level <b>' + (g.level || 1) + '</b> gardener · <b>' + (g.coins | 0) + '</b>🪙 · ' +
+      '<b>' + (g.golden | 0) + '</b> golden seeds<br>' +
+      (g.harvested | 0) + ' plants harvested · ' + (g.prestiges | 0) + ' replants</div>' +
+      '<div class="btnrow2">' +
+        '<button class="btn" id="k-yes" style="background:linear-gradient(160deg,var(--gold),var(--amber));color:#2a1d05;border-color:transparent;font-weight:700">load it</button>' +
+        '<button class="btn" id="k-no">cancel</button>' +
+      '</div>';
+    $('k-no').addEventListener('click', openKeepsake);
+    $('k-yes').addEventListener('click', function () { applyImport(res.data); });
+  });
+}
+
+/* ---- the postcard ---- */
+function drawPostcard() {
+  const W = 640, H = 400;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+
+  const night = !isDay();
+  const g = c.createLinearGradient(0, 0, 0, H);
+  if (night) { g.addColorStop(0, '#0a1020'); g.addColorStop(0.7, '#141d33'); g.addColorStop(1, '#16210f'); }
+  else { g.addColorStop(0, '#5f9ed1'); g.addColorStop(0.55, '#a8cfe8'); g.addColorStop(1, '#1d2617'); }
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+
+  if (night) {
+    c.fillStyle = '#ffffffcc';
+    for (let i = 0; i < 60; i++) {
+      const x = hash32(i * 977 + 1) % W, y = hash32(i * 613 + 7) % Math.floor(H * 0.55);
+      c.fillRect(x, y, hash32(i * 31) % 2 + 1, 1.4);
+    }
+  }
+  c.fillStyle = night ? '#e8eeff' : '#ffe9a8';
+  c.beginPath(); c.arc(W - 92, 74, night ? 22 : 27, 0, Math.PI * 2); c.fill();
+
+  // soil band
+  c.fillStyle = night ? '#131a0d' : '#1c2413';
+  c.fillRect(0, H - 118, W, 118);
+
+  // plants along the bed, tallest at the back
+  const grown = state.plots.filter(Boolean);
+  const shown = grown.length ? grown : SPECIES.slice(0, 3).map(function (s) { return { s: s.id, stage: s.stages }; });
+  const n = Math.min(shown.length, 9);
+  for (let i = 0; i < n; i++) {
+    const pl = shown[i], sp = byId[pl.s];
+    if (!sp) continue;
+    const x = (W / (n + 1)) * (i + 1);
+    const baseY = H - 96 + (i % 2) * 12;
+    const scale = 0.30 + (pl.stage / sp.stages) * 0.30;
+    c.save();
+    c.translate(x, baseY);
+    c.scale(scale, scale);
+    // stem
+    c.strokeStyle = 'hsl(' + sp.leafHue + ' 40% 32%)';
+    c.lineWidth = 9; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -150); c.stroke();
+    // bloom head: the real phyllotaxis, drawn small
+    const total = totalFor(sp), have = elementsAt(sp, pl.stage);
+    const ang = angleOf(sp) * Math.PI / 180;
+    const k = 96 / Math.sqrt(total);
+    c.translate(0, -150);
+    for (let s = 0; s < have; s++) {
+      const r = k * Math.sqrt(s + 0.5), th = (s + 0.5) * ang;
+      const t = total > 1 ? s / (total - 1) : 0;
+      c.fillStyle = sp.disc
+        ? 'hsl(' + (sp.disc[0] - t * 22) + ' ' + (sp.disc[1] - t * 10) + '% ' + (sp.disc[2] + 22 - t * 26) + '%)'
+        : 'hsl(' + sp.leafHue + ' ' + ((sp.leafSat || 36) + t * 10) + '% ' + (30 + t * 20) + '%)';
+      c.beginPath(); c.arc(Math.cos(th) * r, Math.sin(th) * r, sp.seedR ? sp.seedR * 1.5 : 6, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+
+  // title plate
+  c.fillStyle = '#0a0d06cc';
+  c.fillRect(0, 0, W, 74);
+  c.fillStyle = '#f2f6e6';
+  c.font = '600 27px -apple-system, Segoe UI, Roboto, sans-serif';
+  c.fillText('Fibonacci Garden', 26, 37);
+  c.fillStyle = '#f2c53c';
+  c.font = '15px ui-monospace, Menlo, monospace';
+  const bits = ['level ' + state.level, state.harvested + ' harvested',
+                state.golden + ' golden seeds', seasonNow().icon + ' ' + seasonNow().name];
+  c.fillText(bits.join('  ·  '), 26, 60);
+
+  // footer: the maths that makes it
+  c.fillStyle = '#0a0d0699';
+  c.fillRect(0, H - 30, W, 30);
+  c.fillStyle = '#9aa88c';
+  c.font = '13px ui-monospace, Menlo, monospace';
+  c.fillText('every seed placed at the golden angle · 137.507°', 26, H - 11);
+  c.fillStyle = '#6a7860';
+  c.fillText('da-el.github.io/fibonacci-garden', W - 262, H - 11);
+  return cv;
+}
+function openPostcard() {
+  const cv = drawPostcard();
+  $('card').innerHTML =
+    '<h3>Garden postcard</h3><div class="sub">a picture of your garden as it stands</div>' +
+    '<div id="pcwrap"></div>' +
+    '<div class="btnrow2">' +
+      '<button class="btn" id="pc-save" style="background:linear-gradient(160deg,var(--gold),var(--amber));color:#2a1d05;border-color:transparent;font-weight:700">save image</button>' +
+      '<button class="btn" id="pc-close">done</button>' +
+    '</div>';
+  $('pcwrap').appendChild(cv);
+  $('modal').classList.add('show');
+  $('pc-close').addEventListener('click', closeCard);
+  $('pc-save').addEventListener('click', function () {
+    cv.toBlob(function (blob) {
+      if (!blob) return toast('Could not render the image');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'fibonacci-garden.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      sfx('gift');
+      toast('Saved fibonacci-garden.png');
+    });
+  });
+}
+
 /* ---- settings ---- */
 const OPTIONS = [
   { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
@@ -3269,10 +3509,14 @@ function openSettings() {
         '<div class="tinfo"><h4>' + o.name + '</h4><p>' + o.desc + '</p></div>' +
         '<div class="switch"></div></div>';
     }).join('') +
+    '<div class="btnrow2"><button class="btn" id="c-keep">move garden</button>' +
+    '<button class="btn" id="c-pc">postcard</button></div>' +
     '<button class="btn" id="c-tut" style="margin-bottom:8px">replay the tutorial</button>' +
     '<button class="btn" id="c-close">done</button>';
   $('modal').classList.add('show');
   $('c-close').addEventListener('click', closeCard);
+  $('c-keep').addEventListener('click', openKeepsake);
+  $('c-pc').addEventListener('click', openPostcard);
   $('c-tut').addEventListener('click', function () {
     closeCard();
     tutor.hints = {}; saveTutor();
