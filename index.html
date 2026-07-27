@@ -1756,7 +1756,12 @@ function renderDisc(sp, n, total, freshFrom) {
 }
 
 function renderRosette(sp, n, total, freshFrom) {
-  const ang = angleOf(sp) * Math.PI / 180, k = 118 / Math.sqrt(total);
+  /* 118 put the longest leaf 177 units from the middle of a frame that ends
+     at 150, so the outer sixth of every succulent was clipped off on all
+     four sides — and it made a level-2 sedum draw half again as large as
+     the sunflower, which is meant to be the showpiece. 82 fits, and puts
+     the rosette at much the same size as a disc. */
+  const ang = angleOf(sp) * Math.PI / 180, k = 82 / Math.sqrt(total);
   const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
   const hue = sp.leafHue;
   const order = [];
@@ -1972,11 +1977,23 @@ function renderFractal(sp, n, total, freshFrom) {
     const x = Math.cos(th) * r, y = Math.sin(th) * r;
     const size = 6 + (1 - t) * 9;
     const li = 26 + (1 - t) * 22;
-    // a bud: a cone drawn as a spiral of smaller cones
+    /* A bud is a cone drawn as a spiral of smaller cones. Written out in
+       full that is nine nodes, and there are 232 of them on a full-grown
+       romanesco — so "low detail" used to cost 722 nodes, the same as high,
+       because dropping the inner spiral still left a group, a circle and a
+       facet each. At this size a bud is three pixels across: the facet is
+       invisible and the group is only needed by the ones animating in. */
+    const animating = i >= freshFrom;
+    const spiral = hiDetail() ? size > 8 : i < FRACTAL_INNER;
+    if (!hiDetail() && !animating && !spiral) {
+      s += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + size.toFixed(1) +
+        '" fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)"/>';
+      continue;
+    }
     s += '<g transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"' +
-      (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .02).toFixed(3) + 's"' : '') + '>' +
+      (animating ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .02).toFixed(3) + 's"' : '') + '>' +
       '<circle cx="0" cy="0" r="' + size.toFixed(1) + '" fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)"/>';
-    if (hiDetail() && size > 8) {
+    if (spiral) {
       for (let j = 0; j < 6; j++) {
         const jr = size * .55 * Math.sqrt((j + .5) / 6), jt = (j + .5) * ang;
         s += '<circle cx="' + (Math.cos(jt) * jr).toFixed(1) + '" cy="' + (Math.sin(jt) * jr).toFixed(1) +
@@ -1995,7 +2012,11 @@ function renderFractal(sp, n, total, freshFrom) {
    is affordable. A 143-leaf vine at five paths a leaf is 700+ nodes;
    nine of those in one bed is a megabyte of SVG and a visibly slow
    repaint, so busy plants drop to low detail automatically. */
-const DETAIL_BUDGET = 420;
+const DETAIL_BUDGET = 900;
+/* How many of a romanesco's buds keep their own inner spiral when detail is
+   dropped. The second level is the entire reason this plant is drawn as a
+   fractal, so it survives on the biggest few rather than being switched off. */
+const FRACTAL_INNER = 21;
 function estimateElements(sp, n) {
   if (sp.form === 'stem')    return n * 5 + 3;
   if (sp.form === 'frond')   return n * 6;
@@ -2006,7 +2027,15 @@ function estimateElements(sp, n) {
 }
 function plantSVG(sp, n, freshFrom, lod) {
   const total = totalFor(sp);
-  LOD = (lod === 'low' || estimateElements(sp, n) > DETAIL_BUDGET) ? 'low' : 'high';
+  /* Measured against what the plant will be, not what it is right now.
+     Deciding per stage meant a fern drew 1056 nodes at stage eight and 250
+     at stage nine — it visibly lost three quarters of its detail at the
+     exact moment it ripened, and a romanesco and a vine did the same thing
+     mid-life. A plant should look like itself at every stage of it.
+
+     The budget only ever guards a single close-up: everything that draws
+     nine at once already asks for 'low' by name. */
+  LOD = (lod === 'low' || estimateElements(sp, totalFor(sp)) > DETAIL_BUDGET) ? 'low' : 'high';
   const cacheable = freshFrom === undefined || freshFrom === Infinity;
   const key = cacheable ? sp.id + '|' + n + '|' + LOD : null;
   if (key && svgCache[key] !== undefined) { svgCacheHits++; return svgCache[key]; }
@@ -4042,7 +4071,11 @@ function openPlanter(plotIdx) {
     if (locked) {
       rows +=
         '<div class="row-item" style="opacity:.35">' +
-          '<div class="thumb" style="filter:grayscale(1) brightness(.5)">' + plantSVG(sp, totalFor(sp)) + '</div>' +
+          /* the one thumbnail in this list that forgot to ask for low detail:
+             a 637-node sunflower, drawn at 44 pixels, greyed out and at a
+             third opacity, for every species you have not unlocked yet */
+          '<div class="thumb" style="filter:grayscale(1) brightness(.5)">' +
+            plantSVG(sp, totalFor(sp), Infinity, 'low') + '</div>' +
           '<div class="info"><h4>' + sp.name + '</h4>' +
           '<p>🔒 unlocks at gardener level ' + sp.lvl + '</p></div>' +
         '</div>';
