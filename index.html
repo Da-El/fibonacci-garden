@@ -6253,7 +6253,18 @@ function appSellStock(sinceMs) {
 const DAILY_PAR_FRACTION = 0.68;
 function dailySpec(day) {
   const h = hash32((day * 2654435761 + 8191) >>> 0);
-  const pool = BASE_SPECIES.filter(function (s) { return s.lvl <= 8; });   // always growable
+  /* The whole shelf, not the first half of it.
+
+     This used to stop at level 8 with the note "always growable", which
+     mattered when the Daily was thought of as a garden you had to be able to
+     grow. It is not: it hands you the beds and counts out the drops, so it
+     is a pouring challenge with everything provided and nothing in it needs
+     unlocking. The cap only meant oak, aloe, vine, fern, romanesco and
+     pineapple could never appear — six of fifteen, including every plant a
+     player spends the second half of the game working towards, and it left
+     the mode showing a game nobody was still playing. Fifty-four possible
+     gardens becomes ninety. */
+  const pool = BASE_SPECIES;
   const sp = pool[h % pool.length];
   const plants = 2 + (hash32(h) % 3);                  // 2, 3 or 4 whole plants
   const drops = sp.stages * plants;

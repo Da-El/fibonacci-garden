@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-768 checks. Each one loads the game's inline `<script>` into a headless harness and
+778 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -70,6 +70,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `world-check.js` | two gardens on the same day see the same sky, and no amount of play bends it |
 | `boon-check.js` | the ladybird and the compost: what the free things are really worth |
 | `gift-check.js` | the daily gift and the streak: what it pays, what breaking it costs |
 | `long-check.js` | a hundred days: big numbers, a level bar past the shelf, a save at scale |
