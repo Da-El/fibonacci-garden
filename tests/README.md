@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-529 checks. Each one loads the game's inline `<script>` into a headless harness and
+590 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -32,6 +32,10 @@ That turned out to be the pattern, not the exception:
 - The **market** drew a full botanical illustration into every 44-pixel row of your
   barn — up to eight rows per species, near a megabyte of markup, with a romanesco bud
   under half a pixel across.
+- **One bed holding a lost cross** stopped the whole app from starting. Every hybrid is
+  rebuilt at boot from the parents recorded against it; anything that could not be rebuilt
+  left a bed pointing at nothing, and the game read its stages without looking. A whole
+  garden gone rather than one plant.
 - **Winter** told you to grow evergreens for +18%. It gave evergreens +10% and
   succulents +18%. Every number in the blurb was a number the season really gives and
   every plant it named was one it really boosts, so a check on either alone passed.
@@ -50,6 +54,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, and lets a test step the intervals by hand |
+| `broken-check.js` | a save that is perfectly well-formed and describes a garden the game cannot read |
 | `words-check.js` | every figure the game states out loud, checked against the constant behind it |
 | `ach-check.js` | every achievement: the counter it waits on is really written, it is reachable, and it pays once |
 | `tutor-check.js` | the first five minutes walked step by step, each one advanced by the action it waits for |

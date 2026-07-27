@@ -35,6 +35,7 @@ const FILES = [
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['broken-check',  'a save that is well-formed and describes a garden the game cannot read'],
   ['words-check',   'every figure the game states out loud, against the constant behind it'],
   ['ach-check',     'every achievement: reachable, paid once, and worth the asking'],
   ['tutor-check',   'the first five minutes, walked step by step the way a player does'],

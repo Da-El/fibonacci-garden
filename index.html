@@ -2715,6 +2715,12 @@ function bugTick() {
   state.plots.forEach(function (p, i) {
     if (!p || p.bug || p.glass) return;                  // aphids cannot get under glass
     const sp = byId[p.s];
+    /* A bed whose species the game cannot find should not exist —
+       forgetTheUnknown() clears those at boot — but this runs once a second
+       for the whole session, and a crash in here stops the heartbeat for
+       good: no growth, no wages, no apprentice, until the app is reloaded.
+       Two of the six sweeps checked and two did not. */
+    if (!sp) return;
     if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
     if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
     p.bugSlot = slot;
@@ -3490,6 +3496,7 @@ function stormTick() {
       if (!p || state.trellised[i] || p.glass) return;   // glass shrugs a storm off
       if (hash32((s * 53 + i * 17 + 29) >>> 0) % 100 >= stormDmgChance()) return;
       const sp = byId[p.s];
+      if (!sp) return;                                       // a bed pointing at nothing
       if (p.stage >= sp.stages) {
         p.q = Math.max(0, p.q - Math.ceil(sp.stages / 3));   // ripe: battered, ~1 star
       } else if (p.stage > 0) {
@@ -3755,14 +3762,14 @@ function paintTop() {
   $('wtimer').textContent = state.water >= waterCap() ? 'full' : fmtMS(ms);
 
   // notification dots
-  const anyReady = state.plots.some(function (p) { return p && p.stage >= byId[p.s].stages; });
+  const anyReady = state.plots.some(function (p) { return isRipe(p); });
   $('dot-garden').classList.toggle('on', anyReady || thirstyCount() > 0);
   $('dot-market').classList.toggle('on', barnCountAll() > 0);
 
   /* Carry the count into the tab title, so a garden with work waiting says
      so from the tab strip or the installed app's window without being
      opened. Ready blooms come first — those can wilt. */
-  const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+  const ready = state.plots.filter(function (p) { return isRipe(p); }).length;
   const thirst = thirstyCount();
   document.title = (ready ? '🌼' + ready + ' ' : '') + (thirst ? '💧' + thirst + ' ' : '') +
                    'Fibonacci Garden';
@@ -4090,7 +4097,7 @@ function paintPlots() {
   $('scenelocked').textContent = state.plotCount < MAX_PLOTS
     ? '🔒 ' + (MAX_PLOTS - state.plotCount) + ' more plots in the shop' : '';
 
-  const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+  const ready = state.plots.filter(function (p) { return isRipe(p); }).length;
   const empty = state.plots.filter(function (p) { return !p; }).length;
   $('gardenhint').innerHTML = ready
     ? ready + (ready === 1 ? ' plant is' : ' plants are') + ' ready — tap to harvest.'
@@ -4515,7 +4522,7 @@ function doAct() {
 function doCompost() {
   if (curPlot < 0) return;
   const p = state.plots[curPlot];
-  if (!p || p.stage >= byId[p.s].stages) return;
+  if (!p || isRipe(p)) return;
   if (state.compost <= 0) return toast('No compost — buy some in the shop');
   advanceStage('compost');
 }
@@ -5995,7 +6002,7 @@ function appTick() {
   let didPick = 0;
   for (let i = 0; i < state.plots.length; i++) {
     const p = state.plots[i];
-    if (!p || p.stage < byId[p.s].stages) continue;
+    if (!isRipe(p)) continue;
     /* Never the glasshouse. Nothing wilts in there, so there is nothing to
        rescue, and a pristine you poured by hand is a moment to walk in on
        rather than find already crated up in the barn. */
@@ -6341,7 +6348,7 @@ function showWelcomeBack(awayMs, l) {
     /* The one line that says what to do next, above the account of what
        happened: how many plants are standing there waiting on you. */
     (function () {
-      const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+      const ready = state.plots.filter(function (p) { return isRipe(p); }).length;
       const thirst = thirstyCount();
       if (!ready && !thirst) return '';
       const bits = [];
@@ -6722,6 +6729,74 @@ function hybridFact(A, B, frac) {
 }
 
 /* hybrids the player has actually bred get registered into the world */
+/* Anything in the save naming a plant the game cannot find.
+
+   Every hybrid is rebuilt at boot from the two parents recorded against it,
+   and registerHybrids() quietly skips any whose parents it cannot make sense
+   of — which is right, there is nothing else it could do. But everything
+   else in the save refers to plants by an id, and an id that no longer
+   resolves used to crash the app on load: one bed holding a lost cross and
+   the game would not start at all, which is a whole garden gone rather than
+   one plant. The market did the same on a barn full of one.
+
+   So the rule is: after the crosses are rebuilt, whatever is left pointing
+   at nothing is let go of. One plant lost, not the garden. */
+function forgetTheUnknown() {
+  let lost = 0;
+  const known = function (id) { return !!(id && byId[id]); };
+
+  state.plots = (state.plots || []).map(function (p) {
+    if (!p) return null;
+    if (typeof p !== 'object' || !known(p.s)) { if (p) lost++; return null; }
+    const sp = byId[p.s];
+    // and a plant cannot be at a stage its species does not have
+    p.stage = Math.max(0, Math.min(sp.stages, p.stage | 0));
+    p.q = Math.max(0, p.q | 0);
+    return p;
+  });
+
+  Object.keys(state.barn || {}).forEach(function (id) {
+    if (!known(id)) { delete state.barn[id]; lost++; return; }
+    Object.keys(state.barn[id]).forEach(function (t) {
+      const n = state.barn[id][t] | 0;
+      if (n > 0) state.barn[id][t] = n; else delete state.barn[id][t];
+    });
+    if (!Object.keys(state.barn[id]).length) delete state.barn[id];
+  });
+
+  state.orders = (state.orders || []).filter(function (o) {
+    if (o && known(o.s)) return true;
+    lost++; return false;
+  });
+
+  Object.keys(state.almanac || {}).forEach(function (id) {
+    if (!known(id)) delete state.almanac[id];
+  });
+  Object.keys(state.hybrids || {}).forEach(function (id) {
+    if (!known(id)) { delete state.hybrids[id]; lost++; }
+  });
+
+  /* The can, the water and the coins have to be numbers or every sum built
+     on them becomes NaN and the garden is unplayable without being broken. */
+  if (!isFinite(state.water)) state.water = 0;
+  if (!isFinite(state.coins)) state.coins = 0;
+  state.water = Math.max(0, Math.min(waterCap(), Math.round(state.water)));
+  state.coins = Math.max(0, Math.round(state.coins));
+
+  if (lost) saveState();
+  return lost;
+}
+
+/* "Is this bed holding something ready to lift?" — asked from the top bar,
+   the tab title, the app badge, the welcome-back digest and the once-a-second
+   paint. Every one of them used to read byId[p.s].stages straight, so a bed
+   pointing at a plant the game could not find threw the heartbeat away and
+   the app was dead until reload. One place to get it right. */
+function isRipe(p) {
+  const sp = p && byId[p.s];
+  return !!sp && p.stage >= sp.stages;
+}
+
 function registerHybrids() {
   Object.keys(state.hybrids || {}).forEach(function (id) {
     if (byId[id]) return;
@@ -7256,6 +7331,7 @@ function paintAll() {
    digest or (for a quick return) just carry on. */
 applyA11y();
 registerHybrids();        // bred plants must exist before anything reads a plot
+forgetTheUnknown();       // and anything they failed to bring back must go
 const caught = catchUpWithLedger();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
