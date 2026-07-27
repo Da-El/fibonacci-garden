@@ -295,7 +295,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,155 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,166 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -342,8 +342,14 @@ game; it is how the real phyllotactic ladder is built, and it is the same relati
 the almanac names on every card.
 
 The bench shows what a pair would produce before you commit — the fraction, the angle,
-what the child would sell for, and whether it lands on a rung of the real ladder or
-between them. Below that is **your ladder**: which of the seven rungs you hold, and for
+what the child would sell for, what its seed costs, how many stages it takes, and **what
+that comes to per drop**, which is the unit the whole shelf is priced on. It also says
+whether the cross lands on a rung of the real ladder or between them.
+
+Those figures used to appear only when *both* parents had a Fibonacci fraction. Cross two
+golden-angle plants and you got a sentence about angles and no numbers at all — and
+romanesco and pineapple are both golden, so the two dearest crosses in the game were
+precisely the ones you could not price. Below that is **your ladder**: which of the seven rungs you hold, and for
 the ones you do not, which pair would make them. So the mediant is something to aim at
 rather than a lever you pull to see what happens.
 

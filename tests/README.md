@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,155 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,166 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -85,6 +85,7 @@ if you add a system, add the counter that proves it fires.
 | `season-check.js` | a real mid-run garden left for three days, three weeks and a season |
 | `hybrid-check.js` | every cross bred, then planted, drawn, poured, lifted and reloaded |
 | `fit-check.js` | the text at 320px: what cannot wrap, and whether it fits the row |
+| `deep2-check.js` | the deepening pass over 89-92: every counter, every nowrap, the bench |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -157,6 +158,19 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**A branch that carries the numbers will hide them in its other arm.** The breeding
+bench put price, seed and stages inside the "both parents have a fraction" branch, so a
+cross of two golden-angle plants showed a sentence about angles and nothing else — and
+the two dearest species in the game are both golden, so the crosses worth the most were
+the ones you could not price. When a fact belongs to the thing rather than to one of its
+shapes, emit it outside the branch.
+
+**Ask whether a defect has siblings.** Every finding in a deepening pass is a template:
+one counter was incremented and never reset, so audit all twenty-one; one non-wrapping
+class held text too wide for a phone, so measure the real content of all nine. Both
+sweeps came back clean, which is worth as much as a finding — it turns "we fixed one"
+into "there is only one".
 
 **Measure the constraint that actually binds, not the first one you think of.** The
 planter's time-of-day badge was checked against the room left over *after* the species

@@ -7310,17 +7310,32 @@ function renderBreeder() {
     '<div class="fact" style="text-align:center">' +
       (same ? 'Pick two <b>different</b> plants.'
        : already ? 'You have already bred <b>' + byId[id].name + '</b> from this pair.'
-       : (a.frac && b.frac
-          ? a.frac[0] + '/' + a.frac[1] + ' ⊕ ' + b.frac[0] + '/' + b.frac[1] + ' = <b style="color:var(--gold)">' +
-            preview.frac[0] + '/' + preview.frac[1] + '</b> · ' + angleOf(preview).toFixed(2) + '°' +
-            (isFibFraction(preview.frac) ? '<br><span style="color:var(--leaf)">a true Fibonacci fraction</span>' : '') +
-            /* What it would be worth, so a cross is a decision and not only a
-               curiosity — and whether it lands on the real ladder. */
-            '<br><span class="bpreview">sells ' + priceOf(preview) + '🪙 · seed ' +
-            seedCostOf(preview) + '🪙 · ' + preview.stages + ' stages' +
-            (onLadder(preview.frac) ? ' · <b>a rung of the ladder</b>'
-                                    : ' · between the rungs') + '</span>'
-          : 'One parent uses the golden angle — the child will too.')) +
+       : ((a.frac && b.frac
+            ? a.frac[0] + '/' + a.frac[1] + ' ⊕ ' + b.frac[0] + '/' + b.frac[1] + ' = <b style="color:var(--gold)">' +
+              preview.frac[0] + '/' + preview.frac[1] + '</b> · ' + angleOf(preview).toFixed(2) + '°' +
+              (isFibFraction(preview.frac) ? '<br><span style="color:var(--leaf)">a true Fibonacci fraction</span>' : '')
+            : 'One parent uses the golden angle — the child will too.') +
+          /* What it would be worth, so a cross is a decision and not only a
+             curiosity — and whether it lands on the real ladder.
+
+             This used to sit inside the fraction branch, so it only appeared
+             when both parents had a Fibonacci fraction. Cross two golden-angle
+             plants and you were shown a sentence about angles and no numbers
+             at all — and romanesco and pineapple are both golden, so the two
+             dearest crosses in the game were the ones you could not price.
+
+             Coins per drop is named because it is the unit the whole shelf is
+             set from, and since iteration 91 a cross is seeded to sit level
+             with its dearer parent on exactly that number. Three figures and
+             an arithmetic problem is not a decision. */
+          '<br><span class="bpreview">sells ' + priceOf(preview) + '🪙 · seed ' +
+          seedCostOf(preview) + '🪙 · ' + preview.stages + ' stages · <b>' +
+          Math.round((priceOfQ(preview, 3) - seedCostOf(preview)) / preview.stages) +
+          '🪙 per drop</b>' +
+          (preview.frac
+            ? (onLadder(preview.frac) ? ' · <b>a rung of the ladder</b>'
+                                      : ' · between the rungs')
+            : '') + '</span>')) +
     '</div>' +
     /* The ladder itself, with what you hold marked. This is the thing to aim
        at: the mediant is only interesting if you can see which rung is

@@ -44,6 +44,7 @@ const FILES = [
   ['season-check','a real mid-run garden left for three days, three weeks and a season'],
   ['hybrid-check','every cross bred, then planted, drawn, poured, lifted and reloaded'],
   ['fit-check','the text at 320px: what cannot wrap, and whether it fits the row'],
+  ['deep2-check','the deepening pass over 89-92: every counter, every nowrap, the bench'],
   ['skip-check',    'the opening played with the coach switched off: what is never explained'],
   ['return-check',  'everything a returning player is told: the hints, the digest, the title'],
   ['orders-check',  'the order board: what it pays, and whether it is ever worth planting for'],
