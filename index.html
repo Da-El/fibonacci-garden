@@ -4317,8 +4317,18 @@ function openPlanter(plotIdx) {
       '<div class="row-item" style="' + (afford ? '' : 'opacity:.42') +
         (want.length ? ';border-color:#6a5322' : '') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
+        /* The badge used to light up when the hour suited and say nothing when
+           it did not, so the one number that decides whether this seed can
+           reach ★★★ on the schedule you actually keep was left to be
+           inferred. The plant screen has said "now!" or "wait for daylight"
+           for iterations; the planter is where the choice is made. */
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match ? ' match' : '') +
-          '">' + prefIcon(sp) + ' ' + prefWord(sp) + '</span>' + wantTag + '</h4>' +
+          '">' + prefIcon(sp) + ' ' + prefWord(sp) +
+          (isDusk() ? ' — 🌅 golden hour'
+                    : sp.pref === 'any' ? ''
+                    : match ? ' — now!'
+                            : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark')) +
+          '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
           'water to skip stages · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +
         '<div class="actions"><button class="mini leafy" data-sp="' + sp.id + '"' +
@@ -5562,7 +5572,14 @@ function paintShop() {
         (t.resow ? '<br>and <b>sows the bed again</b> with what you had there' : '') + '<br>' +
         '<b>' + t.base + '🪙 plus ' + Math.round((APP_SHARE[t.lvl] || 0.06) * 100) +
         '%</b> of the takings · <b>~' + appWage(t) + '🪙/day</b>' +
-        (aMaxed ? '' : '<br>promote and the clock reaches further still — but so does her share')
+        /* This used to read "promote and the clock reaches further still —
+           but so does her share", which pointed a player away from the only
+           rank that pays. Measured net of wages over three weeks and six
+           seeds, an apprentice alone is −4.3% for a once-a-day gardener and
+           −7.8% for a twice-a-day one; a head gardener is +3.7% to +11.6% at
+           every rate. The reach costs you pours, and pours are where combos
+           are; the chores that come with the promotion are what cover it. */
+        (aMaxed ? '' : '<br><b>promote her</b> — the chores a head gardener adds are what make her pay her way')
       : 'the clock takes a plant halfway on its own; she<br>' +
         'takes it further, so each one costs you fewer drops<br>' +
         '<b>she never takes a pour off you</b> — the skill,<br>' +
@@ -6620,6 +6637,17 @@ function showWelcomeBack(awayMs, l) {
                         ' again, so ' + (l.appSow > 1 ? 'they are' : 'it is') + ' already growing', '');
   if (l.appWeed)    add('good', '🌾', 'she cleared <b>' + l.appWeed + '</b> plot' + (l.appWeed > 1 ? 's' : '') + ' of weeds', '');
   if (l.appBug)     add('good', '🐛', 'she squashed aphids on <b>' + l.appBug + '</b> plant' + (l.appBug > 1 ? 's' : ''), '');
+  /* The one she does most, and the digest never mentioned it: 693 fires
+     across six three-week runs against five for weeding. Her hint promises
+     she tends the clock's stages for a little quality; this is where a
+     player would see whether she did. */
+  if (l.appCare)    add('gold', '✨', 'she tended <b>' + l.appCare + '</b> stage' + (l.appCare > 1 ? 's' : '') +
+                        ' properly as ' + (l.appCare > 1 ? 'they' : 'it') + ' grew', '+care');
+  /* The dry spell asks you to fill the can the night before. Doing it was
+     recorded and counted towards a journal objective, and then nothing ever
+     said so — the one hazard in the game you can prepare for, and preparing
+     for it went unacknowledged. */
+  if (l.driedReady) add('gold', '🌵', 'a <b>dry spell</b> began and your can was full — you were ready', '✓');
   if (l.wages)      add('bad',  '💰', 'wages paid', '−' + l.wages + '🪙');
   if (l.quit)       add('bad',  '👋', '<b>she left</b> — there were no coins to pay her', '');
   if (l.stages)     add('good', '🌱', 'grew <b>' + l.stages + '</b> stage' + (l.stages > 1 ? 's' : '') + ' on their own', '');

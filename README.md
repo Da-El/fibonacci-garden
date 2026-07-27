@@ -267,7 +267,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,029 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,055 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -284,8 +284,18 @@ sows an emptied bed again with whatever you had there.
 
 **She never takes a pour off you.** The last stages — the ones that set quality, feed
 combos and mint a 💎 pristine — are always yours. She's paid a small retainer plus a
-share of the takings, so she costs more in a good week than a quiet one. Hiring pays
-for itself; **promoting only pays if you play often**, and that's the decision.
+share of the takings, so she costs more in a good week than a quiet one.
+
+**Don't linger at the first rank.** Measured net of her wages over three weeks and six
+seeds, an apprentice alone is a *loss* for a gardener who opens the app once or twice a
+day — −4.3% and −7.8% — and only a gain for someone playing four sessions. Her reach is
+why: every stage the clock takes is a pour you don't make, and pours are where combos
+and fever come from, so for the player who pours a lot per session she is trading away
+the best part of their income. A head gardener is a clear gain at every visit rate
+(+3.7% to +11.6%), because the chores she adds — re-sowing, minding the stall — pay for
+the reach. So hire *and promote*; the first rank is a step on the way, not a place to
+stop. (This section used to say "hiring pays for itself". It does not, and nothing had
+checked.)
 
 ## Bees
 

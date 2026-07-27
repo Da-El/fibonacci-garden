@@ -63,10 +63,19 @@ const seen = {};
    different store from the away-digest ledger. */
 const EXPECTED = ['stages', 'stalled', 'water', 'aphids', 'weeds', 'stormHits',
                   'pollinated', 'ordersLost', 'wages', 'appPick', 'appSow', 'appSold',
-                  'appTook', 'appCare', 'appWeed', 'appBug', 'quit'];
+                  'appTook', 'appCare', 'appWeed', 'appBug', 'quit', 'driedReady'];
 /* These only fire for a gardener who closes the app mid-garden, which this
-   bot never does — it plays each session to a standstill. Proven directly
-   in glass-check and regress instead. */
+   bot never does — it plays each session to a standstill, and hires her at
+   the first rank, which does not re-sow.
+
+   This note used to say they were "proven directly in glass-check and
+   regress instead". They were not: neither file mentions any of them,
+   screens-check hands showWelcomeBack a synthetic {appPick: 3} — which shows
+   the digest can render the line, not that the game ever writes one — and
+   sim.js accumulated them without ever asserting they were non-zero. Four of
+   the five things the apprentice does while you are away had been costed in
+   coins for four iterations and never once watched happening. deep-check
+   watches them now; this list is only about what *this* bot can reach. */
 const BOT_CANNOT_REACH = ['appPick', 'appSow', 'appSold', 'appTook', 'quit'];
 console.log('=== ledger events over 6 x 21-day runs ===');
 EXPECTED.forEach(function (k) {

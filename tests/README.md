@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,029 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,055 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -80,6 +80,7 @@ if you add a system, add the counter that proves it fires.
 | `glasshouse-check.js` | the glasshouse played for three weeks against an open garden |
 | `grow-check.js` | every species grown from seed to a perfect bloom through the real pour |
 | `edge-check.js` | the pour at its edges: the ends of the bar, the last drop, the timeout |
+| `deep-check.js` | the deepening pass over 84-87: her chores, the panes, the planter, the digest |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
