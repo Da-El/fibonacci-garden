@@ -13,10 +13,34 @@ function run(cfg) {
   // deterministic "skill": fraction of pours that land gold
   let rng = cfg.seed || 12345;
   const rand = function () { rng = (rng * 1103515245 + 12345) & 0x7FFFFFFF; return rng / 0x7FFFFFFF; };
-  const skill = cfg.skill === undefined ? 0.55 : cfg.skill;
+  /* A flat hit rate cannot see anything that changes the gold zone, so perks
+     like the steady hand and fever measured as worth exactly nothing. Model a
+     tap instead: the player aims at the centre with a normal error in
+     milliseconds, and whether that lands depends on the window the game
+     actually offers for this species at this stage. */
+  const tapError = cfg.tapError === undefined ? 34 : cfg.tapError;   // ±ms, 1 sigma
+  const flatSkill = cfg.skill;                                       // opt-out for old callers
+  const erf = function (z) {
+    const t = 1 / (1 + 0.3275911 * Math.abs(z) / Math.SQRT2);
+    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t
+                   - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z / 2);
+    return Math.abs(y);
+  };
+  const perfectChance = function (plotIdx) {
+    if (flatSkill !== undefined) return flatSkill;
+    const p = S().plots[plotIdx];
+    if (!p) return 0.5;
+    const sp = E('byId')[p.s];
+    const z = E('pourZonesFor')(p.stage, sp);
+    const goldMs = z.gw * (E('pourPeriodFor')(sp) / 2);
+    return Math.min(0.995, erf((goldMs / 2) / tapError));
+  };
 
   const st = S();
   st.offset = 0;
+  /* Grant exactly one perk and nothing else, so a draft's two sides can be
+     compared without the level-up screen choosing for us. */
+  if (cfg.forcePerk) st.perks[cfg.forcePerk] = true;
   const advance = function (ms) { S().offset += ms; };
 
   const log = { wagesPaid: 0, earned: 0, harvests: 0, sold: 0, days: [], appWater: 0, quit: 0, wageRates: [] };
@@ -90,7 +114,7 @@ function run(cfg) {
         order.sort(function (a, b) { return a.left - b.left; });
         const pick = order[0];
         E('curPlot = ' + pick.i);
-        const perfect = rand() < skill;
+        const perfect = rand() < perfectChance(pick.i);
         const p = S().plots[pick.i];
         if (!perfect) p.spills = (p.spills | 0) + 1;
         if (!guardCall('advanceStage', function () {

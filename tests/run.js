@@ -23,7 +23,8 @@ const FILES = [
   ['save-check',    'old saves, corrupt saves, export codes, a failing localStorage'],
   ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning'],
   ['breed-check',   'the mediant, the price cap, and every rung reachable'],
-  ['wheel-check',   "the gamble's expected value, its odds, and its worst outcome"]
+  ['wheel-check',   "the gamble's expected value, its odds, and its worst outcome"],
+  ['perk-check',    'every perk draft measured — is either side the obvious pick?']
 ];
 
 let pass = 0, fail = 0, broken = [];

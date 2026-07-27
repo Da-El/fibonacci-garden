@@ -2196,7 +2196,12 @@ function saveState() {
 }
 
 function NOW()      { return Date.now() + state.offset; }
-function waterCap() { return CAN_TIERS[state.canTier] + (hasPerk('deepwell') ? 5 : 0); }
+/* Deep well was a flat +5 drops, which is +38% on the opening can and +5.6%
+   on the 89-drop one — it decayed to almost nothing precisely as water became
+   the thing you were short of. It scales now. */
+function waterCap() {
+  return Math.round(CAN_TIERS[state.canTier] * (hasPerk('deepwell') ? 1.25 : 1));
+}
 function dayIndex() { return Math.floor(NOW() / DAY_MS); }
 
 /* Spending your last coins on land or a can could otherwise leave you with
@@ -2502,17 +2507,32 @@ function xpForNext() {
   return Math.round(FIB[FIB.length - 1] * 10 * (1 + (i - FIB.length + 1) * 0.35));
 }
 function hasPerk(id) { return !!state.perks[id]; }
+/* Each draft pits like against like. They used to be paired arbitrarily, and
+   once water became the currency that stopped being a choice: dawn dew was
+   worth 19,656 coins over three weeks against a steady hand's 1,925, so one
+   side of that draft simply won. Now the two water perks are drafted against
+   each other, the two money perks against each other, and the two pour perks
+   against each other — so every draft is a comparison a player can actually
+   weigh rather than an arithmetic trap. */
 const PERK_CHOICES = {
-  3: [{ id: 'greenthumb', icon: '🌿', name: 'Green thumb', desc: 'all sale prices +10%' },
-      { id: 'deepwell',   icon: '🪣', name: 'Deep well',   desc: 'watering can holds +5 drops' }],
+  // early: a bigger can, or more for everything you sell
+  3: [{ id: 'deepwell',   icon: '🪣', name: 'Deep well',   desc: 'watering can holds 25% more' },
+      { id: 'greenthumb', icon: '🌿', name: 'Green thumb', desc: 'all sale prices +10%' }],
+  // the two nuisances
   5: [{ id: 'ladymagnet', icon: '🐞', name: 'Ladybird magnet', desc: 'lucky ladybugs visit twice as often' },
       { id: 'weedless',   icon: '🌾', name: 'Weedless',        desc: 'weeds never take your plots' }],
-  7: [{ id: 'stormsense', icon: '🛡️', name: 'Storm sense', desc: 'storms damage plants half as often' },
-      { id: 'richsoil',   icon: '🪨', name: 'Rich soil',   desc: 'plants grow 20% faster on their own' }],
+  /* The draft that matters most: the two perks that touch the bottleneck.
+     More water per hour, or less water needed per plant. Measured at +19,656
+     and +17,624 over three weeks — within 11% of each other, which is what a
+     real choice looks like. */
+  7: [{ id: 'dawndew',  icon: '💧', name: 'Dawn dew',  desc: 'water refills 25% faster' },
+      { id: 'richsoil', icon: '🪨', name: 'Rich soil', desc: 'the clock carries plants one stage further' }],
+  // the rare payoff: more of them, or land more of your pours
   9: [{ id: 'goldentouch', icon: '✨', name: 'Golden touch', desc: 'golden blooms +3% more likely' },
-      { id: 'longfever',   icon: '🔥', name: 'Long fever',   desc: 'fever lasts 150s instead of 90s' }],
-  12:[{ id: 'steadyhand', icon: '🎯', name: 'Steady hand', desc: 'the gold pour zone is 30% wider' },
-      { id: 'dawndew',    icon: '💧', name: 'Dawn dew',    desc: 'water refills 25% faster' }],
+      { id: 'steadyhand',  icon: '🎯', name: 'Steady hand',  desc: 'the gold pour zone is 30% wider' }],
+  // weather and hot streaks
+  12:[{ id: 'stormsense', icon: '🛡️', name: 'Storm sense', desc: 'storms damage plants half as often' },
+      { id: 'longfever',  icon: '🔥', name: 'Long fever',  desc: 'fever lasts 150s instead of 90s' }],
   15:[{ id: 'connoisseur', icon: '🏵️', name: 'Connoisseur', desc: 'customer orders pay 40% more' },
       { id: 'evergreen',   icon: '🌲', name: 'Evergreen',   desc: 'ripe plants take twice as long to wilt' }]
 };
@@ -2860,7 +2880,7 @@ function growthRate(p, sp) {
   if (w === 'rain' || w === 'storm') r *= 1.5;    // storms water the garden too
   if (w === 'heat') r *= 0.75;                    // and heat wilts the pace
   if (seasonMult(sp) > 1) r *= 1.2;               // in season, plants thrive
-  if (hasPerk('richsoil')) r *= 1.2;
+
   return r;
 }
 function stageDurMs(sp, p) {
@@ -2889,7 +2909,13 @@ const TIMER_REACH = 0.5;
 function timerCeiling(sp, p) {
   if (p && p.glass) return 0;
   const reach = hasApprentice() ? appTier().reach : TIMER_REACH;
-  return Math.max(1, Math.ceil(sp.stages * reach));
+  /* Rich soil used to make plants grow 20% faster on their own, which stopped
+     being worth anything the moment the clock started stopping halfway —
+     reaching a ceiling sooner does not help when the ceiling is the problem.
+     It carries them a stage further instead, which is the thing that is
+     actually scarce. Never far enough to ripen one: the last pour is yours. */
+  const soil = hasPerk('richsoil') ? 1 : 0;
+  return Math.max(1, Math.min(sp.stages - 1, Math.ceil(sp.stages * reach) + soil));
 }
 
 /* Plants the clock has finished with, waiting on a drop from you. */

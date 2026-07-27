@@ -157,9 +157,13 @@ saw it coming makes money out of a drought.
 ## Mastery
 
 XP comes from everything you do. **Levels 1–8 unlock the nine species**, and levels
-3, 5, 7, 9, 12 and 15 each offer a permanent **choice of two perks** — green thumb,
-deep well, storm sense, rich soil, golden touch, long fever, steady hand, connoisseur
-and more.
+3, 5, 7, 9, 12 and 15 each offer a permanent **choice of two perks**.
+
+Each draft pits like against like, and the pairings are set from measurement rather than
+taste. The one at level 7 is the draft that matters: **dawn dew** (water refills 25%
+faster) against **rich soil** (the clock carries plants a stage further) — more water per
+hour, or less water needed per plant. Over three weeks they measure +19,656 and +17,624,
+within 11% of each other.
 
 When a garden has earned enough, **replant it** for **golden seeds** — each raises all
 sale prices by 6.18% (a hundredth of φ−1) forever. Coins, plots and upgrades reset;
@@ -212,7 +216,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 227 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 230 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
