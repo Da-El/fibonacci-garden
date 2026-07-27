@@ -798,6 +798,32 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- accessibility ---------- */
+  :focus-visible {
+    outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  /* honour the OS-level preference as well as our own switch */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+  }
+  /* colour-blind safe mode: quality and status stop relying on hue alone */
+  body.cb .stars::after { content: ''; }
+  body.cb .badge.up::before  { content: '▲ '; }
+  body.cb .badge.down::before{ content: '▼ '; }
+  body.cb .obj.hit .box { background: #2b6cb0; }
+  body.cb .wilttag::before { content: '⚠ '; }
+  body.cb .gtag.warn::before { content: '⚠ '; }
+  body.cb #p-water.empty::after { content: ' (empty)'; font-size: 9px; }
+  body.cb .discount::before { content: '▼ '; }
+  body.cb .markup::before { content: '▲ '; }
+
   /* ---------- journal ---------- */
   .chapter {
     border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px;
@@ -1027,13 +1053,14 @@
       </div>
     </div>
 
-    <div id="tabs">
-      <div class="tab on" data-v="garden"><span class="ic">🌿</span>garden<span class="dot" id="dot-garden"></span></div>
-      <div class="tab" data-v="market"><span class="ic">🪙</span>market<span class="dot" id="dot-market"></span></div>
-      <div class="tab" data-v="journal"><span class="ic">📔</span>journal<span class="dot" id="dot-journal"></span></div>
-      <div class="tab" data-v="almanac"><span class="ic">📖</span>almanac</div>
-      <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
+    <div id="tabs" role="tablist" aria-label="Sections">
+      <div class="tab on" data-v="garden" role="tab" tabindex="0" aria-selected="true" aria-label="Garden"><span class="ic" aria-hidden="true">🌿</span>garden<span class="dot" id="dot-garden"></span></div>
+      <div class="tab" data-v="market" role="tab" tabindex="0" aria-selected="false" aria-label="Market"><span class="ic" aria-hidden="true">🪙</span>market<span class="dot" id="dot-market"></span></div>
+      <div class="tab" data-v="journal" role="tab" tabindex="0" aria-selected="false" aria-label="Journal"><span class="ic" aria-hidden="true">📔</span>journal<span class="dot" id="dot-journal"></span></div>
+      <div class="tab" data-v="almanac" role="tab" tabindex="0" aria-selected="false" aria-label="Almanac"><span class="ic" aria-hidden="true">📖</span>almanac</div>
+      <div class="tab" data-v="shop" role="tab" tabindex="0" aria-selected="false" aria-label="Shop"><span class="ic" aria-hidden="true">🛒</span>shop</div>
     </div>
+    <div id="live" class="sr-only" role="status" aria-live="polite"></div>
 
     <div id="coach">
       <div id="coachveil"></div>
@@ -1054,7 +1081,7 @@
       <span class="htx" id="hinttx"></span>
       <span class="hx" id="hintx">✕</span>
     </div>
-    <div id="gear" title="Settings">⚙</div>
+    <div id="gear" title="Settings" role="button" tabindex="0" aria-label="Settings">⚙</div>
     <div id="feverbar">🔥 FIBONACCI FEVER · prices ×1.618 · <span id="fevertime"></span></div>
     <div id="modal"><div id="card"></div></div>
     <div id="hurt"></div>
@@ -1270,13 +1297,32 @@ function renderCone(sp, n, total, freshFrom) {
   return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
 }
 
+/* Plants are redrawn on every repaint, and a sunflower is 376 SVG
+   circles. Static draws (no fresh-in animation) are memoised by
+   species+count, which is the overwhelming majority of them. */
+const svgCache = {};
+let svgCacheHits = 0, svgCacheMiss = 0;
 function plantSVG(sp, n, freshFrom) {
   const total = totalFor(sp);
+  const cacheable = freshFrom === undefined || freshFrom === Infinity;
+  const key = cacheable ? sp.id + '|' + n : null;
+  if (key && svgCache[key] !== undefined) { svgCacheHits++; return svgCache[key]; }
+  svgCacheMiss++;
   if (freshFrom === undefined) freshFrom = Infinity;
-  if (sp.form === 'disc')    return renderDisc(sp, n, total, freshFrom);
-  if (sp.form === 'rosette') return renderRosette(sp, n, total, freshFrom);
-  if (sp.form === 'stem')    return renderStem(sp, n, total, freshFrom);
-  return renderCone(sp, n, total, freshFrom);
+  let out;
+  if (sp.form === 'disc')         out = renderDisc(sp, n, total, freshFrom);
+  else if (sp.form === 'rosette') out = renderRosette(sp, n, total, freshFrom);
+  else if (sp.form === 'stem')    out = renderStem(sp, n, total, freshFrom);
+  else                            out = renderCone(sp, n, total, freshFrom);
+  if (key) {
+    // keep the cache from growing without bound across many hybrids
+    if (svgCacheMiss % 400 === 0) {
+      const keys = Object.keys(svgCache);
+      if (keys.length > 600) keys.slice(0, 300).forEach(function (k) { delete svgCache[k]; });
+    }
+    svgCache[key] = out;
+  }
+  return out;
 }
 
 /* ============================================================
@@ -2019,7 +2065,7 @@ function etaToReady(sp, p) {
    until the first user gesture (browsers require that).
    ============================================================ */
 const SETTINGS_KEY = 'fibgarden.settings';
-let opt = { sound: true, ambient: true, haptics: true, motion: true };
+let opt = { sound: true, ambient: true, haptics: true, motion: true, cb: false };
 try {
   const raw = localStorage.getItem(SETTINGS_KEY);
   if (raw) opt = Object.assign(opt, JSON.parse(raw));
@@ -2442,6 +2488,8 @@ function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
+  const live = $('live');
+  if (live) live.textContent = msg;          // screen readers hear it too
   clearTimeout(toast._t);
   toast._t = setTimeout(function () { t.classList.remove('show'); }, 1900);
 }
@@ -2586,6 +2634,15 @@ function paintPlots() {
       if (!p) {
         const s = document.createElement('div');
         s.className = 'gspot' + (state.weeds[i] ? ' weedy' : '');
+        s.setAttribute('role', 'button');
+        s.setAttribute('tabindex', '0');
+        s.setAttribute('aria-label', state.weeds[i] ? 'Overgrown plot, tap to clear weeds' : 'Empty plot, tap to plant');
+        s.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (state.weeds[i]) clearWeed(i); else openPlanter(i);
+        });
         s.style.width = w + 'px';
         s.style.left = (cx - w / 2) + 'px';
         s.style.bottom = baseY + 'px';
@@ -2609,6 +2666,17 @@ function paintPlots() {
 
       const d = document.createElement('div');
       d.className = 'gplant' + (done ? ' ready' : '');
+      d.setAttribute('role', 'button');
+      d.setAttribute('tabindex', '0');
+      d.setAttribute('aria-label', sp.name + ', ' +
+        (done ? 'ready to harvest, ' + starStr(st).length + ' stars, worth ' + priceOfQ(sp, st) + ' coins'
+              : 'stage ' + p.stage + ' of ' + sp.stages + (p.bug ? ', aphids' : '')));
+      d.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        e.stopPropagation();       // or the global handler would start a pour immediately
+        openGrow(i);
+      });
       d.style.width = w + 'px';
       d.style.height = h + 'px';
       d.style.left = (cx - w / 2) + 'px';
@@ -3338,7 +3406,7 @@ function paintShop() {
     '<div class="info"><h4>The breeding bench</h4><p>' +
     'cross two plants you have grown<br>the child\'s angle is the <b>mediant</b> of its parents' +
     (bredCount ? ' · <b>' + bredCount + '</b> bred' : '') + '</p></div>' +
-    '<div class="actions"><button class="mini gold" id="openbreed">' + BREED_COST + '🪙</button></div>';
+    '<div class="actions"><button class="mini gold" id="openbreed">' + breedCost() + '🪙</button></div>';
   canWrap2.appendChild(bRow);
   $('openbreed').addEventListener('click', openBreeder);
 
@@ -4085,6 +4153,13 @@ function flyBees() {
    up that ladder IS the maths of the game.
    ============================================================ */
 const BREED_COST = 400;
+/* no hybrid may out-earn the best wild plant by more than half again */
+const HYBRID_PRICE_CAP = 250;
+/* each cross costs more than the last, so breeding is a considered
+   act rather than something you spam between waterings */
+function breedCost() {
+  return Math.round(BREED_COST * Math.pow(1.35, Object.keys(state.hybrids || {}).length));
+}
 function fracOf(sp) { return sp.frac ? sp.frac : null; }     // golden-angle species have none
 function mediant(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
 function gcd(a, b) { return b ? gcd(b, a % b) : a; }
@@ -4105,15 +4180,23 @@ function makeHybrid(aId, bId) {
   if (fa && fb) frac = reduceFrac(mediant(fa, fb));
   else if (fa || fb) frac = null;                    // crossing into a golden-angle parent stays golden
   const id = hybridId(aId, bId);
-  const seed = Math.round((A.seed + B.seed) / 2 * 1.35);
-  const price = Math.round((A.price + B.price) / 2 * 1.55);
+  /* Generational damping. Without it, crossing hybrids with hybrids
+     compounds the vigour bonus every generation and breeding becomes
+     an infinite money printer — a 21-day simulation hit 3.6M coins.
+     The bonus shrinks as 1 + 0.55/gen and the price is hard-capped
+     against the best wild plant, so late crosses are interesting
+     rather than lucrative. */
+  const gen = Math.max(A.gen || 0, B.gen || 0) + 1;
+  const vigour = 1 + 0.55 / gen;
+  const price = Math.min(Math.round((A.price + B.price) / 2 * vigour), HYBRID_PRICE_CAP);
+  const seed = Math.max(2, Math.round(price * 0.38));   // margin stays in line with wild species
   const stages = Math.max(A.stages, B.stages);
   const growMin = Math.round((A.growMin + B.growMin) / 2);
   // the child takes the rarer parent's form, and a blended hue
   const form = A.price >= B.price ? A.form : B.form;
   const donor = A.form === form ? A : B;
   const h = {
-    id: id, hybrid: true, parents: [aId, bId],
+    id: id, hybrid: true, gen: gen, parents: [aId, bId],
     name: hybridName(A, B),
     form: form, frac: frac,
     pref: A.pref === B.pref ? A.pref : 'any',
@@ -4131,8 +4214,18 @@ function makeHybrid(aId, bId) {
 const HY_PREFIX = ['Dawn', 'Ember', 'Quiet', 'Gilded', 'Wander', 'Hollow', 'Bright', 'Silver', 'Amber', 'Vesper'];
 const HY_SUFFIX = ['bloom', 'crown', 'spire', 'wreath', 'coil', 'fern', 'star', 'whorl', 'drift', 'braid'];
 function hybridName(A, B) {
-  const h = hash32((A.idx * 7919 + B.idx * 104729 + 17) >>> 0);
-  return HY_PREFIX[h % HY_PREFIX.length] + ' ' + HY_SUFFIX[(h >> 8) % HY_SUFFIX.length];
+  // seed off the ids, not idx: a hybrid parent's idx isn't assigned until
+  // it is registered, and >>> keeps the shift unsigned (>> would go
+  // negative on a large hash and index off the end of the array)
+  const seed = (strHash(A.id) * 7919 + strHash(B.id) * 104729 + 17) >>> 0;
+  const h = hash32(seed);
+  return HY_PREFIX[h % HY_PREFIX.length] + ' ' +
+         HY_SUFFIX[(h >>> 8) % HY_SUFFIX.length];
+}
+function strHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h >>> 0;
 }
 function hybridFact(A, B, frac) {
   if (!frac) {
@@ -4169,12 +4262,13 @@ function canBreed() {
 }
 function doBreed(aId, bId) {
   if (aId === bId) return toast('Cross two different plants');
-  if (state.coins < BREED_COST) return toast('Crossing costs ' + BREED_COST + '🪙');
+  const cost = breedCost();
+  if (state.coins < cost) return toast('Crossing costs ' + cost + '🪙');
   const id = hybridId(aId, bId);
   if (byId[id]) return toast('You have already bred that pair');
   const h = makeHybrid(aId, bId);
   if (!h) return;
-  state.coins -= BREED_COST;
+  state.coins -= cost;
   state.hybrids = state.hybrids || {};
   state.hybrids[id] = { a: aId, b: bId };
   registerHybrids();
@@ -4230,7 +4324,7 @@ function renderBreeder() {
   const id = hybridId(breedPick.a, breedPick.b);
   const already = !!byId[id];
   const preview = (!same && !already) ? makeHybrid(breedPick.a, breedPick.b) : null;
-  const afford = state.coins >= BREED_COST;
+  const afford = state.coins >= breedCost();
 
   const pickRow = function (side, cur) {
     return '<div style="margin-bottom:8px"><div style="font-family:var(--mono);font-size:9px;color:var(--dim);' +
@@ -4262,7 +4356,7 @@ function renderBreeder() {
     '<div class="btnrow2">' +
       '<button class="btn" id="b-go"' + ((same || already || !afford) ? ' disabled' : '') +
       ' style="background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">' +
-      'cross · ' + BREED_COST + '🪙</button>' +
+      'cross · ' + breedCost() + '🪙</button>' +
       '<button class="btn" id="c-close">done</button>' +
     '</div>';
   $('modal').classList.add('show');
@@ -4432,8 +4526,12 @@ const OPTIONS = [
   { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
   { k: 'ambient', icon: '🐦', name: 'Garden ambience', desc: 'birds by day, crickets at night, rain when it rains' },
   { k: 'haptics', icon: '📳', name: 'Vibration', desc: 'a nudge on perfect pours and spills' },
-  { k: 'motion',  icon: '✨', name: 'Motion & particles', desc: 'screen shake, bursts, floating text' }
+  { k: 'motion',  icon: '✨', name: 'Motion & particles', desc: 'screen shake, bursts, floating text' },
+  { k: 'cb',      icon: '👁', name: 'Colour-blind marks', desc: 'adds arrows and symbols where colour alone carried meaning' }
 ];
+function applyA11y() {
+  document.body.classList.toggle('cb', !!opt.cb);
+}
 function openSettings() {
   $('card').innerHTML =
     '<h3>Settings</h3><div class="sub">saved on this device</div>' +
@@ -4466,6 +4564,8 @@ function openSettings() {
       if (k === 'sound' && opt.sound) { unlockAudio(); sfx('tap'); }
       if (k === 'haptics' && opt.haptics) buzz(20);
       if (k === 'ambient' && opt.ambient) { unlockAudio(); ambientVoice(); }
+      if (k === 'cb') applyA11y();
+      if (k === 'motion') { paintPlots(); spawnBees(); }
     });
   });
 }
@@ -4479,7 +4579,11 @@ function GO(v) {
   ['garden', 'market', 'journal', 'almanac', 'shop'].forEach(function (name) {
     $('v-' + name).classList.toggle('hidden', name !== v);
   });
-  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
+  document.querySelectorAll('.tab').forEach(function (t) {
+    const on = t.dataset.v === v;
+    t.classList.toggle('on', on);
+    t.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
   if (v === 'garden')  { paintPlots(); spawnBees(); setTimeout(flyBees, 60); }
   if (v === 'market')  { paintMarket(); hint('orders'); }
   if (v === 'journal') paintJournal();
@@ -4492,6 +4596,26 @@ function GO(v) {
 }
 document.querySelectorAll('.tab').forEach(function (t) {
   t.addEventListener('click', function () { GO(t.dataset.v); });
+  t.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); GO(t.dataset.v); }
+  });
+});
+$('gear').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSettings(); }
+});
+/* keyboard play: space/enter waters or locks a pour, Escape backs out */
+window.addEventListener('keydown', function (e) {
+  if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === 'Escape') {
+    if (pour) { cancelPour(); paintGrowFoot(); return; }
+    if ($('modal').classList.contains('show')) { closeCard(); return; }
+    if ($('grow').classList.contains('show')) { $('grow-close').click(); return; }
+  }
+  if ((e.key === ' ' || e.key === 'Enter') && $('grow').classList.contains('show')
+      && !$('modal').classList.contains('show')) {
+    e.preventDefault();
+    doAct();
+  }
 });
 
 /* ---- prototype tools ---- */
@@ -4511,10 +4635,24 @@ $('dev-reset').addEventListener('click', function () {
 });
 
 /* ---- loop ---- */
-function paintAll() { paintTop(); paintPlots(); paintMarket(); paintJournal(); paintAlmanac(); paintShop(); paintGrowFoot(); }
+/* Only the visible view needs painting; the rest are repainted by GO()
+   when you switch to them. This used to rebuild five views every time. */
+function paintAll() {
+  paintTop();
+  const vis = ['garden', 'market', 'journal', 'almanac', 'shop'].filter(function (v) {
+    return !$('v-' + v).classList.contains('hidden');
+  })[0] || 'garden';
+  if (vis === 'garden')  paintPlots();
+  if (vis === 'market')  paintMarket();
+  if (vis === 'journal') paintJournal();
+  if (vis === 'almanac') paintAlmanac();
+  if (vis === 'shop')    paintShop();
+  paintGrowFoot();
+}
 
 /* Catch the world up with the ledger armed, then either show the
    digest or (for a quick return) just carry on. */
+applyA11y();
 registerHybrids();        // bred plants must exist before anything reads a plot
 const caught = catchUpWithLedger();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
