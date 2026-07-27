@@ -265,8 +265,33 @@
     0%, 100% { transform: translate(-50%, 0);    opacity: .45; }
     50%      { transform: translate(-50%, -3px); opacity: 1; }
   }
+  /* Motion off means motion off. Only the thirsty sway was being stopped —
+     ten other animations looped forever regardless, so a player who turned
+     the switch off still got glowing, pulsing and bobbing. These are the
+     ones that never end; one-shot animations on a deliberate action are
+     left alone, because those are feedback rather than ambience. */
   body.nomotion .gplant.thirsty .gart,
-  body.nomotion .gplant.thirsty::after { animation: none; }
+  body.nomotion .gplant.thirsty::after,
+  body.nomotion .gplant.ready,
+  body.nomotion .plot.ready,
+  body.nomotion .fc.warn,
+  body.nomotion .rgold,
+  body.nomotion .bugtag,
+  body.nomotion .weedart,
+  body.nomotion .cloud,
+  body.nomotion .bee,
+  body.nomotion .deco.twinkle,
+  body.nomotion #p-water.drysoon,
+  body.nomotion .wxp { animation: none !important; }
+
+  /* And honour the system setting, so someone who has already asked their
+     phone to reduce motion does not have to find our switch as well. */
+  @media (prefers-reduced-motion: reduce) {
+    .gplant.thirsty .gart, .gplant.thirsty::after, .gplant.ready, .plot.ready,
+    .fc.warn, .rgold, .bugtag, .weedart, .cloud, .bee, .deco.twinkle, .wxp {
+      animation: none !important;
+    }
+  }
   /* Under glass. A pane catches the light across the bed and the plant sits
      perfectly still — nothing here is neglected, it is simply all yours. */
   .gplant.glass .gart {
@@ -702,10 +727,14 @@
   #grow-head { flex: 0 0 auto; padding: 20px 18px 4px; display: flex; align-items: flex-start; gap: 10px; }
   #grow-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
   #grow-head p { margin: 2px 0 0; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+  /* 40px, not 30. These are the squash, trellis and glass buttons — real
+     targets on a touchscreen, tapped in a hurry, sometimes with aphids
+     eating the plant while you aim. 30px is below every touch guideline
+     going and this is a phone game. */
   .iconbtn {
-    width: 30px; height: 30px; flex: 0 0 auto; border-radius: 50%;
+    width: 40px; height: 40px; flex: 0 0 auto; border-radius: 50%;
     background: #ffffff0d; border: 1px solid var(--line); color: var(--muted);
-    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
   .iconbtn:hover { background: #ffffff18; color: var(--pale); }
   #canvas { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 2px 14px; min-height: 0; cursor: pointer; }

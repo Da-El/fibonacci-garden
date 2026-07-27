@@ -233,7 +233,10 @@ Every sound is **synthesized at runtime** with the Web Audio API — there isn't
 single audio file. The perfect-pour chime climbs in pitch with your combo, fever
 sweeps, the wheel ratchets and slows, and the garden has birdsong by day, crickets at
 night and rainfall when it rains. Sound, ambience, vibration and motion each have
-their own switch behind the ⚙ gear.
+their own switch behind the ⚙ gear — and the motion switch really does stop every
+looping animation, not just some of them. The system-level `prefers-reduced-motion`
+setting is honoured too, so you should not have to find our switch if you have already
+asked your phone.
 
 ## Moving your garden between computers
 
