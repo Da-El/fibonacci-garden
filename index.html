@@ -86,6 +86,18 @@
   }
   /* the permanent price bonus, said out loud rather than hidden in a tooltip */
   #gbonus { font-size: 10px; color: var(--gold); margin-left: 3px; letter-spacing: .02em; }
+  /* the market's verdict: is today good, and is it about to get better */
+  #pricemood {
+    display: none; font-size: 11.5px; line-height: 1.65; color: var(--muted);
+    background: #ffffff07; border: 1px solid var(--line); border-radius: 12px;
+    padding: 9px 12px; margin-bottom: 9px;
+  }
+  #pricemood.show { display: block; }
+  #pricemood .up   { color: var(--leaf); font-weight: 700; }
+  #pricemood .down { color: var(--bad);  font-weight: 700; }
+  #pricemood b     { color: var(--gold); }
+  body.cb #pricemood .up::before   { content: '▲ '; }
+  body.cb #pricemood .down::before { content: '▼ '; }
   #top .grow { flex: 1; }
   #brand { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
   #brandsub { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
@@ -1242,6 +1254,7 @@
       <div class="sectitle">Orders <span id="orderinfo"></span></div>
       <div id="orderlist"></div>
       <div class="sectitle">Barn <span id="barninfo"></span></div>
+      <div id="pricemood"></div>
       <div id="barnlist"></div>
       <div id="marketnote" class="empty-note" style="display:none">
         Nothing harvested yet.<br>Grow a plant to full size, then harvest it.
@@ -2207,15 +2220,21 @@ function goldenMult() { return 1 + state.golden * PHI_BONUS; }
 /* ---- seasons ----------------------------------------------------
    One week per season, cycling with the calendar. Each season
    favours a growth form at market — rotate what you plant.        */
+/* The season decides what is worth PLANTING, so its boost belongs to that
+   choice rather than to when you sell. At +45% it was the largest single
+   thing moving the sale price, and it stacked with the weather, the dry
+   spell and the daily roll into a 67% premium for perfect timing — enough
+   that ignoring the market cost you nearly half your income. Trimmed so the
+   planting decision keeps its weight and the selling one stays optional. */
 const SEASONS = [
-  { id: 'spring', icon: '🌸', name: 'spring', boost: { stem: 1.3, frond: 1.35 },
-    blurb: 'sprigs +30%, ferns +35%' },
-  { id: 'summer', icon: '🌻', name: 'summer', boost: { disc: 1.3, fractal: 1.3 },
-    blurb: 'discs & romanesco +30%' },
-  { id: 'autumn', icon: '🍂', name: 'autumn', boost: { cone: 1.45, rosette: 1.15, fractal: 1.2 },
-    blurb: 'cones +45%, rosettes +15%' },
-  { id: 'winter', icon: '❄️', name: 'winter', boost: { rosette: 1.3, cone: 1.15, frond: 1.2 },
-    blurb: 'evergreens +30%, ferns +20%' }
+  { id: 'spring', icon: '🌸', name: 'spring', boost: { stem: 1.18, frond: 1.2 },
+    blurb: 'sprigs +18%, ferns +20%' },
+  { id: 'summer', icon: '🌻', name: 'summer', boost: { disc: 1.18, fractal: 1.18 },
+    blurb: 'discs & romanesco +18%' },
+  { id: 'autumn', icon: '🍂', name: 'autumn', boost: { cone: 1.22, rosette: 1.1, fractal: 1.12 },
+    blurb: 'cones +22%, rosettes +10%' },
+  { id: 'winter', icon: '❄️', name: 'winter', boost: { rosette: 1.18, cone: 1.1, frond: 1.12 },
+    blurb: 'evergreens +18%, ferns +12%' }
 ];
 function seasonNow() { return SEASONS[Math.floor(dayIndex() / 7) % 4]; }
 function seasonMult(sp) { return seasonNow().boost[sp.form] || 1; }
@@ -4444,6 +4463,50 @@ function paintDailyRow() {
   $('dailycard').addEventListener('click', dailyOpen);
 }
 
+/* Is now a good time to sell?
+
+   A ★★★ sunflower ranges 213 to 493 across a fortnight, and selling at the
+   peak beats an average moment by 67%. That is a real decision — but it was
+   an invisible one, and a swing you cannot see is not a decision, it is a
+   tax on knowing. The two halves of it are worth about the same:
+   waiting a few hours for the weather is ~39%, waiting for a better day is
+   ~41%. So the market answers both questions.
+
+   Within the day, only the weather moves, and the forecast already shows the
+   next three slots — so "hold two hours" can be an informed choice. */
+function marketOutlook() {
+  const now = weatherNow().sell * (dryNow() ? DRY_SELL : 1);
+  let best = now, bestIn = 0;
+  for (let k = 1; k <= 3; k++) {
+    const v = weatherAt(weatherSlot() + k).sell * (dryNow() ? DRY_SELL : 1);
+    if (v > best + 1e-9) { best = v; bestIn = k; }
+  }
+  return { now: now, best: best, bestIn: bestIn,
+           gain: best / now, mins: bestIn * (WEATHER_SLOT_MS / 60000) };
+}
+
+/* And across days: how today's fixed part — the daily roll, the season, a dry
+   spell — compares with what this species has actually been fetching. Read
+   from the same history the ledger keeps, so it is what happened, not a
+   model of it. */
+function priceStanding() {
+  /* Judged on the day as a whole, not on one species. An earlier version read
+     whichever species happened to be first on the shelf, so the board could
+     announce "a poor day" while the sunflower in your barn was having a very
+     good one. Each species' own multiplier is on its row already. */
+  const today = dayPriceMult();
+  const h = (state.history || []).slice(-10);
+  const seen = [];
+  h.forEach(function (row) { if (row.mult) seen.push(row.mult); });
+  if (seen.length < 3) return null;                  // not enough to compare yet
+  const avg = seen.reduce(function (a, b) { return a + b; }, 0) / seen.length;
+  const r = today / avg;
+  return { ratio: r,
+           word: r >= 1.18 ? 'a very good day' : r >= 1.06 ? 'a good day'
+               : r <= 0.85 ? 'a poor day' : r <= 0.95 ? 'a slow day' : 'an ordinary day',
+           cls: r >= 1.06 ? 'up' : r <= 0.95 ? 'down' : '' };
+}
+
 function paintMarket() {
   paintDailyRow();
   paintOrders();
@@ -4452,6 +4515,27 @@ function paintMarket() {
   const value = barnValueAll();
   $('barninfo').textContent = count ? count + ' held · worth ' + value + '🪙' : '';
   $('marketnote').style.display = count ? 'none' : 'block';
+
+  /* The verdict, said plainly, above the stock: is today good, and is it
+     about to get better? Both are things the player can act on, and neither
+     was visible before. */
+  const board = $('pricemood');
+  if (!count) { board.classList.remove('show'); }
+  else {
+    const stand = priceStanding();
+    const look = marketOutlook();
+    const bits = [];
+    if (stand) bits.push('<span class="' + stand.cls + '">' + stand.word + '</span>' +
+                         ' · ×' + stand.ratio.toFixed(2) + ' on the last ten');
+    else bits.push('<span>keeping track — a few more days and this will say ' +
+                   'whether today is a good one</span>');
+    bits.push(look.bestIn
+      ? '<b>' + weatherAt(weatherSlot() + look.bestIn).icon + ' in ' + look.mins +
+        ' min pays ' + Math.round((look.gain - 1) * 100) + '% more</b>'
+      : 'the next hour will not beat this');
+    board.innerHTML = bits.join('<br>');
+    board.classList.add('show');
+  }
 
   list.innerHTML = '';
   if (!count) return;
@@ -4698,11 +4782,25 @@ function paintCodex() {
    so the graphs mean something across a whole account.
    ============================================================ */
 const LEDGER_DAYS = 30;
+/* The day's price mood, averaged over the shelf: the roll, the season and a
+   dry spell. Weather is deliberately excluded — it turns over every twenty
+   minutes, so it belongs to the forecast rather than to the day. */
+function dayPriceMult() {
+  let t = 0;
+  BASE_SPECIES.forEach(function (sp) { t += priceMult(sp) * seasonMult(sp); });
+  return (t / BASE_SPECIES.length) * (dryNow() ? DRY_SELL : 1);
+}
+
 function ledgerToday() {
   const d = dayIndex();
   const h = state.history;
   if (!h.length || h[h.length - 1].d !== d) {
-    h.push({ d: d, earned: 0, harvests: 0, orders: 0, combo: 0, spent: 0 });
+    /* `mult` is the day's fixed part of the sale price, averaged across the
+       shelf — the daily roll, the season and any dry spell, with the weather
+       left out because that moves within the day. Recorded so the market can
+       tell you whether today is a good day by comparison with real ones
+       rather than a model of them. */
+    h.push({ d: d, earned: 0, harvests: 0, orders: 0, combo: 0, spent: 0, mult: dayPriceMult() });
     while (h.length > LEDGER_DAYS) h.shift();
     saveState();
   }

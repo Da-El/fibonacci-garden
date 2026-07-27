@@ -108,8 +108,20 @@ plan:
 | 🔥 heatwave | prices +25%, but slow refill and slow growth |
 | ⛈️ storm | plants grow fast — but unprotected ones can be damaged |
 
-Seasons rotate weekly and favour a different growth form each time, boosting both
-its **price and its growth speed**.
+Seasons rotate weekly and favour a different growth form each time, boosting both its
+**price and its growth speed**. The boost is deliberately modest (+10% to +22%), because
+the season is about what is worth *planting* — if it dominated the sale price too, you
+would be obliged to hoard for it.
+
+## Knowing when to sell
+
+A ★★★ sunflower ranges 213 to 446 across a fortnight, so *when* you sell matters — and
+that swing used to be invisible, which made it a tax on knowing rather than a decision.
+The market now tells you both halves of it: whether **today** is a good day, measured
+against the last ten days the game actually recorded, and whether the **next hour** will
+beat it, read straight off the weather forecast. Selling at the peak beats an average
+moment by about 57%, so patience pays — but the board says so out loud, and sell-all is
+still one tap away.
 
 ## The glasshouse
 
