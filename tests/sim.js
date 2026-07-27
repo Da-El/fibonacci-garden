@@ -63,6 +63,10 @@ function run(cfg) {
     if (l.appSold) log.appSold = (log.appSold || 0) + l.appSold;
     if (l.appTook) { log.appTook = (log.appTook || 0) + l.appTook; log.earned += l.appTook; }
     if (l.quit) log.quit++;
+    log.weeds = (log.weeds || 0) + (l.weeds || 0);
+    log.ordersLost = (log.ordersLost || 0) + (l.ordersLost || 0);
+    log.aphids = (log.aphids || 0) + (l.aphids || 0);
+    log.stormHits = (log.stormHits || 0) + (l.stormHits || 0);
 
     const s = S();
 
@@ -95,6 +99,7 @@ function run(cfg) {
       for (let i = 0; i < st.plots.length; i++) {
         const p = st.plots[i];
         if (!p || p.stage < E('byId')[p.s].stages) continue;
+        if (E('wiltPenalty')(p) > 0) log.wilted = (log.wilted || 0) + 1;
         E('curPlot = ' + i);
         if (guardCall('harvest', function () { E('harvest()'); return true; })) log.harvests++;
         else st.plots[i] = null;
@@ -143,7 +148,7 @@ function run(cfg) {
       for (let oi = 0; oi < orders.length; oi++) {
         const c0 = S().coins;
         if (!guardCall('deliverOrder', function () { E('deliverOrder(' + oi + ')'); return true; })) continue;
-        if (S().coins > c0) { log.earned += S().coins - c0; did = true; break; }
+        if (S().coins > c0) { log.earned += S().coins - c0; log.ordersPaid = (log.ordersPaid || 0) + 1; did = true; break; }
       }
       if (!did) break;
     }
@@ -211,6 +216,9 @@ function run(cfg) {
     coins: s.coins, earned: s.runEarned, sellEarned: log.earned, wagesPaid: log.wagesPaid,
     harvests: log.harvests, plots: s.plotCount, level: s.level,
     appLevel: s.appLevel, quit: log.quit,
+    wilted: log.wilted | 0, weeds: log.weeds | 0, ordersPaid: log.ordersPaid | 0,
+    ordersLost: log.ordersLost | 0, aphids: log.aphids | 0, stormHits: log.stormHits | 0,
+    bestCombo: s.bestCombo | 0, feverEver: (s.feverUntil | 0) > 0 ? 1 : 0,
     appPick: log.appPick || 0, appSold: log.appSold || 0, appTook: log.appTook || 0,
     finalWage: s.appLevel ? E('appWage()') : 0,
     goldenSeeds: s.goldenSeeds || 0,

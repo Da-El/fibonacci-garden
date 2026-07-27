@@ -2859,7 +2859,13 @@ function spinWheel() {
 
 /* ---- wilt -------------------------------------------------------
    A ripe plant left standing loses one star per full day.         */
-const WILT_MS = 24 * 3600 * 1000;
+/* Six hours, not twenty-four. At a day, wilting fired exactly zero times in
+   three weeks at every visit rate — a ripe plant was always lifted long before
+   the penalty could reach it, so the mechanic existed only in the code and in
+   the perk that doubles it. Six hours means leaving a bloom standing overnight
+   costs it a star, which is the thing the apprentice is paid to prevent and
+   the thing evergreen is worth buying for. */
+const WILT_MS = 6 * 3600 * 1000;
 function wiltMs() { return WILT_MS * (hasPerk('evergreen') ? 2 : 1); }
 /* `at` is when the crop is being lifted, and defaults to now. The
    apprentice's work is replayed retroactively when you reopen the app,
@@ -3376,7 +3382,12 @@ function regenIntervalMs() {
 /* storms and aphids both bite harder the more you've prestiged —
    mastery earns richer prices AND rougher weather */
 function stormDmgChance() {
-  let c = hasPerk('stormsense') ? 15 : Math.min(45, 30 + state.prestiges * 5);
+  /* 30% was landing 9 to 14 hits a day across nine beds — every one of them a
+     stage knocked off a growing plant, which is a drop wasted, and water is the
+     currency. That is a 13% tax you cannot avoid without trellising all nine.
+     At 12% a storm is a thing that happens rather than weather you must
+     insure against. */
+  let c = hasPerk('stormsense') ? 6 : Math.min(20, 12 + state.prestiges * 2);
   if (hasDeco('fence')) c = Math.round(c * 0.9);      // the fence takes some of it
   return c;
 }

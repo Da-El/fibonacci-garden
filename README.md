@@ -80,7 +80,8 @@ making level 1 as good as level 16.
 2. **Let it grow to halfway**, then pour the rest — that's where quality comes from
 3. **Squash aphids** (they drink your water and freeze growth) and **clear weeds**
    from empty plots — sometimes there's a worm underneath
-4. **Harvest** before it wilts. Quality runs ★–★★★, plus two rare tiers:
+4. **Harvest** before it wilts — a ripe bloom loses a star every **6 hours** it stands,
+   which is what makes holding for a better price an actual gamble. Quality runs ★–★★★, plus two rare tiers:
    **✨ golden** (~3–11% chance, sells 3×) and **💎 pristine** — every stage
    perfect-poured with *not one drop spilled*, sells 2×
 5. **Sell** at market, where price moves with the day, the weather, the season, fever
@@ -107,7 +108,7 @@ plan:
 | ☁️ overcast | aphids stay away |
 | 🌧️ rain | water refills 2× fast, plants grow 1.5× |
 | 🔥 heatwave | prices +25%, but slow refill and slow growth |
-| ⛈️ storm | plants grow fast — but unprotected ones can be damaged |
+| ⛈️ storm | plants grow fast — but unprotected ones can be knocked back a stage |
 
 Seasons rotate weekly and favour a different growth form each time, boosting both its
 **price and its growth speed**. The boost is deliberately modest (+10% to +22%), because
@@ -223,7 +224,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 237 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 245 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
