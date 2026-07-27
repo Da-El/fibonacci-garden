@@ -252,7 +252,40 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       html.indexOf('if (beatMs() !== musicBeat) musicRetime();') > -1],
     ['the chord is as full as the garden is in bloom',
       html.indexOf('2 + Math.round(blooms / 2)') > -1],
-    ['the settings screen says so', html.indexOf('your blooms fill the chord') > -1]
+    ['the settings screen says so', html.indexOf('your blooms fill the chord') > -1],
+
+    /* ---- iterations 64-67 ---- */
+    ['the tutorial waits for the player rather than a timer',
+      E('STEPS').filter(function (s) { return s.await; }).length >= 4],
+    ['and a hesitated pour locks itself rather than hanging',
+      /auto: setTimeout\(function \(\) \{ lockPour\(\); \}, \d+\)/.test(html)],
+    ['every achievement pays something',
+      E('ACHIEVEMENTS').every(function (a) { return (a.coins | 0) > 0 || (a.golden | 0) > 0; })],
+    ['and none is already true on a fresh save',
+      !E('ACHIEVEMENTS').some(function (a) {
+        try { return a.test(E('freshState')()); } catch (e) { return false; }
+      })],
+    ['every season announces every boost it gives', (function () {
+      return E('SEASONS').every(function (s) {
+        const said = (s.blurb.match(/\+(\d+)%/g) || []).map(function (t) {
+          return 1 + parseInt(t, 10) / 100;
+        });
+        return Object.keys(s.boost).every(function (f) {
+          return said.some(function (v) { return Math.abs(v - s.boost[f]) < 0.005; });
+        });
+      });
+    })()],
+    ['a bed the game cannot read is let go of rather than crashed on',
+      html.indexOf('function forgetTheUnknown') > -1 &&
+      html.indexOf('forgetTheUnknown();') > -1],
+    ['and it runs after the crosses are rebuilt, not before',
+      html.indexOf('registerHybrids();        // bred plants') <
+      html.indexOf('forgetTheUnknown();       //')],
+    ['ripeness is asked in one place, safely',
+      html.indexOf('function isRipe(p)') > -1 &&
+      html.indexOf('p && p.stage >= byId[p.s].stages') < 0],
+    ['and stock the game cannot name is worth nothing, not NaN',
+      E('tierPrice')(null, 1) === 0]
   ];
   let wrong = 0;
   claims.forEach(function (c) {

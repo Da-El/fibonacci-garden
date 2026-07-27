@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-590 checks. Each one loads the game's inline `<script>` into a headless harness and
+602 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -92,6 +92,12 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**Guard the loops that run on a timer first.** A crash in a modal is one bad screen you
+close. A crash in the once-a-second tick stops the heartbeat for the rest of the
+session — no growth, no wages, no apprentice — until the app is reloaded. Calling all
+147 zero-argument functions against a garden holding a plant that does not exist found
+eight that threw, and the ones that mattered were the sweeps and the paint.
 
 **A green suite only covers what it exercises.** The pour crash hid because nothing had
 ever driven `startPour` → `lockPour` end to end, and `performance.now()` was frozen so

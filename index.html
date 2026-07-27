@@ -3549,6 +3549,13 @@ function barnCountAll() {
   return n;
 }
 function tierPrice(sp, t) {
+  /* Everything that values the barn funnels through here — barnValueAll,
+     sellAll, the market list, the wheel. A species the game has lost is
+     worth nothing rather than NaN: a NaN in the barn's value becomes a NaN
+     in your coins the moment you sell, and there is no coming back from
+     that. forgetTheUnknown() clears these at boot; this is the second lock
+     on the one door where a mistake costs a save. */
+  if (!sp) return 0;
   if (t === 'g') return goldPriceOf(sp);
   if (t === 'p') return priceOfQ(sp, 3) * 2;
   if (typeof t === 'string' && t.charAt(0) === 'h')      // honeyed: pollinated by a bee
@@ -4027,6 +4034,11 @@ function paintPlots() {
       }
 
       const sp = byId[p.s];
+      /* A bed pointing at a plant the game cannot find. It should not exist,
+         but this is the once-a-second paint and throwing here takes the
+         whole scene down every second for the rest of the session — so the
+         bed is simply drawn empty and the rest of the garden survives. */
+      if (!sp) { state.plots[i] = null; continue; }
       const done = p.stage >= sp.stages;
       /* Flagged before the first star goes, not after. A warning that arrives
          once the damage is done is a receipt, not a warning — and at a six-hour
@@ -4749,7 +4761,10 @@ function paintMarket() {
   if (!count) return;
 
   const season = seasonNow();
-  const ids = Object.keys(state.barn).sort(function (a, b) { return byId[a].idx - byId[b].idx; });
+  /* Stock the game cannot name cannot be listed or sorted — it is dropped
+     at boot, and dropped here too rather than throwing the market away. */
+  const ids = Object.keys(state.barn).filter(function (id) { return !!byId[id]; })
+                    .sort(function (a, b) { return byId[a].idx - byId[b].idx; });
   ids.forEach(function (id) {
     const sp = byId[id];
     const eff = priceOf(sp) / sp.price;                    // day × weather × season × φ

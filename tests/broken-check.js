@@ -193,6 +193,51 @@ function goodSave() {
   }
 }
 
+/* ---- and nothing anywhere may throw on a garden it cannot read ----
+   forgetTheUnknown() clears a dead reference at boot, so in practice one
+   should never be met at runtime. This asks the harder question anyway:
+   if one did appear — from a bug not yet found, a half-written save, a
+   future migration — how much of the game would it take down?
+
+   Every function in the game that takes no arguments, called against a
+   garden holding a plant that does not exist. Eight of a hundred and
+   forty-seven threw the first time this ran. */
+{
+  const sv = goodSave();
+  const g = bootWith(sv);
+  /* Injected after the boot rescue, on purpose: this is about what survives
+     a bad entry appearing, not about the rescue. */
+  g.s.plots[1] = { s: 'ghostplant', stage: 3, q: 2, stageAt: 0 };
+  g.s.barn.ghostplant = { 3: 4 };
+  g.s.orders.push({ s: 'ghostplant', n: 2, stars: 2, pay: 400, exp: 1e15 });
+  g.s.almanac.ghostplant = 2;
+
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const names = [];
+  const re = /^function ([a-zA-Z][a-zA-Z0-9_]*)\(\s*\)/gm;
+  let m;
+  while ((m = re.exec(src))) if (names.indexOf(m[1]) < 0) names.push(m[1]);
+
+  /* Two of these genuinely need a context to be called in: the pour marker
+     wants a pour in flight and starting one wants an open plot. Asking them
+     out of context is the fuzz being unfair, not the game being fragile. */
+  const NEEDS_CONTEXT = ['markerPos', 'startPour', 'lockPour', 'cancelPour'];
+  const broke = [];
+  names.forEach(function (fn) {
+    if (NEEDS_CONTEXT.indexOf(fn) > -1) return;
+    try { g.E(fn + '()'); } catch (e) { broke.push(fn + ': ' + e.message.slice(0, 45)); }
+  });
+  console.log('\n  ' + names.length + ' functions called against a garden holding a lost plant');
+  console.log('  threw: ' + (broke.length ? broke.join(' | ') : 'none'));
+  check('nothing in the game throws on a bed it cannot read',
+        !broke.length, broke.join(' | '));
+  /* And the thing that matters most: whatever happened, the coins are still
+     a number. A NaN there is a save nobody can recover. */
+  check('and the coins are still a real number after all of it',
+        isFinite(g.s.coins) && g.s.coins >= 0, String(g.s.coins));
+  check('and so is the water', isFinite(g.s.water) && g.s.water >= 0, String(g.s.water));
+}
+
 /* ---- a save the game writes must be one the game can read ---- */
 {
   /* The strongest form of this: play, save, reload, and nothing is lost or
