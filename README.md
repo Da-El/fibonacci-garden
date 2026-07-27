@@ -50,6 +50,21 @@ tap to lock it:
 - **Gold zone** → *perfect*: a care point, and your combo climbs
 - **Green** → *good*: the stage still skips
 - **Miss** → the drop **spills**, nothing grows, combo lost
+- **Don't tap at all** → after 3.8s the bar closes and the drop goes back in the can
+
+That last one used to lock the drop for you, and it was a hidden lottery. The marker is
+deterministic, so 3.8 seconds lands on a fixed point of the bar for each species —
+0.571 for aloe, 0.082 for chamomile — and whether that point fell inside the zone came
+down to where the hash had put the zone. Swept across every zone the game can produce:
+freezing at an aloe landed **96% perfects and never once spilled**, while freezing at a
+chamomile spilled three drops in four. Doing nothing beat tapping blind on several
+species and was hopeless on two, for no reason a player could ever discover.
+
+The whole band also has to stay **on** the bar. The zone's centre used to be drawn from
+a flat 25%–75% however wide the band around it was, so three pours in five had some of
+their green hanging off the end — up to a quarter of it. The gold always fitted, so
+nothing was unwinnable; it was just quietly unequal, and re-rollable for free by backing
+out and tapping again. The centre is now placed so the band fits wherever it lands.
 
 The difficulty is set in **milliseconds**, not as a width on the bar — the bar sweeps
 almost twice as fast for the priciest species, so a fixed width meant a fixed *look*
@@ -252,7 +267,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 979 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,029 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

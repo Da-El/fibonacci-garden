@@ -4512,17 +4512,29 @@ function pourZonesFor(stage, sp) {
   const h = hash32((state.pourN * 2654435761 + 4241) >>> 0);
   const sweep = pourPeriodFor(sp) / 2;                    // ms for one pass of the bar
   const ms = POUR_MS_EASY + (POUR_MS_HARD - POUR_MS_EASY) * pourDifficulty(sp, stage);
+  /* Fever used to widen the gold zone by half, and that was a loop rather
+     than a bonus: a wider zone lands more perfects, every eighth perfect
+     restarted the ninety seconds, so fever never ended. Measured, a sloppy
+     player held a combo of 213 and earned nearly twice as much; a precise
+     one reached 2,365 and two and a half times. It pays x1.618 on
+     everything, which is reward enough without also manufacturing more of
+     itself. */
+  const gw = (ms / sweep) * (hasPerk('steadyhand') ? 1.3 : 1);
+  const goodw = POUR_GOOD_MS / sweep;
+  /* The centre used to be anywhere from 25% to 75% of the bar, which put the
+     green band off the end on three pours in five and cost up to a quarter of
+     it — so how forgiving a drop was depended on where its zone happened to
+     land, invisibly, and a player could re-roll it for free by backing out of
+     the bar. The gold always fitted; the forgiveness did not. Keep the whole
+     band on the bar instead, so every pour offers the same window wherever it
+     lands. Some bands are wider than the bar itself at the easy end, and
+     those simply sit centred. */
+  const half = gw / 2 + goodw;
+  const lo = Math.min(0.5, half), hi = Math.max(0.5, 1 - half);
   return {
-    center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
-    /* Fever used to widen the gold zone by half, and that was a loop rather
-       than a bonus: a wider zone lands more perfects, every eighth perfect
-       restarted the ninety seconds, so fever never ended. Measured, a sloppy
-       player held a combo of 213 and earned nearly twice as much; a precise
-       one reached 2,365 and two and a half times. It pays x1.618 on
-       everything, which is reward enough without also manufacturing more of
-       itself. */
-    gw: (ms / sweep) * (hasPerk('steadyhand') ? 1.3 : 1),
-    goodw: POUR_GOOD_MS / sweep
+    center: lo + (h % 1000) / 1000 * (hi - lo),
+    gw: gw,
+    goodw: goodw
   };
 }
 function resolvePour(pos, z) {
@@ -4545,7 +4557,20 @@ function startPour() {
     t0: performance.now(),
     period: pourPeriodFor(sp),                            // pricier plants sweep faster
     center: z.center, gw: z.gw, goodw: z.goodw,
-    auto: setTimeout(function () { lockPour(); }, 3800)   // hesitate and it locks itself
+    /* This used to lock the drop for you, and that was a hidden lottery
+       nobody could see and nothing had ever measured. The marker is
+       deterministic, so 3.8 seconds lands on a fixed point of the bar for
+       each species — 0.571 for aloe, 0.082 for chamomile — and whether that
+       point falls inside the zone depends only on where the hash put the
+       zone. Swept over every zone the game can produce: freezing at an aloe
+       landed 96% perfects and never once spilled, while freezing at a
+       chamomile spilled three drops in four. Doing nothing was strictly
+       better than a blind tap on several species and hopeless on two, for no
+       reason a player could ever discover.
+
+       It gives the drop back instead. Hesitating now costs the same thing on
+       every plant on the shelf — a few seconds, and nothing else. */
+    auto: setTimeout(function () { pourTimedOut(); }, 3800)
   };
   const bar = $('pourbar');
   const gold = bar.querySelector('.zgold'), good = bar.querySelector('.zgood');
@@ -4569,6 +4594,24 @@ function cancelPour() {
   pour = null;
   $('pourwrap').classList.remove('show');
   $('actrow').style.display = '';
+}
+/* The bar closing on its own. The drop is not spent and nothing grows — say
+   so, because a bar that simply vanished would read as a bug. */
+function pourTimedOut() {
+  if (!pour) return;
+  cancelPour();
+  paintGrowFoot();
+  toast('The moment passed — the drop is still in your can');
+  /* A learner is exactly the person this fires on, and the step it fires
+     during is spotlighting the pour bar and waiting for a drop that is no
+     longer coming. Put them back on the step that opens one. While the
+     timeout still locked the drop this could not happen: the lock counted as
+     a pour and the coach moved on. */
+  if (coachActive() && coachAwait === 'poured') {
+    coachIdx = Math.max(0, coachIdx - 1);
+    tutor.step = coachIdx; saveTutor();
+    renderCoach();
+  }
 }
 function lockPour() {
   if (!pour) return;

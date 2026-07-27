@@ -119,10 +119,15 @@ function newcomer() {
 }
 
 /* ---- hesitating on a pour must not strand the learner ----
-   startPour arms a 3800ms timer that locks the drop for you if you never
-   tap. Nothing had ever run it, because deferred work was discarded. A
-   beginner reading the instruction is exactly the person it fires on, so
-   what it does to them matters more than what it does to anyone. */
+   startPour arms a 3800ms timer for the player who never taps. Nothing had
+   ever run it, because deferred work was discarded. A beginner reading the
+   instruction is exactly the person it fires on, so what it does to them
+   matters more than what it does to anyone.
+
+   It used to lock the drop for them, which was a hidden lottery on which
+   plant they were watering (iteration 87). It hands the drop back now — and
+   that is what makes the second half of this block matter: the coach was
+   riding on the lock counting as a pour. */
 {
   const g = newcomer();
   g.s.coins = 500;
@@ -139,15 +144,16 @@ function newcomer() {
   console.log('\n  hesitating four seconds: water ' + water + ' -> ' + g.s.water +
               ', stage ' + stage + ' -> ' + (g.s.plots[0] ? g.s.plots[0].stage : '-'));
   check('but four seconds does', g.E('pour') === null);
-  check('and it costs the drop rather than hanging', g.s.water < water,
-        water + ' -> ' + g.s.water);
+  check('and the drop goes back in the can rather than being spent for them',
+        g.s.water === water, water + ' -> ' + g.s.water);
   check('leaving the plant in a sane state',
         g.s.plots[0] && g.s.plots[0].stage >= stage &&
         g.s.plots[0].stage <= g.E('byId')['elm'].stages);
 
-  /* And the coach must move on either way — the code says a miss still
-     teaches it, so a beginner who hesitates is not left on a step whose
-     instruction they can no longer follow. */
+  /* And the coach must not leave them on a step whose instruction they can no
+     longer follow. The "tap in the gold" step spotlights the pour bar and
+     waits for a drop; when the bar closes itself that drop is never coming,
+     so the coach steps back to the one that opens a new bar. */
   const t = newcomer();
   t.s.coins = 500;
   t.E('startTutorial(true)');
@@ -162,13 +168,25 @@ function newcomer() {
   const at = t.step();
   check('the tutorial reaches the tap-in-the-gold step', t.waiting() === 'poured',
         'waiting for ' + t.waiting());
-  t.h.runTimers(4000);                       // never tap; let it lock itself
-  /* The auto-lock schedules the coach nudge 60ms later, so the clock has to
-     move again — draining once fires the lock and stops short of what it
-     arms. */
+  t.h.runTimers(4000);                       // never tap; let the bar close
   t.h.runTimers(100);
-  check('and a spilled drop still moves the tutorial on', t.step() > at,
-        'step ' + (at + 1) + ' -> ' + (t.step() + 1));
+  console.log('  the learner who never taps: step ' + (at + 1) + ' -> ' + (t.step() + 1) +
+              ', now waiting for ' + t.waiting());
+  check('a learner who never taps is put back on the step that opens a bar',
+        t.step() === at - 1 && t.waiting() === 'pourStarted',
+        'step ' + (t.step() + 1) + ', waiting for ' + t.waiting());
+  check('and the tutorial is not abandoned', !t.E('tutor').done);
+  /* And from there they must be able to finish it — the way out has to be
+     reachable, not just present. */
+  t.E('startPour()');
+  t.h.runTimers(100);
+  check('and tapping again puts them back at the gold',
+        t.waiting() === 'poured', 'waiting for ' + t.waiting());
+  t.E('pour').t0 = t.E('performance.now()') - t.E('pour').center * t.E('pour').period;
+  t.E('lockPour()');
+  t.h.runTimers(100);
+  check('and landing it moves them on', t.step() > at - 1,
+        'step ' + (t.step() + 1));
 }
 
 /* ---- a player who skips must stay skipped ---- */

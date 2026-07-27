@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-979 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,029 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -79,6 +79,7 @@ if you add a system, add the counter that proves it fires.
 | `apprentice-check.js` | the apprentice at both ranks, net of what she is paid |
 | `glasshouse-check.js` | the glasshouse played for three weeks against an open garden |
 | `grow-check.js` | every species grown from seed to a perfect bloom through the real pour |
+| `edge-check.js` | the pour at its edges: the ends of the bar, the last drop, the timeout |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -164,6 +165,14 @@ finding. The simulation's job was only to say it was worth caring about.
 gross — her wage comes out of coins, not out of earnings. So every measurement of her
 counted her benefit and none of her cost, and her first rank has been a net loss for two
 of the three visit rates the whole time.
+
+**"No change" from an instrument that cannot see the change is not evidence.** The pour
+was fixed so the forgiving band always fits on the bar, and the obvious next move was to
+run the simulation and check the economy had not moved. It would have said so whatever
+the change was: `sim.js` models a pour as `erf(goldMs/2 / tapError)` and has no notion of
+the bar having ends at all. The honest check was the deterministic one — a tap a fixed
+number of milliseconds out now resolves the same way for every zone the hash can produce,
+which is the entire point of the change and is provable without a single simulated day.
 
 **A perk measured by a bot that never uses the mechanic reads as worthless.** perk-check
 reported long fever at exactly +0 and called it unmeasurable, while fever-check — which

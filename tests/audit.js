@@ -277,8 +277,19 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
     /* ---- iterations 64-67 ---- */
     ['the tutorial waits for the player rather than a timer',
       E('STEPS').filter(function (s) { return s.await; }).length >= 4],
-    ['and a hesitated pour locks itself rather than hanging',
-      /auto: setTimeout\(function \(\) \{ lockPour\(\); \}, \d+\)/.test(html)],
+    /* It used to lock the drop for you, which was a species-by-species
+       lottery nobody could see (iteration 87). It hands the drop back now —
+       but the bar must still never be left hanging open. */
+    ['a hesitated pour closes the bar rather than hanging',
+      /auto: setTimeout\(function \(\) \{ pourTimedOut\(\); \}, \d+\)/.test(html)],
+    ['and gives the drop back rather than spending it',
+      (function () {
+        const fn = html.slice(html.indexOf('function pourTimedOut'),
+                              html.indexOf('function lockPour'));
+        return fn.indexOf('cancelPour()') > -1 &&
+               fn.indexOf('state.water--') < 0 &&
+               fn.indexOf('advanceStage') < 0;
+      })()],
     ['every achievement pays something',
       E('ACHIEVEMENTS').every(function (a) { return (a.coins | 0) > 0 || (a.golden | 0) > 0; })],
     ['and none is already true on a fresh save',
