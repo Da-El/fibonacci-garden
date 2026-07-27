@@ -301,7 +301,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,181 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,202 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -394,6 +394,12 @@ refused rather than half-loaded over a real save.
 
 **⚙ → postcard** renders your actual garden — real phyllotaxis, your level and best
 blooms — as a PNG worth sharing.
+
+Every large number the game says is abbreviated the same way — exact under 10,000, then
+`34.5k`, `3.71M`, `9.00B` — because the XP curve is geometric and a long-lived garden
+reaches figures nobody reads digit by digit. Level 30 already needs 35,386 XP and level
+45 needs 1.3 million; the level strip used to print those raw, next to coins that were
+formatted.
 
 ## Before shipping this for real
 

@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,181 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,202 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -87,6 +87,7 @@ if you add a system, add the counter that proves it fires.
 | `fit-check.js` | the text at 320px: what cannot wrap, and whether it fits the row |
 | `deep2-check.js` | the deepening pass over 89-92: every counter, every nowrap, the bench |
 | `begin-check.js` | the opening played the way a beginner plays it: slowly and imprecisely |
+| `modal-check.js` | every screen opened on seven worlds, including ones that should not exist |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -159,6 +160,15 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**Say how much your check actually read.** The screen sweep opened twenty-two painters
+across seven worlds and reported all clean — while three of the worlds were scanning
+empty strings, because it read ten hand-picked containers and `paintTop` writes into
+`#coins` and `#brandsub`, which are siblings of `#top` rather than children of it. The
+harness keeps ids in a flat map, so there is no tree to walk up. Rewritten to sweep every
+id the markup declares — 166 of them, 1.2MB of text a world — it immediately found raw
+XP printed as `9000000/48266891` beside coins that were formatted. A sweep that prints
+what it covered cannot quietly cover nothing.
 
 **A check that finds nothing is still worth having, if the thing it drove had never been
 driven.** Nothing in the game changed for iteration 94 — the beginner path holds up under

@@ -3868,8 +3868,14 @@ function fmtCoins(n) {
     const k = n / 1000;
     return (Math.abs(k) < 100 ? k.toFixed(1) : String(Math.round(k))) + 'k';
   }
-  const m = n / 1000000;
-  return (Math.abs(m) < 100 ? m.toFixed(2) : String(Math.round(m))) + 'M';
+  if (Math.abs(n) < 1000000000) {
+    const m = n / 1000000;
+    return (Math.abs(m) < 100 ? m.toFixed(2) : String(Math.round(m))) + 'M';
+  }
+  /* A prestiged garden a hundred days deep can hold billions, and "9000M" is
+     a number a person has to stop and count. */
+  const b = n / 1000000000;
+  return (Math.abs(b) < 100 ? b.toFixed(2) : String(Math.round(b))) + 'B';
 }
 
 function fmtLong(ms) {
@@ -3910,8 +3916,12 @@ function toast(msg) {
 function paintTop() {
   $('coins').textContent = fmtCoins(state.coins);
   $('brand').textContent = gardenName();
+  /* The XP was raw while the coins beside it were formatted, so the line read
+     "level 60 gardener · 9000000/48266891 xp" — two eight-digit numbers on the
+     one strip of the screen a player glances at. The curve is geometric: level
+     30 already needs 35,386 and level 45 needs 1.3 million. */
   $('brandsub').textContent = 'level ' + state.level + ' gardener · ' +
-    state.xp + '/' + xpForNext() + ' xp';
+    fmtCoins(state.xp) + '/' + fmtCoins(xpForNext()) + ' xp';
   $('golden').textContent = state.golden;
   $('p-golden').classList.toggle('show', state.golden > 0);
   /* What the seeds are actually worth, on the pill itself. It used to live
