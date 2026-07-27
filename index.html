@@ -1127,6 +1127,8 @@
 
     <!-- MARKET -->
     <div class="view hidden" id="v-market">
+      <div class="sectitle">Today <span id="dailyinfo"></span></div>
+      <div id="dailyrow"></div>
       <div class="sectitle">Orders <span id="orderinfo"></span></div>
       <div id="orderlist"></div>
       <div class="sectitle">Barn <span id="barninfo"></span></div>
@@ -1829,6 +1831,10 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    daily: null,                     // today's challenge run
+    dailyBest: {},                   // best score per day
+    dailyStreak: 0,
+    dailyWins: 0,
     appLevel: 0,                     // 0 = no apprentice
     appSlot: 0,
     appPaidDay: 0,
@@ -1904,6 +1910,10 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.daily = p.daily || null;
+        p.dailyBest = p.dailyBest || {};
+        p.dailyStreak = p.dailyStreak | 0;
+        p.dailyWins = p.dailyWins | 0;
         p.appLevel = p.appLevel | 0;
         p.appSlot = p.appSlot | 0;
         p.appPaidDay = p.appPaidDay | 0;
@@ -2300,6 +2310,8 @@ const ACHIEVEMENTS = [
   { id: 'flaw',  name: 'Flawless — a pristine bloom', golden: 1, test: function (s) { return s.pristineHarvests >= 1; } },
   { id: 'lvl8',  name: 'Master gardener (level 8)',  coins: 300, test: function (s) { return s.level >= 8; } },
   { id: 'roll3', name: 'High roller (spin a ×3)',    coins: 200, test: function (s) { return s.wheelBest >= 3; } },
+  { id: 'day1',  name: 'Beat a Daily',               coins: 150, test: function (s) { return (s.dailyWins | 0) >= 1; } },
+  { id: 'day7',  name: 'Seven Dailies beaten',       golden: 1,  test: function (s) { return (s.dailyWins | 0) >= 7; } },
   { id: 'bred1', name: 'Bred a new plant',           coins: 200, test: function (s) { return (s.bred | 0) >= 1; } },
   { id: 'bred5', name: 'Five crosses in the book',   golden: 1,  test: function (s) { return (s.bred | 0) >= 5; } },
   { id: 'ladder', name: 'Climbed the phyllotactic ladder', golden: 1,
@@ -3865,7 +3877,25 @@ function paintOrders() {
   });
 }
 
+function paintDailyRow() {
+  const spec = dailySpec(dayIndex());
+  const d = dailyState();
+  const best = (state.dailyBest && state.dailyBest[String(spec.day)]) || 0;
+  $('dailyinfo').textContent = 'streak ' + (state.dailyStreak | 0) +
+    ' · won ' + (state.dailyWins | 0);
+  $('dailyrow').innerHTML =
+    '<div class="row-item" style="cursor:pointer;border-color:' +
+      (d.done ? '#5c6b3f' : 'var(--line)') + '" id="dailycard">' +
+    '<div class="thumb">' + plantSVG(spec.sp, totalFor(spec.sp), Infinity, 'low') + '</div>' +
+    '<div class="info"><h4>The Daily ' + (d.done ? '<span class="badge up">beaten</span>' : '') + '</h4>' +
+    '<p>' + spec.sp.name + ' · ' + spec.drops + ' drops · par ' + spec.par + '🪙<br>' +
+    '💧' + d.water + ' left · scored ' + d.score + ' · best ' + best + '</p></div>' +
+    '<div class="actions"><button class="mini leafy">play</button></div></div>';
+  $('dailycard').addEventListener('click', dailyOpen);
+}
+
 function paintMarket() {
+  paintDailyRow();
   paintOrders();
   const list = $('barnlist');
   const count = barnCountAll();
@@ -5022,6 +5052,161 @@ function appTick() {
     return true;
   }
   return false;
+}
+
+/* ============================================================
+   The Daily
+   One challenge derived from the date, so every player gets the
+   same one: a fixed species, a fixed water budget, and a target.
+   Scored on how much value you wring out of the drops. Entirely
+   separate from your garden — it cannot be farmed, and losing it
+   costs you nothing but the attempt.
+   ============================================================ */
+function dailySpec(day) {
+  const h = hash32((day * 2654435761 + 8191) >>> 0);
+  const pool = BASE_SPECIES.filter(function (s) { return s.lvl <= 8; });   // always growable
+  const sp = pool[h % pool.length];
+  const drops = 12 + (hash32(h) % 3) * 4;              // 12, 16 or 20
+  const plots = 2 + (hash32(h + 7) % 2);               // 2 or 3
+  // par = what a competent player should manage
+  const par = Math.round(sp.price * (drops / sp.stages) * 0.85);
+  return { sp: sp, drops: drops, plots: plots, par: par, day: day };
+}
+function dailyState() {
+  const d = dayIndex();
+  if (!state.daily || state.daily.day !== d) {
+    const spec = dailySpec(d);
+    state.daily = {
+      day: d, water: spec.drops, plots: [], score: 0, done: false, pours: 0, perfects: 0
+    };
+    for (let i = 0; i < spec.plots; i++) state.daily.plots.push(null);
+    saveState();
+  }
+  return state.daily;
+}
+let dailyPour = null;
+function dailyOpen() {
+  const spec = dailySpec(dayIndex());
+  const d = dailyState();
+  dailyRender(spec, d);
+  $('modal').classList.add('show');
+}
+function dailyRender(spec, d) {
+  const best = (state.dailyBest && state.dailyBest[String(spec.day)]) || 0;
+  const rows = d.plots.map(function (p, i) {
+    if (!p) {
+      return '<div class="row-item" style="cursor:pointer" data-dplant="' + i + '">' +
+        '<div class="thumb" style="font-size:18px">➕</div>' +
+        '<div class="info"><h4>Empty bed</h4><p>tap to sow a ' + spec.sp.name.toLowerCase() + '</p></div></div>';
+    }
+    const done = p.stage >= spec.sp.stages;
+    const stars = starsFor(spec.sp, p.q);
+    return '<div class="row-item"' + (done ? '' : ' style="cursor:pointer" data-dwater="' + i + '"') + '>' +
+      '<div class="thumb">' + plantSVG(spec.sp, elementsAt(spec.sp, p.stage), Infinity, 'low') + '</div>' +
+      '<div class="info"><h4>' + spec.sp.name + ' <span class="stars">' + starStr(stars) + '</span></h4>' +
+      '<p>' + (done ? 'ready · worth ' + Math.round(spec.sp.price * STAR_MULT[stars]) + '🪙'
+                    : 'stage ' + p.stage + '/' + spec.sp.stages + ' · tap to water') + '</p></div>' +
+      (done ? '<div class="actions"><button class="mini gold" data-dharvest="' + i + '">harvest</button></div>' : '') +
+      '</div>';
+  }).join('');
+
+  $('card').innerHTML =
+    '<h3>The Daily</h3>' +
+    '<div class="sub">' + spec.sp.name + ' · ' + spec.drops + ' drops · par ' + spec.par + '🪙</div>' +
+    (dailyPour
+      ? '<div id="dpourwrap"><div id="pourbar" style="margin-bottom:7px">' +
+          '<div class="zone zgood"></div><div class="zone zgold"></div>' +
+          '<span id="pourmarker">💧</span></div>' +
+          '<div style="text-align:center;font-family:var(--mono);font-size:10px;color:var(--water)">' +
+          'tap the button when the drop is in the gold</div>' +
+          '<button class="btn" id="dlock" style="margin-top:8px;background:linear-gradient(160deg,var(--water),#2f7fae);color:#04222f;border-color:transparent;font-weight:700">TAP!</button></div>'
+      : '<div class="fact" style="text-align:center">' +
+          '💧 <b>' + d.water + '</b> left &nbsp;·&nbsp; 🪙 <b style="color:var(--gold)">' + d.score + '</b>' +
+          ' &nbsp;·&nbsp; best today <b>' + best + '</b><br>' +
+          '<span style="font-size:11px;color:var(--dim)">same challenge for everyone, every day</span></div>' +
+        rows +
+        (d.water <= 0 && !d.plots.some(function (p) { return p && p.stage >= spec.sp.stages; })
+          ? '<div class="fact" style="text-align:center;border-left-color:var(--bad)">Out of drops. ' +
+            (d.score >= spec.par ? 'You beat par!' : 'Par was ' + spec.par + '🪙 — try again tomorrow.') +
+            '</div>' : '')) +
+    '<button class="btn" id="c-close" style="margin-top:8px">close</button>';
+  $('c-close').addEventListener('click', function () { dailyPour = null; closeCard(); });
+
+  $('card').querySelectorAll('[data-dplant]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const i = +el.dataset.dplant;
+      d.plots[i] = { stage: 0, q: 0 };
+      sfx('plant'); saveState(); dailyRender(spec, d);
+    });
+  });
+  $('card').querySelectorAll('[data-dwater]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      if (d.water <= 0) return toast('No drops left today');
+      dailyStartPour(spec, d, +el.dataset.dwater);
+    });
+  });
+  $('card').querySelectorAll('[data-dharvest]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      const i = +el.dataset.dharvest, p = d.plots[i];
+      const stars = starsFor(spec.sp, p.q);
+      const gain = Math.round(spec.sp.price * STAR_MULT[stars]);
+      d.score += gain;
+      d.plots[i] = null;
+      const key = String(spec.day);
+      state.dailyBest = state.dailyBest || {};
+      if (d.score > (state.dailyBest[key] || 0)) state.dailyBest[key] = d.score;
+      if (d.score >= spec.par && !d.done) {
+        d.done = true;
+        state.dailyStreak = (state.dailyStreak | 0) + 1;
+        state.dailyWins = (state.dailyWins | 0) + 1;
+        gainCoins(Math.round(spec.par * 0.5));
+        sfx('jackpot');
+        toast('🏅 Par beaten! streak ' + state.dailyStreak);
+        checkAch();
+      } else sfx('harvest');
+      saveState(); paintTop(); dailyRender(spec, d);
+    });
+  });
+  if (dailyPour) dailySetupPour(spec, d);
+}
+function dailyStartPour(spec, d, idx) {
+  const p = d.plots[idx];
+  const z = pourZonesFor(p.stage);
+  dailyPour = { idx: idx, t0: performance.now(), period: 950,
+                center: z.center, gw: z.gw, goodw: z.goodw };
+  dailyRender(spec, d);
+}
+function dailySetupPour(spec, d) {
+  const bar = $('pourbar');
+  if (!bar) return;
+  const z = dailyPour;
+  bar.querySelector('.zgold').style.left = ((z.center - z.gw / 2) * 100) + '%';
+  bar.querySelector('.zgold').style.width = (z.gw * 100) + '%';
+  bar.querySelector('.zgood').style.left = ((z.center - z.gw / 2 - z.goodw) * 100) + '%';
+  bar.querySelector('.zgood').style.width = ((z.gw + z.goodw * 2) * 100) + '%';
+  (function anim() {
+    if (!dailyPour) return;
+    const ph = ((performance.now() - dailyPour.t0) / dailyPour.period) % 2;
+    const pos = ph < 1 ? ph : 2 - ph;
+    const m = $('pourmarker');
+    if (m) m.style.left = (pos * 100) + '%';
+    requestAnimationFrame(anim);
+  })();
+  $('dlock').addEventListener('click', function () {
+    const ph = ((performance.now() - dailyPour.t0) / dailyPour.period) % 2;
+    const pos = ph < 1 ? ph : 2 - ph;
+    const res = resolvePour(pos, dailyPour);
+    const p = d.plots[dailyPour.idx];
+    d.water--;
+    d.pours++;
+    if (res === 'perfect') { p.q += 2; p.stage++; d.perfects++; sfx('perfect', 3); }
+    else if (res === 'good') { p.q += 1; p.stage++; sfx('good'); }
+    else { sfx('spill'); hurtFlash(); }
+    if (p.stage > spec.sp.stages) p.stage = spec.sp.stages;
+    dailyPour = null;
+    saveState();
+    dailyRender(spec, d);
+  });
 }
 
 /* ---- welcome back -----------------------------------------------
