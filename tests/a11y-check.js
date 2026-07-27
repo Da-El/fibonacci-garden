@@ -22,7 +22,11 @@ const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
     ['dry spell now', 'drylbl', '🌵'],
     ['dry spell coming', 'drywarn', '🌵'],
     ['ready to harvest', 'gtag.ready', '★'],
-    ['aphids', 'gtag.warn', '⚠']
+    ['aphids', 'gtag.warn', '⚠'],
+    /* added in iterations 44 and 47, both of which introduced new colour */
+    ['a good market day', 'pricemood .up', '▲'],
+    ['a poor market day', 'pricemood .down', '▼'],
+    ['a ladder rung you hold', 'lrung.has', '✓']
   ];
   const missing = [];
   states.forEach(function (st) {

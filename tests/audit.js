@@ -180,7 +180,24 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
     ['icon buttons are 40px, not 30', /.iconbtn {[^}]*width: 40px/.test(html)],
     ['the reduce-motion media query exists', /prefers-reduced-motion: reduce/.test(html)],
     ['growth runs before the bees', html.indexOf('growthTick(); pollenTick()') > -1],
-    ['the pour reads its zone from the captured copy', /pos < z.center/.test(html)]
+    ['the pour reads its zone from the captured copy', html.indexOf('pos < z.center') > -1],
+    ['the season boost is trimmed to at most +22%',
+      Math.max.apply(null, E('SEASONS').map(function (s) {
+        return Math.max.apply(null, Object.keys(s.boost).map(function (k) { return s.boost[k]; }));
+      })) <= 1.22],
+    ['the market judges the day as a whole', E('priceStanding').length === 0],
+    ['the ledger records the day price mood', html.indexOf('mult: dayPriceMult()') > -1],
+    ['a Daily budget is a whole number of plants',
+      (function () {
+        for (let d = 0; d < 60; d++) {
+          const sp2 = E('dailySpec')(E('dayIndex()') + d);
+          if (sp2.drops % sp2.sp.stages !== 0) return false;
+        }
+        return true;
+      })()],
+    ['the Daily par is a fraction of a flawless run', html.indexOf('DAILY_PAR_FRACTION') > -1],
+    ['the breeding bench shows which rungs you hold', html.indexOf('function ladderStrip') > -1],
+    ['the bench says whether a cross lands on a rung', html.indexOf('function onLadder') > -1]
   ];
   claims.forEach(function (c) { console.log('  ' + (c[1] ? 'ok   ' : 'WRONG') + ' ' + c[0]); });
 }

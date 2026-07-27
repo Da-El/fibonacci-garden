@@ -96,6 +96,7 @@
   #pricemood .up   { color: var(--leaf); font-weight: 700; }
   #pricemood .down { color: var(--bad);  font-weight: 700; }
   #pricemood b     { color: var(--gold); }
+  #pricemood .pmhint { color: var(--dim); font-size: 10.5px; }
   body.cb #pricemood .up::before   { content: '▲ '; }
   body.cb #pricemood .down::before { content: '▼ '; }
   #top .grow { flex: 1; }
@@ -4541,23 +4542,25 @@ function paintMarket() {
   /* The verdict, said plainly, above the stock: is today good, and is it
      about to get better? Both are things the player can act on, and neither
      was visible before. */
+  /* Shown even with an empty barn. Whether today is a good day is exactly
+     what decides if you harvest a ripe plant now or leave it standing, and
+     that decision is made before there is anything in the barn at all. */
   const board = $('pricemood');
-  if (!count) { board.classList.remove('show'); }
-  else {
-    const stand = priceStanding();
-    const look = marketOutlook();
-    const bits = [];
-    if (stand) bits.push('<span class="' + stand.cls + '">' + stand.word + '</span>' +
-                         ' · ×' + stand.ratio.toFixed(2) + ' on the last ten');
-    else bits.push('<span>keeping track — a few more days and this will say ' +
-                   'whether today is a good one</span>');
-    bits.push(look.bestIn
-      ? '<b>' + weatherAt(weatherSlot() + look.bestIn).icon + ' in ' + look.mins +
-        ' min pays ' + Math.round((look.gain - 1) * 100) + '% more</b>'
-      : 'the next hour will not beat this');
-    board.innerHTML = bits.join('<br>');
-    board.classList.add('show');
-  }
+  const stand = priceStanding();
+  const look = marketOutlook();
+  const bits = [];
+  if (stand) bits.push('<span class="' + stand.cls + '">' + stand.word + '</span>' +
+                       ' · ×' + stand.ratio.toFixed(2) + ' on the last ten');
+  else bits.push('<span>keeping track — a few more days and this will say ' +
+                 'whether today is a good one</span>');
+  bits.push(look.bestIn
+    ? '<b>' + weatherAt(weatherSlot() + look.bestIn).icon + ' in ' + look.mins +
+      ' min pays ' + Math.round((look.gain - 1) * 100) + '% more</b>'
+    : 'the next hour will not beat this');
+  if (!count) bits.push('<span class="pmhint">nothing in the barn — this is worth ' +
+                        'reading before you lift a ripe plant</span>');
+  board.innerHTML = bits.join('<br>');
+  board.classList.add('show');
 
   list.innerHTML = '';
   if (!count) return;
