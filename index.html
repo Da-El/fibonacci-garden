@@ -5794,11 +5794,18 @@ $('coachskip').addEventListener('click', function (e) { e.stopPropagation(); end
 /* ---- one-time contextual hints ---- */
 const HINTS = {
   orders:  { ic: '📋', tx: '<b>Customer orders</b> pay well over market for a specific plant at a minimum quality — but they expire. The planter flags what\'s wanted.' },
-  fever:   { ic: '🔥', tx: '<b>Fibonacci Fever!</b> Eight perfect pours in a row lit the market up — everything sells at ×1.618 for the next minute and a half. Sell now.' },
+  /* Both figures in this one were wrong for twenty-four iterations. The
+     threshold moved from eight to thirteen and the duration from ninety
+     seconds to thirty-four when fever was retuned, and the hint that
+     explains fever to a player seeing it for the first time was left
+     saying the old ones. */
+  fever:   { ic: '🔥', tx: '<b>Fibonacci Fever!</b> Thirteen perfect pours in a row lit the market up — everything sells at ×1.618 for the next 34 seconds. Sell now.' },
   storm:   { ic: '⛈️', tx: 'A <b>storm</b> is coming. Unsheltered plants can be knocked back a stage — buy a <b>trellis</b> from a plant\'s screen to protect that plot.' },
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
-  wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' },
+  /* Six hours, not a day. Wilting was sped up four-fold in iteration 52
+     precisely because at a star a day it never once fired. */
+  wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — a star every 6 hours. Harvest them while they\'re at their best.' },
   apprentice: { ic: '👩‍🌾', tx: 'Your <b>apprentice</b> makes the clock carry plants further, so each one costs you fewer drops, and she tends those stages for a little quality. <b>She never takes a pour off you</b> — the skill, the combos and the pristine blooms stay yours. She takes a share of the takings, so she costs more in a good week.' },
   thirsty: { ic: '💧', tx: 'That plant has grown as far as the clock will take it — it <b>leans and pales</b> when it is waiting on you. From here on, every stage is a drop from your can, and every drop is a chance at a care point.' },
   dry:     { ic: '🌵', tx: 'A <b>dry spell</b> is coming: two days where a drop takes <b>twice as long</b>. You always get a day\'s notice — fill the can tonight and it costs you nothing. Prices run 15% higher throughout, so a gardener who prepared makes money out of it.' },

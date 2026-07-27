@@ -35,6 +35,7 @@ const FILES = [
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['return-check',  'everything a returning player is told: the hints, the digest, the title'],
   ['orders-check',  'the order board: what it pays, and whether it is ever worth planting for'],
   ['storm-check',   'the storm and the trellis: how often it lands and what shelter is worth'],
   ['buttons-check', 'every button in the game pressed three times, on a state that should refuse it'],
