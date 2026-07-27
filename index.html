@@ -2445,6 +2445,19 @@ function doPrestige() {
 /* ---- daily gift -------------------------------------------------
    One gift per day; consecutive days climb a 7-rung ladder ending
    in a golden seed, then the ladder repeats.                      */
+/* Seven days, and the seventh is the one worth coming back for.
+
+   It used to be a golden seed. A seed is the permanent bonus on every price
+   you will ever see, and the only other way to get one is to earn twelve
+   thousand coins and give up your whole garden for it — so a hundred days of
+   simply opening the app paid fourteen of them against the three a player
+   got for actually replanting three times. The permanent reward was an
+   attendance record rather than anything you did.
+
+   A full can instead. It is worth thirteen drops on your first week and
+   eighty-nine by the time you have earned the big one, so it never stops
+   mattering and never overtakes the thing you play for; and water is what
+   this game is actually about spending. */
 const GIFTS = [
   { label: '20🪙',          coins: 20 },
   { label: '30🪙',          coins: 30 },
@@ -2452,7 +2465,7 @@ const GIFTS = [
   { label: '50🪙',          coins: 50 },
   { label: '3 compost 🪱',  compost: 3 },
   { label: '80🪙',          coins: 80 },
-  { label: 'a golden seed ✨', golden: 1 }
+  { label: 'your can, filled 💧', fillCan: true }
 ];
 function checkDailyGift() {
   const today = dayIndex();
@@ -2464,16 +2477,22 @@ function checkDailyGift() {
     '<div class="sub">day ' + streak + ' of your streak</div>' +
     '<div class="fact" style="text-align:center;font-size:15px">Today: <b style="color:var(--gold)">' +
     gift.label + '</b>' + (streak % 7 === 0 ? '' :
-      '<br><span style="font-size:11px;color:var(--dim)">day 7 pays a golden seed — don\'t break the chain</span>') +
+      '<br><span style="font-size:11px;color:var(--dim)">day 7 fills your can — don\'t break the chain</span>') +
     '</div>' +
     '<button class="btn" id="c-gift" style="background:linear-gradient(160deg,var(--gold),var(--amber));color:#2a1d05;border-color:transparent;font-weight:700">claim</button>';
   $('modal').classList.add('show');
   $('c-gift').addEventListener('click', function () {
+    /* Once a day, whatever happens. Closing the card hides the button but
+       does not destroy it, so anything that reaches it a second time — a
+       stray dispatch, a double tap that beats the close — used to pay the
+       gift again. */
+    if (state.lastGiftDay === today) return;
     state.lastGiftDay = today;
     state.giftStreak = streak;
     if (gift.coins)   { gainCoins(gift.coins); }
     if (gift.compost) state.compost += gift.compost;
     if (gift.golden)  state.golden += gift.golden;
+    if (gift.fillCan) { state.water = waterCap(); state.lastTick = NOW(); }
     saveState(); closeCard(); paintTop(); sfx(gift.golden ? 'jackpot' : 'gift'); shakeApp();
     toast('🎁 Claimed ' + gift.label + ' · streak ' + streak);
   });

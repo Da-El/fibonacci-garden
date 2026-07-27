@@ -71,6 +71,28 @@ function run(cfg) {
 
     const s = S();
 
+    /* Claim the daily gift. The simulation had never opened it — it is a
+       modal with a button, and nothing here had ever pressed one — so a
+       hundred days of play reported none of what it pays, which is how a
+       golden seed every seventh day went unnoticed for seventy iterations. */
+    if (cfg.gift !== false) {
+      /* Empty the card first. checkDailyGift returns without touching it if
+         today's gift is already claimed, and the button it wrote yesterday
+         is still sitting there with its handler — pressing that is pressing
+         a button nobody has been shown, and it paid out every time. */
+      h.doc.getElementById('card').innerHTML = '';
+      guardCall('checkDailyGift', function () { E('checkDailyGift()'); return true; });
+      const btn = h.doc.getElementById('c-gift');
+      if (h.doc.getElementById('card').innerHTML.indexOf('c-gift') > -1 &&
+          btn && btn.listenerCount && btn.listenerCount('click')) {
+        const before = S().water;
+        btn.dispatchEvent({ type: 'click', target: btn,
+          stopPropagation: function () {}, preventDefault: function () {} });
+        log.gifts = (log.gifts || 0) + 1;
+        if (S().water > before) log.giftCans = (log.giftCans || 0) + 1;
+      }
+    }
+
     // clear pests and weeds
     s.plots.forEach(function (p, i) {
       if (p && p.bug) { E('curPlot = ' + i); guardCall('squashBug', function () { E('squashBug()'); return true; }); }
@@ -351,6 +373,9 @@ function run(cfg) {
        is the only one that can compare a player who prestiges against one
        who does not. */
     lifetime: s.earned | 0,
+    gifts: log.gifts || 0,
+    giftCans: log.giftCans || 0,
+    giftStreak: s.giftStreak | 0,
     hiveLevel: s.hiveLevel | 0,
     panes: (s.glassed || []).filter(Boolean).length,
     prestiges: log.prestiges || 0,
