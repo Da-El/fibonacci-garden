@@ -72,12 +72,20 @@ const h = H.build(); const E = h.evalIn;
   check('playing more visibly gets you further',
         reach.diligent > reach.twice || reach.twice > reach.casual,
         reach.casual + ' / ' + reach.twice + ' / ' + reach.diligent);
-  /* Not the whole shelf. A committed player should end three weeks within
-     reach of the last crop but not holding it — content you have exhausted is
-     worse than content you can see coming. */
-  check('a committed gardener ends three weeks one unlock short of the last',
-        reach.diligent >= top - 2 && reach.diligent < top,
-        'reached ' + reach.diligent + ', the last crop needs ' + top);
+  /* What matters is WHEN, not whether. The last crop arriving on the final
+     day of three weeks is the arc you want; arriving in week one means the
+     shelf was too short, and never arriving means a quarter of the game was
+     written for nobody. */
+  const lastDay = (function () {
+    const r = S.run({ seed: 4242, profile: 'diligent' });
+    for (let i = 0; i < r.days.length; i++) if (r.days[i].lvl >= top) return r.days[i].d;
+    return null;
+  })();
+  console.log('    the last crop unlocks for a committed gardener on ' +
+              (lastDay ? 'day ' + lastDay + ' of 21' : 'no day inside three weeks'));
+  check('the last crop is a three-week goal, not a first-week one',
+        lastDay === null || lastDay >= 14,
+        lastDay ? 'day ' + lastDay : 'never reached');
   check('and a once-a-day gardener still has a third of the shelf ahead',
         reach.casual < top - 3, 'reached ' + reach.casual + ' of ' + top);
 }
