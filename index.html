@@ -7020,8 +7020,26 @@ function makeHybrid(aId, bId) {
   const gen = Math.max(A.gen || 0, B.gen || 0) + 1;
   const vigour = 1 + 0.55 / gen;
   const price = Math.min(Math.round((A.price + B.price) / 2 * vigour), HYBRID_PRICE_CAP);
-  const seed = Math.max(2, Math.round(price * 0.38));   // margin stays in line with wild species
   const stages = Math.max(A.stages, B.stages);
+  /* What a cross costs to sow. This was a flat 38% of the price, under a
+     comment claiming the margin stayed in line with wild species — it did
+     not. The shelf tightens deliberately from 21% at the bottom to 54% at the
+     top, and that tightening is what stops the coins-per-drop ladder running
+     away. A top-tier price with a mid-shelf seed made romanesco × pineapple
+     pay 64.4 a drop against the best wild plant's 41.7: breeding was simply a
+     better crop than anything you could buy.
+
+     A cross is seeded to sit level with its dearer parent per drop instead.
+     The vigour bonus is still there and still visible — it buys a bigger
+     ticket price, which is what an order pays against — but it is not a
+     better rate. Interesting rather than lucrative, which is what this was
+     always supposed to mean. Floored so a ★ still turns a profit, and a cross
+     that lands there is one whose parents were already generous. */
+  const perDrop = function (sp) {
+    return (sp.price * STAR_MULT[3] - sp.seed) / sp.stages;
+  };
+  const level = Math.round(price * STAR_MULT[3] - Math.max(perDrop(A), perDrop(B)) * stages);
+  const seed = Math.max(2, Math.min(level, Math.round(price * 0.85)));
   const growMin = Math.round((A.growMin + B.growMin) / 2);
   // the child takes the rarer parent's form, and a blended hue
   const form = A.price >= B.price ? A.form : B.form;

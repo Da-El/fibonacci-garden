@@ -289,7 +289,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,111 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,136 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -344,6 +344,17 @@ rather than a lever you pull to see what happens.
 Each cross costs 35% more than the last, and a child's price is damped by generation and
 hard-capped, because crossing hybrids with hybrids used to compound into a money printer
 — an early simulation reached 3.6 million coins in three weeks.
+
+**A cross is a bigger ticket, not a better rate.** The price cap bounds what one bloom
+sells for, but the thing that decides whether a crop is worth growing is coins per drop,
+and that survived the cap: a hybrid's seed cost was a flat 38% of its price, while the
+wild shelf tightens deliberately from 21% on an elm to 54% on a pineapple. That widening
+is the whole reason the ladder doesn't run away — so a top-tier price on a mid-shelf seed
+made romanesco × pineapple pay **64.4 a drop against the best wild plant's 41.7**, and
+breeding was simply a better crop than anything you could buy. A cross is now seeded to
+sit level with its dearer parent per drop. Two thirds of them still sell for more than
+either parent, which is what a customer order pays against — the vigour is visible, it
+just isn't free.
 
 ## Sound
 

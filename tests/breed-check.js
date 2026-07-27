@@ -102,9 +102,30 @@ const wild = E('BASE_SPECIES');
           // later generations must not run away
           return byGen[gens[gens.length - 1]] <= cap;
         })());
-  check('a hybrid seed keeps a wild-species margin',
-        prices.every(function (p) { return p.seed >= p.price * 0.3 && p.seed <= p.price * 0.5; }),
-        prices.filter(function (p) { return p.seed < p.price * 0.3 || p.seed > p.price * 0.5; })
+  /* This used to demand the seed sit between 30% and 50% of the price, which
+     was a restatement of the flat 38% the code applied — and 30–50% was never
+     a "wild-species margin" either: the shelf runs from 21% on an elm to 54%
+     on a pineapple, and that widening is precisely what keeps the
+     coins-per-drop ladder from running away. The band was a proxy for a rule
+     nobody had written down. The rule is that a cross must not be a better
+     crop than the plants it came from; hybrid-check holds all 105 pairs to
+     it, and this holds the deep generations bred above to the same thing. */
+  const perDrop = function (sp) {
+    return (sp.price * G('STAR_MULT')[3] - sp.seed) / sp.stages;
+  };
+  const cheats = prices.filter(function (p) {
+    const sp = G('byId')[p.id];
+    if (!sp || !sp.parents) return false;
+    const a = G('byId')[sp.parents[0]], b = G('byId')[sp.parents[1]];
+    if (!a || !b) return false;
+    return perDrop(sp) > Math.max(perDrop(a), perDrop(b)) + 0.1;
+  });
+  check('no cross, at any generation, out-earns its own parents per drop',
+        !cheats.length,
+        cheats.slice(0, 3).map(function (p) { return p.id; }).join(' '));
+  check('and a ★ bloom always covers the seed it came from',
+        prices.every(function (p) { return p.seed < p.price; }),
+        prices.filter(function (p) { return p.seed >= p.price; })
           .slice(0, 3).map(function (p) { return p.id + ' ' + p.seed + '/' + p.price; }).join(' '));
 
   // and the cost of trying must escalate, or breeding is free

@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,111 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,136 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -83,6 +83,7 @@ if you add a system, add the counter that proves it fires.
 | `deep-check.js` | the deepening pass over 84-87: her chores, the panes, the planter, the digest |
 | `barn-check.js` | the barn as a decision: what waiting pays, and whether a hoarder ever loses |
 | `season-check.js` | a real mid-run garden left for three days, three weeks and a season |
+| `hybrid-check.js` | every cross bred, then planted, drawn, poured, lifted and reloaded |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -155,6 +156,19 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**A cap on the wrong quantity is not a cap.** Hybrid prices were hard-capped and damped
+by generation, and breed-check confirmed both — but what decides whether a crop is worth
+growing is coins per *drop*, and nothing bounded that. A cross of the two dearest plants
+paid 64.4 a drop against the best wild plant's 41.7. Before trusting a limit, check it
+constrains the number a player actually optimises.
+
+**A check can encode the bug it was meant to catch.** breed-check asserted a hybrid seed
+sits between 30% and 50% of its price, named that "a wild-species margin", and passed for
+dozens of iterations. It was a restatement of the flat 38% the code applied, and the real
+shelf runs 21%–54% — so the check was testing that the game still did the wrong thing.
+When an assertion's band is a round number nobody derived, go and measure the thing it
+claims to describe.
 
 **A counter with no reset is not the thing its name says.** `dailyStreak` was
 incremented in exactly one place and cleared nowhere in the game, so it counted lifetime
