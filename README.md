@@ -106,6 +106,19 @@ plan:
 Seasons rotate weekly and favour a different growth form each time, boosting both
 its **price and its growth speed**.
 
+## The dry spell
+
+Weather turns over every twenty minutes, which is too quick to plan around. Twice a
+week there's a **dry spell**: two days when a drop takes **twice as long** to arrive.
+
+You always get a day's notice, and the notice is the whole mechanic. Fill a big can the
+evening before and the spell costs you nothing; walk into one with an empty can and you
+lose two days of watering. It's the reason to own the 89-drop can rather than the
+13-drop one.
+
+And because everyone's water is short, the market pays **15% more** — so a gardener who
+saw it coming makes money out of a drought.
+
 ## Mastery
 
 XP comes from everything you do. **Levels 1–8 unlock the nine species**, and levels

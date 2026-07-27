@@ -76,6 +76,11 @@
   #p-coins { color: var(--gold); }
   #p-water { color: var(--water); }
   #p-water.empty { color: var(--bad); border-color: #4a2a22; }
+  /* a dry spell now, or one starting tomorrow — both are about the can */
+  #p-water.dry     { color: #e8b96a; border-color: #6b5324; background: #4a380f55; }
+  #p-water.drysoon { border-color: #6b5324; box-shadow: 0 0 0 1px #f0c24955 inset; }
+  #p-water.dry::after     { content: ' 🌵'; font-size: 9px; }
+  #p-water.drysoon::after { content: ' 🌵!'; font-size: 9px; opacity: .85; }
   #wtimer {
     font-size: 10px; color: var(--dim); margin-left: 2px; letter-spacing: .02em;
   }
@@ -431,6 +436,10 @@
   @keyframes bugjig { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg) translateY(-1px); } }
   .wilttag { color: var(--bad); }
   .thirstytag { color: var(--water); font-weight: 600; }
+  /* the dry spell, and the day's notice that matters more than the spell */
+  .drylbl  { color: #e8b96a; font-weight: 600; }
+  .drywarn { color: #f0c249; font-weight: 700; }
+  body.cb .drywarn::before { content: '⚠ '; }
   #bugBtn {
     position: absolute; top: 12px; right: 22px; z-index: 16;
     font-size: 26px; background: #00000055; border: 1px solid var(--line);
@@ -780,6 +789,13 @@
     padding: 9px 11px; margin-bottom: 12px;
   }
   #wbwaiting b { color: #fff; }
+  #wbdry {
+    text-align: center; font-size: 12.5px; color: #f3dcae;
+    background: linear-gradient(160deg, #6b532433, #6b532414);
+    border: 1px solid #8a6c2f66; border-radius: 12px;
+    padding: 8px 11px; margin-bottom: 12px;
+  }
+  #wbdry b { color: #f0c249; }
 
   /* ---------- onboarding ---------- */
   #coach { position: absolute; inset: 0; z-index: 42; display: none; }
@@ -2091,7 +2107,7 @@ function paintFever() {
 function priceOf(sp, sellMult) {
   return Math.max(1, Math.round(
     sp.price * priceMult(sp) * (sellMult === undefined ? weatherNow().sell : sellMult) *
-    goldenMult() * seasonMult(sp) *
+    (dryNow() ? DRY_SELL : 1) * goldenMult() * seasonMult(sp) *
     (feverActive() ? PHI : 1) * (hasPerk('greenthumb') ? 1.10 : 1)));
 }
 
@@ -3002,6 +3018,45 @@ const WEATHERS = [
   { id: 'heat',  icon: '🔥', name: 'heatwave', regen: 0.5, sell: 1.25, blurb: 'slow refill · prices +25%' },
   { id: 'storm', icon: '⛈️', name: 'storm',    regen: 2,   sell: 1,    blurb: 'unprotected plants may take damage!' }
 ];
+/* ---- the dry spell ----------------------------------------------
+   Weather turns over every twenty minutes, which is far too quick to
+   plan around — a heatwave is over before you could act on it. The dry
+   spell is the day-scale version: two days in every week when a drop
+   takes twice as long to arrive. You always get a day's notice, and
+   that notice is the whole mechanic. Fill a big can the evening before
+   and a dry spell costs you nothing; walk into one with an empty can
+   and you lose two days of watering. It is the reason to own the
+   89-drop can rather than the 13.
+   Water being scarce, everyone's is, so the market pays 15% more —
+   a gardener who saw it coming makes money out of it.               */
+const DRY_RUN_DAYS = 2;
+const DRY_REGEN = 2;                     // a drop takes twice as long
+const DRY_SELL  = 1.15;
+function dryStartOfWeek(w) {
+  // 0..4 so a run always finishes inside its own week
+  return (hash32((w * 2654435761 + 31337) >>> 0) % 5) + w * 7;
+}
+function isDryDay(day) {
+  const start = dryStartOfWeek(Math.floor(day / 7));
+  return day >= start && day < start + DRY_RUN_DAYS;
+}
+function dryNow() { return isDryDay(dayIndex()); }
+/* days until the next dry spell begins, or 0 if we are in one */
+function dryDaysAway() {
+  const today = dayIndex();
+  if (isDryDay(today)) return 0;
+  for (let d = 1; d <= 14; d++) if (isDryDay(today + d)) return d;
+  return null;
+}
+/* how far into the current spell we are, for the label */
+function dryDaysLeft() {
+  const today = dayIndex();
+  if (!isDryDay(today)) return 0;
+  let n = 1;
+  while (isDryDay(today + n)) n++;
+  return n;
+}
+
 function weatherSlot() { return Math.floor(NOW() / WEATHER_SLOT_MS); }
 function weatherAt(slot) {
   const r = hash32(slot * 2246822519 + 7 >>> 0) % 100;
@@ -3009,7 +3064,7 @@ function weatherAt(slot) {
 }
 function weatherNow() { return weatherAt(weatherSlot()); }
 function regenIntervalMs() {
-  return Math.round(WATER_REGEN_MS / weatherNow().regen /
+  return Math.round(WATER_REGEN_MS * (dryNow() ? DRY_REGEN : 1) / weatherNow().regen /
     (hasPerk('dawndew') ? 1.25 : 1) / (hasDeco('pond') ? 1.08 : 1));
 }
 
@@ -3249,6 +3304,16 @@ function paintTop() {
   $('p-golden').title = state.golden + ' golden seeds · all sale prices ×' + goldenMult().toFixed(3);
   $('water').textContent = state.water + '/' + waterCap();
   $('p-water').classList.toggle('empty', state.water === 0);
+  /* A dry spell is about water, so it belongs on the water pill — that is
+     where you look when deciding whether to spend a drop or bank it. */
+  const dryAway = dryDaysAway();
+  $('p-water').classList.toggle('dry', dryNow());
+  $('p-water').classList.toggle('drysoon', dryAway === 1);
+  $('p-water').title = dryNow()
+    ? '🌵 dry spell — a drop takes ' + fmtLong(regenIntervalMs()) + ', and prices are up 15%'
+    : dryAway === 1
+      ? '🌵 a dry spell starts tomorrow — a full can now is worth two days of watering'
+      : 'a drop every ' + fmtLong(regenIntervalMs());
   const ms = msToNextDrop();
   $('wtimer').textContent = state.water >= waterCap() ? 'full' : fmtMS(ms);
 
@@ -3306,8 +3371,16 @@ function paintSky() {
   orb.textContent = isDay() ? '☀️' : '🌙';
   orb.style.left = (8 + frac * 84) + '%';
   orb.style.top = (74 - Math.sin(frac * Math.PI) * 52) + '%';
-  $('scenelabel').textContent = wx.icon + ' ' + wx.name +
-    (isDusk() ? ' · 🌅 golden hour' : '');
+  /* The dry spell outranks the twenty-minute weather in the label, because
+     it is the thing you can actually act on. A day's notice is the mechanic,
+     so the warning has to be at least as loud as the spell itself. */
+  const away = dryDaysAway();
+  $('scenelabel').innerHTML = dryNow()
+    ? '<span class="drylbl">🌵 dry spell · ' + dryDaysLeft() + ' day' +
+      (dryDaysLeft() > 1 ? 's' : '') + ' left · slow refill, prices +15%</span>'
+    : away === 1
+      ? '<span class="drywarn">🌵 dry spell tomorrow — fill the can</span>'
+      : wx.icon + ' ' + wx.name + (isDusk() ? ' · 🌅 golden hour' : '');
 
   // drifting clouds by day only
   const sky = $('scenesky');
@@ -5568,6 +5641,13 @@ function showWelcomeBack(awayMs, l) {
       if (thirst) bits.push('<b>' + thirst + '</b> waiting for a drop');
       return '<div id="wbwaiting">' + bits.join(' · ') + '</div>';
     })() +
+    /* And the one thing worth knowing before you spend a drop. */
+    (dryNow()
+      ? '<div id="wbdry">🌵 <b>dry spell</b> — ' + dryDaysLeft() + ' more day' +
+        (dryDaysLeft() > 1 ? 's' : '') + ' of slow refill, but prices are up 15%</div>'
+      : dryDaysAway() === 1
+        ? '<div id="wbdry">🌵 <b>a dry spell starts tomorrow</b> — a full can tonight is worth two days of watering</div>'
+        : '') +
     (rows.length ? rows.join('') : '<div id="wbnothing">The garden was quiet. Nothing changed.</div>') +
     '<button class="btn" id="c-wb" style="margin-top:10px;background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">back to the garden</button></div>';
   $('modal').classList.add('show');
