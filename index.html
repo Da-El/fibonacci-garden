@@ -5006,18 +5006,20 @@ const STEPS = [
   { sel: '#card', title: 'Pick a seed',
     text: 'Cheap and quick, or slow and valuable? The <b>📋 badge</b> marks anything a customer is waiting on. Tap <b>Elm Sprig</b> to begin.',
     await: 'planted', hand: false },
-  { sel: '#growtimer', title: 'It grows by itself',
-    text: 'Plants grow on a timer — even while the app is closed. This bar is the next stage. You could simply walk away.' },
-  { sel: '#act', title: 'Or water it to skip ahead',
-    text: 'Watering skips a whole stage <b>instantly</b>. Tap it — a droplet will start sweeping.',
+  { sel: '#growtimer', title: 'The clock takes it halfway',
+    text: 'It grows on its own, even while the app is closed — but only to <b>half grown</b>. Then it stops and waits for you. Growing is free; <b>finishing is the game</b>.' },
+  { sel: '#act', title: 'The rest is yours to pour',
+    text: 'Each drop skips a whole stage <b>instantly</b>, and the clock never earns a plant a single care point — so a plant you never water can only ever be a ★. Tap to pour.',
     await: 'pourStarted', hand: true },
   { sel: '#pourbar', title: 'Tap in the gold',
-    text: 'Hit the <b>gold zone</b> for a perfect pour: a care point and a combo. Green is fine. Miss and the drop spills.',
+    text: 'Hit the <b>gold zone</b> for a perfect pour: a care point and a combo. Green is fine. Miss and the drop <b>spills</b> — nothing grows and the combo is lost.',
     await: 'poured', hand: true },
   { sel: '#carebar', title: 'Care becomes quality',
     text: 'Care points decide the harvest\'s <b>★ to ★★★</b> quality, and stars multiply the price. Perfect pours and watering at a plant\'s favourite hour both earn them.' },
+  { sel: '#p-water', title: 'Water is the whole budget',
+    text: 'A drop arrives every <b>13 minutes</b> — about 110 a day — and your can holds only so many. Coming back more often lets you <b>spend</b> them sooner, not earn more. A bigger can is the upgrade that matters.' },
   { sel: '#scene', title: 'The sky matters',
-    text: 'Real time of day and weather drive the garden. Plants earn care in their favourite hours, rain speeds growth, and <b>storms can damage</b> what isn\'t sheltered.' },
+    text: 'Real time of day and weather drive the garden. Plants earn care in their favourite hours, rain speeds growth, <b>storms can damage</b> what isn\'t sheltered — and twice a week a <b>dry spell</b> halves your refill for two days. You always get a day\'s warning: fill the can.' },
   { sel: '#tabs', title: 'Grow, sell, master',
     text: 'Harvest into the <b>barn</b>, sell at the <b>market</b> (prices move daily), and track everything in the <b>almanac</b>. That\'s the whole loop — enjoy your garden.' }
 ];
@@ -5105,7 +5107,10 @@ const HINTS = {
   aphid:   { ic: '🐛', tx: '<b>Aphids.</b> They drink your water and stop growth completely. Open the plant and squash them before watering again.' },
   prestige:{ ic: '✨', tx: 'You can <b>replant the garden</b> in the shop: everything resets except your almanac, levels and <b>golden seeds</b>, which raise all prices forever.' },
   wilt:    { ic: '🥀', tx: 'Ripe plants <b>wilt</b> if left standing — one star lost per day. Harvest them while they\'re at their best.' },
-  apprentice: { ic: '👩‍🌾', tx: 'Your <b>apprentice</b> works while the app is closed — watering, weeding and squashing aphids. She is paid daily whether you visit or not, and she never pours perfectly, so <b>combos and pristine blooms stay yours alone</b>.' },
+  apprentice: { ic: '👩‍🌾', tx: 'Your <b>apprentice</b> makes the clock carry plants further, so each one costs you fewer drops, and she tends those stages for a little quality. <b>She never takes a pour off you</b> — the skill, the combos and the pristine blooms stay yours. She takes a share of the takings, so she costs more in a good week.' },
+  thirsty: { ic: '💧', tx: 'That plant has grown as far as the clock will take it — it <b>leans and pales</b> when it is waiting on you. From here on, every stage is a drop from your can, and every drop is a chance at a care point.' },
+  dry:     { ic: '🌵', tx: 'A <b>dry spell</b> is coming: two days where a drop takes <b>twice as long</b>. You always get a day\'s notice — fill the can tonight and it costs you nothing. Prices run 15% higher throughout, so a gardener who prepared makes money out of it.' },
+  glass:   { ic: '🔒', tx: 'You can now put <b>glass over a bed</b>. Nothing grows on its own in there, so every stage is yours to pour — which is what makes a <b>💎 pristine</b> possible without racing the clock. Nothing spoils under glass either. One spilled drop is all that stands between you and the best bloom in the game.' },
   bees:    { ic: '🐝', tx: 'Your <b>bees</b> visit growing plants and pollinate them: +1 care each, and a 🍯 bloom sells for more. They favour <b>flowers</b> over sprigs, so keep some in the ground.' },
   breed:   { ic: '🧬', tx: 'The <b>breeding bench</b> is open in the shop. Cross two plants you have grown and the child\'s angle is the <b>mediant</b> of its parents — that\'s how the real phyllotactic ladder is built.' }
 };
@@ -6668,6 +6673,11 @@ setInterval(function () {
     for (let k = 1; k <= 2; k++) if (weatherAt(weatherSlot() + k).id === 'storm') { hint('storm'); break; }
   }
   if (state.plots.some(function (p) { return p && p.ripeAt && NOW() - p.ripeAt > WILT_MS * 0.6; })) hint('wilt');
+  // the first time the clock hands a plant back, say what that means
+  if (thirstyCount() > 0) hint('thirsty');
+  // and a dry spell only teaches anything if it is explained before it lands
+  if (dryDaysAway() === 1 || dryNow()) hint('dry');
+  if (state.level >= GLASS_LVL) hint('glass');
   // keep order countdowns honest while the market is open
   if (++tickN % 30 === 0 && !$('v-market').classList.contains('hidden')) paintMarket();
 }, 1000);
