@@ -235,6 +235,31 @@
     0%,100% { filter: drop-shadow(0 0 3px #f2c53c55); }
     50%     { filter: drop-shadow(0 0 12px #f2c53caa); }
   }
+  /* Stalled: the clock has given this plant everything it will, and it is
+     waiting on you. It should read across the whole bed at a glance and
+     without relying on colour, so it leans — a slow, tired sway from the
+     base — and the leaves go a little pale and dry. */
+  .gplant.thirsty .gart {
+    animation: droop 4.6s ease-in-out infinite;
+    transform-origin: 50% 100%;
+    filter: saturate(0.62) brightness(0.94);
+  }
+  @keyframes droop {
+    0%, 100% { transform: rotate(-2.4deg) translateY(0.5px); }
+    50%      { transform: rotate(2.1deg) translateY(1.5px); }
+  }
+  /* a drop hanging in the air above a plant that wants one */
+  .gplant.thirsty::after {
+    content: '💧'; position: absolute; top: -13px; left: 50%;
+    font-size: 10px; pointer-events: none;
+    animation: thirstbob 2.4s ease-in-out infinite;
+  }
+  @keyframes thirstbob {
+    0%, 100% { transform: translate(-50%, 0);    opacity: .45; }
+    50%      { transform: translate(-50%, -3px); opacity: 1; }
+  }
+  body.nomotion .gplant.thirsty .gart,
+  body.nomotion .gplant.thirsty::after { animation: none; }
   /* an empty or overgrown spot in the bed */
   .gspot {
     position: absolute; bottom: 0; cursor: pointer;
@@ -405,6 +430,7 @@
   }
   @keyframes bugjig { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg) translateY(-1px); } }
   .wilttag { color: var(--bad); }
+  .thirstytag { color: var(--water); font-weight: 600; }
   #bugBtn {
     position: absolute; top: 12px; right: 22px; z-index: 16;
     font-size: 26px; background: #00000055; border: 1px solid var(--line);
@@ -746,6 +772,14 @@
     font-variant-numeric: tabular-nums; flex: 0 0 auto;
   }
   #wbnothing { text-align: center; color: var(--dim); font-size: 13px; padding: 18px 8px; }
+  /* what to do next, said once, above the account of what happened */
+  #wbwaiting {
+    text-align: center; font-size: 13.5px; color: #dcecff;
+    background: linear-gradient(160deg, #2f6da833, #2f6da814);
+    border: 1px solid #4f8fc855; border-radius: 12px;
+    padding: 9px 11px; margin-bottom: 12px;
+  }
+  #wbwaiting b { color: #fff; }
 
   /* ---------- onboarding ---------- */
   #coach { position: absolute; inset: 0; z-index: 42; display: none; }
@@ -2593,8 +2627,16 @@ function timerCeiling(sp) {
   return Math.max(1, Math.ceil(sp.stages * reach));
 }
 
+/* Plants the clock has finished with, waiting on a drop from you. */
+function isThirsty(p) {
+  if (!p || p.bug) return false;
+  const sp = byId[p.s];
+  return !!sp && p.stage < sp.stages && p.stage >= timerCeiling(sp);
+}
+function thirstyCount() { return state.plots.filter(isThirsty).length; }
+
 function growthTick() {
-  let grew = false;
+  let grew = false, justStalled = 0;
   state.plots.forEach(function (p) {
     if (!p) return;
     const sp = byId[p.s];
@@ -2616,8 +2658,23 @@ function growthTick() {
       }
       if (p.stage >= sp.stages) { p.ripeAt = Math.min(NOW(), p.stageAt); logEvent('ripened'); }
     }
-    if (p.stage >= ceil && p.stage < sp.stages) logEvent('stalled');
+    if (p.stage >= ceil && p.stage < sp.stages) {
+      logEvent('stalled');
+      /* Say so once, the moment it happens, and only while the app is open —
+         a catch-up replays hours at once and the digest reports that instead. */
+      if (!p.stallNoted) {
+        p.stallNoted = 1;
+        if (!ledger) justStalled++;
+      }
+    } else if (p.stage < ceil) {
+      p.stallNoted = 0;                          // it is growing again
+    }
   });
+  if (justStalled) {
+    sfx('thirsty');
+    toast(justStalled === 1 ? 'A plant has grown as far as it can — it wants a drop 💧'
+                            : justStalled + ' plants are waiting for a drop 💧');
+  }
   if (grew) saveState();
   return grew;
 }
@@ -2754,7 +2811,12 @@ const SFX = {
   wheel:    function () { tone(300, 0.06, { type: 'square', gain: 0.05 }); },
   jackpot:  function () { chord([523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98], 0.8, { type: 'triangle', gain: 0.17 }); buzz([50, 40, 50, 40, 90]); },
   fail:     function () { tone(300, 0.5, { type: 'sawtooth', slideTo: 90, gain: 0.13, filter: 700 }); buzz([80, 50, 80]); },
-  gift:     function () { chord([659.25, 830.6, 1046.5], 0.4, { type: 'sine', gain: 0.16 }); buzz(25); }
+  gift:     function () { chord([659.25, 830.6, 1046.5], 0.4, { type: 'sine', gain: 0.16 }); buzz(25); },
+  /* A plant has grown as far as the clock will take it. Two soft notes
+     falling a whole tone — the sound of something settling and waiting,
+     not an alarm. It plays once per plant, not once per stalled plant. */
+  thirsty:  function () { tone(587.33, 0.22, { type: 'sine', gain: 0.09 });
+                          tone(523.25, 0.34, { type: 'sine', gain: 0.08, delay: 0.16 }); }
 };
 function sfx(name, arg) { const f = SFX[name]; if (f) try { f(arg); } catch (e) {} }
 
@@ -3192,8 +3254,22 @@ function paintTop() {
 
   // notification dots
   const anyReady = state.plots.some(function (p) { return p && p.stage >= byId[p.s].stages; });
-  $('dot-garden').classList.toggle('on', anyReady);
+  $('dot-garden').classList.toggle('on', anyReady || thirstyCount() > 0);
   $('dot-market').classList.toggle('on', barnCountAll() > 0);
+
+  /* Carry the count into the tab title, so a garden with work waiting says
+     so from the tab strip or the installed app's window without being
+     opened. Ready blooms come first — those can wilt. */
+  const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+  const thirst = thirstyCount();
+  document.title = (ready ? '🌼' + ready + ' ' : '') + (thirst ? '💧' + thirst + ' ' : '') +
+                   'Fibonacci Garden';
+  /* and on the installed app's icon, where it can be seen without opening
+     anything at all. Not supported everywhere, so it is entirely optional. */
+  if (navigator.setAppBadge) {
+    const n = ready + thirst;
+    try { n ? navigator.setAppBadge(n) : navigator.clearAppBadge(); } catch (e) {}
+  }
   $('dot-journal').classList.toggle('on', journalClaimable() > 0);
 }
 
@@ -3441,12 +3517,16 @@ function paintPlots() {
       const growFrac = 0.42 + (p.stage / sp.stages) * 0.58;
       const h = w * 1.5 * growFrac;
 
+      // the clock has given this one all it will — it is waiting on a drop
+      const thirsty = !done && !p.bug && p.stage >= timerCeiling(sp);
+
       const d = document.createElement('div');
-      d.className = 'gplant' + (done ? ' ready' : '');
+      d.className = 'gplant' + (done ? ' ready' : (thirsty ? ' thirsty' : ''));
       d.setAttribute('role', 'button');
       d.setAttribute('tabindex', '0');
       d.setAttribute('aria-label', sp.name + ', ' +
         (done ? 'ready to harvest, ' + starStr(st).length + ' stars, worth ' + priceOfQ(sp, st) + ' coins'
+              : thirsty ? 'grown as far as the clock will take it, waiting to be watered'
               : 'stage ' + p.stage + ' of ' + sp.stages + (p.bug ? ', aphids' : '')));
       d.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -3460,13 +3540,11 @@ function paintPlots() {
       d.style.bottom = baseY + 'px';
       d.style.zIndex = 10 + rowI;
       d.style.opacity = 0.78 + depth * 0.22;
-      // a stalled plant has had all the clock will give it — it wants a drop
-      const stalled = !done && !p.bug && p.stage >= timerCeiling(sp);
       d.innerHTML =
-        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : (stalled ? ' thirsty' : ''))) + '">' +
+        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : (thirsty ? ' thirsty' : ''))) + '">' +
           (done ? (wilting ? 'wilting ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
                 : p.bug ? '🐛 paused'
-                : stalled ? p.stage + '/' + sp.stages + ' · 💧 needs you'
+                : thirsty ? p.stage + '/' + sp.stages + ' · 💧 needs you'
                 : p.stage + '/' + sp.stages + ' · ' + fmtLong(etaToReady(sp, p))) +
         '</div>' +
         (state.trellised[i] || p.pollen
@@ -3620,14 +3698,22 @@ function paintGrowFoot() {
     if (!isFinite(dur)) {
       gt.querySelector('i').style.width = '0%';
       gt.querySelector('.tlbl').innerHTML = '<span class="wilttag">🐛 aphids — growth stopped</span>';
+    } else if (isThirsty(p)) {
+      /* The clock has given this plant everything it will. Saying "next
+         stage grows itself in 12m" here would simply be untrue. */
+      gt.querySelector('i').style.width = '100%';
+      gt.querySelector('.tlbl').innerHTML =
+        '<span class="thirstytag">💧 the clock is done — the last ' +
+        (sp.stages - p.stage) + ' stage' + (sp.stages - p.stage > 1 ? 's are' : ' is') + ' yours</span>';
     } else {
       const frac = Math.min(1, (NOW() - p.stageAt) / dur);
       gt.querySelector('i').style.width = (frac * 100) + '%';
       const rate = growthRate(p, sp);
+      const left = timerCeiling(sp) - p.stage;
       gt.querySelector('.tlbl').textContent =
         'next stage grows itself in ' + fmtLong(Math.max(0, dur - (NOW() - p.stageAt))) +
         (rate > 1 ? ' · ' + (weatherNow().id === 'rain' ? '🌧️' : prefIcon(sp)) + ' ×' + rate.toFixed(2) : '') +
-        ' — watering skips it';
+        ' — ' + left + ' more on the clock, then it is yours';
     }
   }
 
@@ -5471,6 +5557,17 @@ function showWelcomeBack(awayMs, l) {
   $('card').innerHTML =
     '<div id="wb"><div class="wbhead"><h3>Welcome back</h3></div>' +
     '<div class="wbaway">you were away ' + fmtLong(awayMs) + '</div>' +
+    /* The one line that says what to do next, above the account of what
+       happened: how many plants are standing there waiting on you. */
+    (function () {
+      const ready = state.plots.filter(function (p) { return p && p.stage >= byId[p.s].stages; }).length;
+      const thirst = thirstyCount();
+      if (!ready && !thirst) return '';
+      const bits = [];
+      if (ready) bits.push('<b>' + ready + '</b> ready to pick');
+      if (thirst) bits.push('<b>' + thirst + '</b> waiting for a drop');
+      return '<div id="wbwaiting">' + bits.join(' · ') + '</div>';
+    })() +
     (rows.length ? rows.join('') : '<div id="wbnothing">The garden was quiet. Nothing changed.</div>') +
     '<button class="btn" id="c-wb" style="margin-top:10px;background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">back to the garden</button></div>';
   $('modal').classList.add('show');
@@ -6193,6 +6290,8 @@ const OPTIONS = [
 ];
 function applyA11y() {
   document.body.classList.toggle('cb', !!opt.cb);
+  // so CSS-driven idle animations can honour the motion switch too
+  document.body.classList.toggle('nomotion', !opt.motion);
 }
 function openSettings() {
   $('card').innerHTML =

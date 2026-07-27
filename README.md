@@ -39,6 +39,11 @@ and the rest is yours to pour. That's what makes water the real currency: the si
 your can decides how many plants you can finish, and the clock alone never earns a
 single care point, so it can never sell you anything better than ★.
 
+A thirsty plant tells you so without being asked — it leans in a slow, tired sway,
+its leaves go pale, a droplet hangs over it, and it chimes once when it stalls. The
+count rides in the tab title (`💧3 Fibonacci Garden`) and on the installed app's
+badge, so you can see there's work waiting without opening anything.
+
 **Watering skips a stage instantly**, and it's a skill shot. A droplet sweeps a bar —
 tap to lock it:
 
