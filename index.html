@@ -545,6 +545,32 @@
   #devbox p { margin: 0 0 9px; font-family: var(--mono); font-size: 9px; color: var(--dim); line-height: 1.5; letter-spacing: .04em; }
   #devbox .r { display: flex; gap: 7px; }
 
+  /* ---------- welcome back ---------- */
+  #wb .wbhead { text-align: center; margin-bottom: 4px; }
+  #wb .wbaway {
+    font-family: var(--mono); font-size: 10.5px; color: var(--gold);
+    text-align: center; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .wbrow {
+    display: flex; align-items: center; gap: 11px; padding: 9px 11px;
+    border-radius: 11px; margin-bottom: 7px; background: #ffffff07;
+    border-left: 2px solid var(--line);
+    opacity: 0; transform: translateY(8px);
+    animation: wbin .4s ease-out forwards;
+  }
+  @keyframes wbin { to { opacity: 1; transform: translateY(0); } }
+  .wbrow.good { border-left-color: var(--leaf); }
+  .wbrow.bad  { border-left-color: var(--bad); }
+  .wbrow.gold { border-left-color: var(--gold); }
+  .wbrow .wbic { font-size: 19px; flex: 0 0 auto; width: 24px; text-align: center; }
+  .wbrow .wbtx { flex: 1; font-size: 13px; }
+  .wbrow .wbtx b { color: var(--pale); }
+  .wbrow .wbn {
+    font-family: var(--mono); font-size: 13px; color: var(--gold);
+    font-variant-numeric: tabular-nums; flex: 0 0 auto;
+  }
+  #wbnothing { text-align: center; color: var(--dim); font-size: 13px; padding: 18px 8px; }
+
   /* ---------- settings ---------- */
   #gear {
     position: absolute; top: 22px; right: 16px; z-index: 12;
@@ -955,6 +981,7 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    lastSeen: Date.now(),            // for the welcome-back digest
     xp: 0,                           // progress into the current level
     level: 1,                        // gardener level — gates species
     perks: {},                       // perkId -> true (permanent choices)
@@ -1013,6 +1040,7 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        if (typeof p.lastSeen !== 'number') p.lastSeen = Date.now();
         p.xp = p.xp | 0;
         p.level = Math.max(1, p.level | 0);
         p.perks = p.perks || {};
@@ -1410,7 +1438,10 @@ function bugTick() {
     if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
     if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
     p.bugSlot = slot;
-    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < bugChance()) { p.bug = true; sfx('bug'); }
+    if (hash32((slot * 31 + i * 7 + 13) >>> 0) % 100 < bugChance()) {
+      p.bug = true; logEvent('aphids');
+      if (!ledger) sfx('bug');
+    }
     changed = true;
   });
   if (changed) saveState();
@@ -1445,11 +1476,14 @@ function weedTick() {
   for (let s = state.weedChecked + 1; s <= cur; s++) {
     state.plots.forEach(function (p, i) {
       if (p || state.weeds[i]) return;
-      if (hash32((s * 41 + i * 11 + 5) >>> 0) % 100 < WEED_CHANCE) { state.weeds[i] = true; sprouted++; }
+      if (hash32((s * 41 + i * 11 + 5) >>> 0) % 100 < WEED_CHANCE) {
+        state.weeds[i] = true; sprouted++; logEvent('weeds');
+      }
     });
   }
   state.weedChecked = cur;
   saveState();
+  if (ledger) return;
   if (sprouted) toast('🌾 Weeds took over ' + sprouted + ' empty plot' + (sprouted > 1 ? 's' : ''));
 }
 function clearWeed(i) {
@@ -1600,7 +1634,8 @@ function growthTick() {
       p.stageAt += dur;
       p.stage++;                                   // the clock grows it — no care point
       grew = true;
-      if (p.stage >= sp.stages) p.ripeAt = Math.min(NOW(), p.stageAt);
+      logEvent('stages');
+      if (p.stage >= sp.stages) { p.ripeAt = Math.min(NOW(), p.stageAt); logEvent('ripened'); }
     }
   });
   if (grew) saveState();
@@ -1849,10 +1884,12 @@ function stormTick() {
         p.stageAt = NOW();
       }
       hits++;
+      logEvent('stormHits');
     });
   }
   state.stormChecked = cur;
   saveState();
+  if (ledger) return;                     // the digest will report it
   if (hits) {
     sfx('storm');
     hurtFlash();
@@ -1925,7 +1962,8 @@ function ensureOrders() {
   let changed = false;
   state.orders = state.orders.filter(function (o) {
     if (o.exp > NOW() && byId[o.s]) return true;
-    changed = true;                                            // expired quietly
+    changed = true;
+    logEvent('ordersLost');
     return false;
   });
   while (state.orders.length < 3) {
@@ -1974,6 +2012,16 @@ function deliverOrder(idx) {
   checkAch();
 }
 
+/* ---- offline ledger -------------------------------------------
+   While the app is closed the world keeps turning. Everything the
+   tick functions do gets recorded here so the player gets an
+   account of it instead of silently changed numbers.            */
+let ledger = null;                    // non-null only while catching up
+function logEvent(key, n) {
+  if (!ledger) return;
+  ledger[key] = (ledger[key] || 0) + (n === undefined ? 1 : n);
+}
+
 /* water accrues on real time, including while the app is closed.
    Current weather's rate is applied to the whole elapsed window —
    an approximation, but a kind one. */
@@ -1983,7 +2031,9 @@ function tickWater() {
   const interval = regenIntervalMs();
   const gained = Math.floor((now - state.lastTick) / interval);
   if (gained > 0) {
+    const before = state.water;
     state.water = Math.min(waterCap(), state.water + gained);
+    logEvent('water', state.water - before);
     state.lastTick += gained * interval;
     if (state.water >= waterCap()) state.lastTick = now;
     saveState();
@@ -2929,6 +2979,48 @@ $('grow-name').addEventListener('click', function () {
   $('c-close').addEventListener('click', closeCard);
 });
 
+/* ---- welcome back -----------------------------------------------
+   Run the whole world forward with the ledger armed, then show the
+   player an account of what happened rather than changed numbers. */
+const WB_MIN_AWAY = 4 * 60 * 1000;          // don't nag for a quick tab-switch
+function catchUpWithLedger() {
+  const awayMs = Math.max(0, NOW() - state.lastSeen);
+  ledger = {};
+  tickWater(); stormTick(); growthTick(); bugTick(); weedTick(); ensureOrders();
+  const l = ledger;
+  ledger = null;
+  state.lastSeen = NOW();
+  saveState();
+  return { awayMs: awayMs, l: l };
+}
+function showWelcomeBack(awayMs, l) {
+  const rows = [];
+  const add = function (cls, icon, text, n) {
+    rows.push('<div class="wbrow ' + cls + '" style="animation-delay:' + (rows.length * 0.07).toFixed(2) + 's">' +
+      '<span class="wbic">' + icon + '</span><span class="wbtx">' + text + '</span>' +
+      (n ? '<span class="wbn">' + n + '</span>' : '') + '</div>');
+  };
+  if (l.ripened)    add('gold', '🌼', '<b>' + l.ripened + '</b> plant' + (l.ripened > 1 ? 's' : '') + ' finished growing', 'ready');
+  if (l.stages)     add('good', '🌱', 'grew <b>' + l.stages + '</b> stage' + (l.stages > 1 ? 's' : '') + ' on their own', '');
+  if (l.water)      add('good', '💧', 'the can refilled', '+' + l.water);
+  if (l.aphids)     add('bad',  '🐛', '<b>' + l.aphids + '</b> plant' + (l.aphids > 1 ? 's' : '') + ' picked up aphids', 'tap!');
+  if (l.stormHits)  add('bad',  '⛈️', 'a storm battered <b>' + l.stormHits + '</b> plant' + (l.stormHits > 1 ? 's' : ''), '');
+  if (l.weeds)      add('bad',  '🌾', 'weeds took <b>' + l.weeds + '</b> empty plot' + (l.weeds > 1 ? 's' : ''), '');
+  if (l.ordersLost) add('bad',  '📋', '<b>' + l.ordersLost + '</b> order' + (l.ordersLost > 1 ? 's' : '') + ' expired', '');
+
+  $('card').innerHTML =
+    '<div id="wb"><div class="wbhead"><h3>Welcome back</h3></div>' +
+    '<div class="wbaway">you were away ' + fmtLong(awayMs) + '</div>' +
+    (rows.length ? rows.join('') : '<div id="wbnothing">The garden was quiet. Nothing changed.</div>') +
+    '<button class="btn" id="c-wb" style="margin-top:10px;background:linear-gradient(160deg,var(--leaf),var(--leaf-d));color:#06210a;border-color:transparent;font-weight:700">back to the garden</button></div>';
+  $('modal').classList.add('show');
+  $('c-wb').addEventListener('click', function () {
+    closeCard();
+    checkDailyGift();                        // the gift comes after the digest
+  });
+  if (l.ripened) sfx('gift');
+}
+
 /* ---- settings ---- */
 const OPTIONS = [
   { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
@@ -2999,17 +3091,26 @@ $('dev-reset').addEventListener('click', function () {
 /* ---- loop ---- */
 function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); paintShop(); paintGrowFoot(); }
 
-tickWater();
-stormTick();              // storms strike before the catch-up growth
-growthTick();             // catch up everything that grew while the app was closed
-bugTick();
-weedTick();
+/* Catch the world up with the ledger armed, then either show the
+   digest or (for a quick return) just carry on. */
+const caught = catchUpWithLedger();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
 paintAll();
 paintFever();
 GO('garden');
-checkDailyGift();         // greet a new day with its gift
+if (caught.awayMs >= WB_MIN_AWAY && Object.keys(caught.l).length) {
+  showWelcomeBack(caught.awayMs, caught.l);
+} else {
+  checkDailyGift();       // greet a new day with its gift
+}
+
+/* keep lastSeen honest so the next visit measures from now */
+setInterval(function () { state.lastSeen = NOW(); saveState(); }, 20000);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) { state.lastSeen = NOW(); saveState(); }
+});
+window.addEventListener('pagehide', function () { state.lastSeen = NOW(); saveState(); });
 
 let tickN = 0;
 setInterval(function () {
