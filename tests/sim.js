@@ -19,6 +19,7 @@ function run(cfg) {
      milliseconds, and whether that lands depends on the window the game
      actually offers for this species at this stage. */
   const tapError = cfg.tapError === undefined ? 34 : cfg.tapError;   // ±ms, 1 sigma
+  const POUR_SECONDS = cfg.pourSeconds === undefined ? 2.5 : cfg.pourSeconds;
   const flatSkill = cfg.skill;                                       // opt-out for old callers
   const erf = function (z) {
     const t = 1 / (1 + 0.3275911 * Math.abs(z) / Math.SQRT2);
@@ -119,12 +120,41 @@ function run(cfg) {
         order.sort(function (a, b) { return a.left - b.left; });
         const pick = order[0];
         E('curPlot = ' + pick.i);
-        const perfect = rand() < perfectChance(pick.i);
         const p = S().plots[pick.i];
-        if (!perfect) p.spills = (p.spills | 0) + 1;
-        if (!guardCall('advanceStage', function () {
-          E('advanceStage("water",' + (perfect ? 'true' : 'false') + ')'); return true;
-        })) break;
+        if (cfg.realPour) {
+          /* Drive the actual minigame. markerPos() is (now - t0) / period, so
+             setting t0 places the marker exactly where we want it — which lets
+             a simulated tap aim at the centre with a real error in milliseconds
+             and then go through lockPour itself. Combos, fever and the spill
+             path are the game's own rather than a copy of them. */
+          if (!guardCall('startPour', function () { E('startPour()'); return true; })) break;
+          const pr = E('pour');
+          if (!pr) break;
+          const sweep = pr.period / 2;
+          // a normal error, from two uniforms
+          const u1 = Math.max(1e-9, rand()), u2 = rand();
+          const gauss = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+          const offMs = gauss * tapError;
+          let target = pr.center + offMs / sweep;
+          target = Math.max(0.001, Math.min(0.999, target));
+          pr.t0 = E('performance.now()') - target * pr.period;
+          /* A pour takes a couple of seconds for a person: aim, tap, watch it
+             land. The bot's whole session used to happen at one instant, so a
+             ninety-second fever covered every pour in it and fever measured as
+             the normal state of the game. Advance the clock as we play. */
+          S().offset += POUR_SECONDS * 1000;
+          log.pours = (log.pours || 0) + 1;
+          if (E('feverActive()')) log.feverPours = (log.feverPours || 0) + 1;
+          if (!guardCall('lockPour', function () { E('lockPour()'); return true; })) break;
+          if (E('feverActive()') && !E('state').__wasFever) log.fevers = (log.fevers || 0) + 1;
+          E('state').__wasFever = E('feverActive()');
+        } else {
+          const perfect = rand() < perfectChance(pick.i);
+          if (!perfect) p.spills = (p.spills | 0) + 1;
+          if (!guardCall('advanceStage', function () {
+            E('advanceStage("water",' + (perfect ? 'true' : 'false') + ')'); return true;
+          })) break;
+        }
         continue;
       }
 
@@ -218,7 +248,8 @@ function run(cfg) {
     appLevel: s.appLevel, quit: log.quit,
     wilted: log.wilted | 0, weeds: log.weeds | 0, ordersPaid: log.ordersPaid | 0,
     ordersLost: log.ordersLost | 0, aphids: log.aphids | 0, stormHits: log.stormHits | 0,
-    bestCombo: s.bestCombo | 0, feverEver: (s.feverUntil | 0) > 0 ? 1 : 0,
+    bestCombo: s.bestCombo | 0, fevers: log.fevers | 0,
+    pours: log.pours | 0, feverPours: log.feverPours | 0,
     appPick: log.appPick || 0, appSold: log.appSold || 0, appTook: log.appTook || 0,
     finalWage: s.appLevel ? E('appWage()') : 0,
     goldenSeeds: s.goldenSeeds || 0,

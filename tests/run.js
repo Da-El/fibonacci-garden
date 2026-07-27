@@ -28,7 +28,8 @@ const FILES = [
   ['level-check',   'the XP curve against three weeks of real play'],
   ['quiet-check',   'the mechanics that barely fire — wilt, weeds, aphids, storms'],
   ['postcard-check','the postcard: draws for every garden, and stays inside the picture'],
-  ['scene-check',   'the garden lays out inside its bounds at every size and bed count']
+  ['scene-check',   'the garden lays out inside its bounds at every size and bed count'],
+  ['fever-check',   'fever: how often it fires, what it is worth, and that it ends']
 ];
 
 let pass = 0, fail = 0, broken = [];

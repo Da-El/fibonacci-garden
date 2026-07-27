@@ -2274,7 +2274,15 @@ function seasonMult(sp) { return seasonNow().boost[sp.form] || 1; }
    Land a combo of 8 (and every 8 after) and the market runs hot:
    all sale prices ×φ for 90 seconds. Harvest fast, sell faster.   */
 const PHI = 1.6180339887;
-const FEVER_MS = 90 * 1000;
+/* Thirty-four seconds, at a combo of thirteen — both Fibonacci, and both
+   chosen from measurement rather than feel. At ninety seconds and a combo of
+   eight, fever triggered once every thirty-three pours and covered thirty-six:
+   it re-armed faster than it expired, so it was on for roughly eighty per cent
+   of every session at every level of accuracy. A bonus that is almost always
+   running is not a bonus, it is the price list. These numbers put it at about
+   a quarter of play for a good player and rather less for a careless one. */
+const FEVER_MS = 34 * 1000;
+const FEVER_COMBO = 13;
 function feverActive() { return NOW() < state.feverUntil; }
 function startFever() {
   const ms = hasPerk('longfever') ? 150 * 1000 : FEVER_MS;
@@ -4228,9 +4236,14 @@ function pourZonesFor(stage, sp) {
   const ms = POUR_MS_EASY + (POUR_MS_HARD - POUR_MS_EASY) * pourDifficulty(sp, stage);
   return {
     center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
-    gw: (ms / sweep) *
-        (feverActive() ? 1.5 : 1) *                       // fever widens the gold
-        (hasPerk('steadyhand') ? 1.3 : 1),
+    /* Fever used to widen the gold zone by half, and that was a loop rather
+       than a bonus: a wider zone lands more perfects, every eighth perfect
+       restarted the ninety seconds, so fever never ended. Measured, a sloppy
+       player held a combo of 213 and earned nearly twice as much; a precise
+       one reached 2,365 and two and a half times. It pays x1.618 on
+       everything, which is reward enough without also manufacturing more of
+       itself. */
+    gw: (ms / sweep) * (hasPerk('steadyhand') ? 1.3 : 1),
     goodw: POUR_GOOD_MS / sweep
   };
 }
@@ -4325,7 +4338,10 @@ function lockPour() {
       floatText($('p-coins'), '+' + bonus + '🪙 combo!', 'var(--gold)');
       toast('🔥 Fibonacci combo ' + state.combo + ' · +' + bonus + '🪙');
     }
-    if (state.combo >= 8 && state.combo % 8 === 0) startFever();
+    /* Each fever is earned separately. Without the reset the combo simply
+       carries on climbing and the next multiple of eight arrives within a few
+       pours, so the ninety seconds would renew almost as fast as they ran. */
+    if (state.combo >= FEVER_COMBO) { startFever(); state.combo = 0; }
   } else {
     sfx('good');
     // near-misses point the same way, so a good pour still teaches the timing

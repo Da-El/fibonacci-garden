@@ -57,8 +57,13 @@ and a wildly varying *ask*. Every pour on the shelf gives you between **150ms** 
 elm's first stage) and **75ms** (a pineapple's last): a real 2× gradient, all of it
 landable. Miss and the game tells you whether you were early or late, because that's
 the only thing you can act on. Combos pay out at Fibonacci counts (3, 5, 8, 13…),
-and a combo of **8 triggers Fibonacci Fever** — 90 seconds where everything sells at
-**×1.618** and the gold zones widen, so a hot streak feeds itself.
+and a combo of **13 triggers Fibonacci Fever** — 34 seconds where everything sells at
+**×1.618**. Both numbers are Fibonacci and both come from measurement: it used to be a
+combo of 8 for 90 seconds *and* it widened the gold zone, which made it a loop rather
+than a bonus — more perfects, so more triggers, so more fever, without end. It was on
+for 60–82% of every session no matter how well you played. Now it covers about a quarter
+of a careless run and most of a precise one, which is what a reward for accuracy should
+look like.
 
 ## Water is the currency
 
