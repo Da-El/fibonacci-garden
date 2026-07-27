@@ -5451,7 +5451,6 @@ function appWages() {
   const owed = Math.max(0, today - (state.appPaidDay | 0));
   if (!owed) return;
   const bill = owed * appWage();
-  logEvent('wageRate', 0);              // so the digest can show the rate
   state.appPaidDay = today;
   if (state.coins >= bill) {
     state.coins -= bill;
