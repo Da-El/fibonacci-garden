@@ -787,6 +787,60 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- journal ---------- */
+  .chapter {
+    border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px;
+    background: var(--panel-2); overflow: hidden;
+  }
+  .chapter.active { border-color: #5c6b3f; background: linear-gradient(#1d2618, #171d13); }
+  .chapter.done { opacity: .62; }
+  .chapter.locked { opacity: .4; }
+  .chhead { display: flex; align-items: center; gap: 10px; padding: 12px 13px; }
+  .chnum {
+    font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: .12em;
+    flex: 0 0 auto; width: 24px;
+  }
+  .chttl { flex: 1; }
+  .chttl h4 { margin: 0; font-size: 14.5px; font-weight: 600; }
+  .chttl p { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; font-style: italic; }
+  .chpct {
+    font-family: var(--mono); font-size: 11px; color: var(--gold); flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .chapter.done .chpct { color: var(--leaf); }
+  .chbody { padding: 0 13px 12px; }
+  .obj {
+    display: flex; align-items: center; gap: 9px; padding: 6px 0;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .obj .box {
+    flex: 0 0 auto; width: 15px; height: 15px; border-radius: 4px;
+    border: 1px solid var(--line); display: flex; align-items: center;
+    justify-content: center; font-size: 10px; color: #06210a;
+  }
+  .obj.hit .box { background: var(--leaf); border-color: transparent; }
+  .obj.hit { color: var(--pale); }
+  .obj .prog { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: auto; }
+  .chreward {
+    margin-top: 9px; padding: 9px 11px; border-radius: 10px;
+    background: #f2c53c14; border: 1px solid #5c4a22;
+    font-family: var(--mono); font-size: 10.5px; color: var(--gold);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chreward button {
+    margin-left: auto; padding: 6px 13px; border-radius: 100px; border: none; cursor: pointer;
+    background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05;
+    font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .chreward button:disabled { opacity: .35; cursor: not-allowed; }
+  #jrnhead {
+    background: linear-gradient(160deg, #221c12, #16130d);
+    border: 1px solid #4a3d29; border-radius: 14px; padding: 14px 15px; margin-bottom: 14px;
+  }
+  #jrnhead h4 { margin: 0 0 4px; font-size: 14px; color: var(--pale); }
+  #jrnhead p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; font-style: italic; }
+
   /* ---------- bees ---------- */
   .bee {
     position: absolute; z-index: 8; font-size: 15px; pointer-events: none;
@@ -886,6 +940,15 @@
       </div>
     </div>
 
+    <!-- JOURNAL -->
+    <div class="view hidden" id="v-journal">
+      <div id="jrnhead">
+        <h4 id="jrntitle">The Botanist's Journal</h4>
+        <p id="jrnquote"></p>
+      </div>
+      <div id="chapters"></div>
+    </div>
+
     <!-- ALMANAC -->
     <div class="view hidden" id="v-almanac">
       <div class="sectitle">Botanist's almanac <span id="alinfo"></span></div>
@@ -954,6 +1017,7 @@
     <div id="tabs">
       <div class="tab on" data-v="garden"><span class="ic">🌿</span>garden<span class="dot" id="dot-garden"></span></div>
       <div class="tab" data-v="market"><span class="ic">🪙</span>market<span class="dot" id="dot-market"></span></div>
+      <div class="tab" data-v="journal"><span class="ic">📔</span>journal<span class="dot" id="dot-journal"></span></div>
       <div class="tab" data-v="almanac"><span class="ic">📖</span>almanac</div>
       <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
     </div>
@@ -1240,6 +1304,8 @@ function freshState() {
     ladySlot: 0,                     // last ladybug slot seen
     hybrids: {},                     // id -> {a,b} crosses the player has bred
     bred: 0,
+    chapters: {},                    // journal chapters claimed
+    weedsCleared: 0,
     hive: false,                     // bees pollinate growing plants
     hiveLevel: 0,
     pollenSlot: 0,
@@ -1305,6 +1371,8 @@ function loadState() {
         p.ladySlot = p.ladySlot | 0;
         p.hybrids = p.hybrids || {};
         p.bred = p.bred | 0;
+        p.chapters = p.chapters || {};
+        p.weedsCleared = p.weedsCleared | 0;
         p.hive = !!p.hive;
         p.hiveLevel = p.hiveLevel | 0;
         p.pollenSlot = p.pollenSlot | 0;
@@ -1457,6 +1525,8 @@ function doPrestige() {
     ach: state.ach,
     hybrids: state.hybrids,          // bred plants are knowledge, not stock
     bred: state.bred,
+    chapters: state.chapters,        // the journal is a record, it survives
+    weedsCleared: state.weedsCleared,
     ordersDelivered: state.ordersDelivered,
     goldenHarvests: state.goldenHarvests,
     xp: state.xp,
@@ -1772,6 +1842,7 @@ function clearWeed(i) {
   delete state.weeds[i];
   const worm = hash32((weedSlot() * 13 + i * 3 + 1) >>> 0) % 100 < 10;
   if (worm) state.compost++;
+  state.weedsCleared = (state.weedsCleared | 0) + 1;
   saveState();
   sfx('weed');
   shakeApp();
@@ -2378,6 +2449,7 @@ function paintTop() {
   const anyReady = state.plots.some(function (p) { return p && p.stage >= byId[p.s].stages; });
   $('dot-garden').classList.toggle('on', anyReady);
   $('dot-market').classList.toggle('on', barnCountAll() > 0);
+  $('dot-journal').classList.toggle('on', journalClaimable() > 0);
 }
 
 /* ---- sky strip ---- */
@@ -3507,6 +3579,188 @@ function hint(key) {
 }
 $('hintx').addEventListener('click', function () { $('hintbar').classList.remove('show'); });
 
+/* ============================================================
+   The Botanist's Journal
+   Chapters of concrete objectives that introduce the systems in a
+   deliberate order and give the game somewhere to be going.
+   Each objective reads live state, so old saves slot straight in.
+   ============================================================ */
+const CHAPTERS = [
+  { id: 'c1', title: 'First light',
+    quote: 'Nine plants. One angle. Let us begin at the beginning.',
+    objs: [
+      { t: 'Harvest your first plant',        get: function (s) { return s.harvested; }, need: 1 },
+      { t: 'Sell something at market',        get: function (s) { return s.earned > 0 ? 1 : 0; }, need: 1 },
+      { t: 'Grow three plants',               get: function (s) { return s.harvested; }, need: 3 }
+    ],
+    reward: { coins: 120, label: '120🪙' } },
+
+  { id: 'c2', title: 'A steady hand',
+    quote: 'Water is not poured. It is placed.',
+    objs: [
+      { t: 'Land a perfect pour',             get: function (s) { return s.bestCombo; }, need: 1 },
+      { t: 'Reach a combo of 5',              get: function (s) { return s.bestCombo; }, need: 5 },
+      { t: 'Grow a ★★ plant',                 get: function (s) { return bestAlmanac() >= 2 ? 1 : 0; }, need: 1 }
+    ],
+    reward: { coins: 200, compost: 3, label: '200🪙 + 3🪱' } },
+
+  { id: 'c3', title: 'Reading the sky',
+    quote: 'The garden keeps its own hours. Learn them.',
+    objs: [
+      { t: 'Grow a ★★★ plant',                get: function (s) { return bestAlmanac() >= 3 ? 1 : 0; }, need: 1 },
+      { t: 'Deliver a customer order',        get: function (s) { return s.ordersDelivered; }, need: 1 },
+      { t: 'Reach gardener level 4',          get: function (s) { return s.level; }, need: 4 }
+    ],
+    reward: { coins: 350, label: '350🪙' } },
+
+  { id: 'c4', title: 'Weather the weather',
+    quote: 'Every storm passes. What matters is what is still standing.',
+    objs: [
+      { t: 'Build a trellis',                 get: function (s) { return s.trellised.filter(Boolean).length; }, need: 1 },
+      { t: 'Clear weeds three times',         get: function (s) { return s.weedsCleared | 0; }, need: 3 },
+      { t: 'Deliver five orders',             get: function (s) { return s.ordersDelivered; }, need: 5 }
+    ],
+    reward: { coins: 500, label: '500🪙' } },
+
+  { id: 'c5', title: 'The swarm',
+    quote: 'Let something else do the walking.',
+    objs: [
+      { t: 'Keep a hive',                     get: function (s) { return s.hive ? 1 : 0; }, need: 1 },
+      { t: 'Harvest a pollinated bloom',      get: function (s) { return s.pollinatedSold; }, need: 1 },
+      { t: 'Own six plots',                   get: function (s) { return s.plotCount; }, need: 6 }
+    ],
+    reward: { golden: 1, label: '1 golden seed ✨' } },
+
+  { id: 'c6', title: 'Fever',
+    quote: 'Eight in a row and the whole market leans in.',
+    objs: [
+      { t: 'Reach a combo of 8',              get: function (s) { return s.bestCombo; }, need: 8 },
+      { t: 'Harvest a golden bloom',          get: function (s) { return s.goldenHarvests; }, need: 1 },
+      { t: 'Earn 5,000 coins in total',       get: function (s) { return s.earned; }, need: 5000 }
+    ],
+    reward: { coins: 900, label: '900🪙' } },
+
+  { id: 'c7', title: 'The mediant',
+    quote: 'Two fractions, added wrongly, give the only answer that matters.',
+    objs: [
+      { t: 'Breed a hybrid',                  get: function (s) { return s.bred | 0; }, need: 1 },
+      { t: 'Breed a true Fibonacci fraction', get: function (s) { return fibHybridCount(); }, need: 1 },
+      { t: 'Grow a plant you bred',           get: function (s) { return hybridsGrown(); }, need: 1 }
+    ],
+    reward: { golden: 1, coins: 500, label: '500🪙 + 1 ✨' } },
+
+  { id: 'c8', title: 'Flawless',
+    quote: 'Not one drop spilled. Not one.',
+    objs: [
+      { t: 'Harvest a pristine bloom',        get: function (s) { return s.pristineHarvests; }, need: 1 },
+      { t: 'Reach a combo of 13',             get: function (s) { return s.bestCombo; }, need: 13 },
+      { t: 'Reach gardener level 10',         get: function (s) { return s.level; }, need: 10 }
+    ],
+    reward: { golden: 2, label: '2 golden seeds ✨' } },
+
+  { id: 'c9', title: 'The whole ladder',
+    quote: 'Every wild plant, at its best. Then do it all again.',
+    objs: [
+      { t: 'All nine wild species at ★★★',    get: function (s) { return BASE_SPECIES.filter(function (x) { return s.almanac[x.id] === 3; }).length; }, need: 9 },
+      { t: 'Replant the garden once',         get: function (s) { return s.prestiges; }, need: 1 },
+      { t: 'Breed five hybrids',              get: function (s) { return s.bred | 0; }, need: 5 }
+    ],
+    reward: { golden: 3, coins: 2000, label: '2,000🪙 + 3 ✨' } }
+];
+function bestAlmanac() {
+  let b = 0;
+  Object.keys(state.almanac || {}).forEach(function (k) { b = Math.max(b, state.almanac[k]); });
+  return b;
+}
+function fibHybridCount() {
+  return Object.keys(state.hybrids || {}).filter(function (id) {
+    const sp = byId[id];
+    return sp && sp.frac && isFibFraction(sp.frac);
+  }).length;
+}
+function hybridsGrown() {
+  return Object.keys(state.hybrids || {}).filter(function (id) { return state.almanac[id]; }).length;
+}
+function chapterProgress(ch) {
+  let hit = 0;
+  const rows = ch.objs.map(function (o) {
+    const have = Math.max(0, o.get(state) | 0);
+    const done = have >= o.need;
+    if (done) hit++;
+    return { t: o.t, have: Math.min(have, o.need), need: o.need, done: done };
+  });
+  return { rows: rows, hit: hit, all: hit === ch.objs.length };
+}
+function chapterIndex() {
+  // the first chapter not yet claimed is the active one
+  for (let i = 0; i < CHAPTERS.length; i++) if (!state.chapters[CHAPTERS[i].id]) return i;
+  return CHAPTERS.length;
+}
+function claimChapter(id) {
+  const ch = CHAPTERS.filter(function (c) { return c.id === id; })[0];
+  if (!ch || state.chapters[id]) return;
+  if (!chapterProgress(ch).all) return;
+  state.chapters[id] = true;
+  const r = ch.reward;
+  if (r.coins)   { state.coins += r.coins; state.earned += r.coins; state.runEarned += r.coins; }
+  if (r.compost) state.compost += r.compost;
+  if (r.golden)  state.golden += r.golden;
+  addXP(40);
+  saveState();
+  sfx('jackpot'); shakeApp();
+  paintTop(); paintJournal(); paintShop();
+  toast('📔 ' + ch.title + ' complete · ' + r.label);
+  checkAch();
+}
+function journalClaimable() {
+  return CHAPTERS.filter(function (c, i) {
+    return !state.chapters[c.id] && i <= chapterIndex() && chapterProgress(c).all;
+  }).length;
+}
+function paintJournal() {
+  const wrap = $('chapters');
+  wrap.innerHTML = '';
+  const active = chapterIndex();
+  $('jrnquote').textContent = active < CHAPTERS.length
+    ? CHAPTERS[active].quote
+    : 'The book is full. The garden goes on.';
+  $('jrntitle').textContent = 'The Botanist\'s Journal · ' +
+    Math.min(active, CHAPTERS.length) + '/' + CHAPTERS.length;
+
+  CHAPTERS.forEach(function (ch, i) {
+    const claimed = !!state.chapters[ch.id];
+    const locked = i > active;
+    const pr = chapterProgress(ch);
+    const d = document.createElement('div');
+    d.className = 'chapter ' + (claimed ? 'done' : locked ? 'locked' : 'active');
+    d.innerHTML =
+      '<div class="chhead">' +
+        '<span class="chnum">' + (i + 1) + '</span>' +
+        '<div class="chttl"><h4>' + (locked ? '???' : ch.title) + '</h4>' +
+        '<p>' + (locked ? 'finish the chapter above' : ch.quote) + '</p></div>' +
+        '<span class="chpct">' + (claimed ? '✓' : locked ? '🔒' : pr.hit + '/' + ch.objs.length) + '</span>' +
+      '</div>' +
+      (locked ? '' :
+        '<div class="chbody">' +
+          pr.rows.map(function (r) {
+            return '<div class="obj' + (r.done ? ' hit' : '') + '">' +
+              '<span class="box">' + (r.done ? '✓' : '') + '</span>' +
+              '<span>' + r.t + '</span>' +
+              '<span class="prog">' + (r.need > 1 ? r.have + '/' + r.need : '') + '</span></div>';
+          }).join('') +
+          (claimed
+            ? '<div class="chreward">claimed · ' + ch.reward.label + '</div>'
+            : '<div class="chreward">reward: ' + ch.reward.label +
+              '<button data-claim="' + ch.id + '"' + (pr.all ? '' : ' disabled') + '>' +
+              (pr.all ? 'claim' : 'locked') + '</button></div>') +
+        '</div>');
+    wrap.appendChild(d);
+  });
+  wrap.querySelectorAll('[data-claim]').forEach(function (b) {
+    b.addEventListener('click', function () { claimChapter(b.dataset.claim); });
+  });
+}
+
 /* ---- welcome back -----------------------------------------------
    Run the whole world forward with the ledger armed, then show the
    player an account of what happened rather than changed numbers. */
@@ -4151,12 +4405,13 @@ $('modal').addEventListener('click', function (e) { if (e.target === $('modal'))
 
 /* ---- tabs ---- */
 function GO(v) {
-  ['garden', 'market', 'almanac', 'shop'].forEach(function (name) {
+  ['garden', 'market', 'journal', 'almanac', 'shop'].forEach(function (name) {
     $('v-' + name).classList.toggle('hidden', name !== v);
   });
   document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.v === v); });
   if (v === 'garden')  { paintPlots(); spawnBees(); setTimeout(flyBees, 60); }
   if (v === 'market')  { paintMarket(); hint('orders'); }
+  if (v === 'journal') paintJournal();
   if (v === 'almanac') paintAlmanac();
   if (v === 'shop')    {
     paintShop();
@@ -4185,7 +4440,7 @@ $('dev-reset').addEventListener('click', function () {
 });
 
 /* ---- loop ---- */
-function paintAll() { paintTop(); paintPlots(); paintMarket(); paintAlmanac(); paintShop(); paintGrowFoot(); }
+function paintAll() { paintTop(); paintPlots(); paintMarket(); paintJournal(); paintAlmanac(); paintShop(); paintGrowFoot(); }
 
 /* Catch the world up with the ledger armed, then either show the
    digest or (for a quick return) just carry on. */
