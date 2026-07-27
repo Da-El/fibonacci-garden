@@ -1281,11 +1281,19 @@
 const FIB    = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144];
 const GOLDEN = 137.5077640500378;
 
-const WATER_REGEN_MS = 90 * 1000;        // one drop every 90 seconds
+/* One drop every 13 minutes — Fibonacci, and about 110 drops a day.
+   At 90 seconds it was 480 a day against a can that holds 13 to 89, so the
+   can refilled in 39 minutes and simply overflowed for the other 23 hours:
+   every playstyle threw away roughly 24,000 drops over three weeks, and
+   income scaled with how many times a day you opened the app rather than
+   with anything you decided. Now the regen is the daily budget and the can
+   is how much of it you can hold at once, so upgrading the can is what
+   lets you use a whole day's water in one visit. */
+const WATER_REGEN_MS = 13 * 60 * 1000;
 const DAY_MS         = 24 * 60 * 60 * 1000;
 const CAN_TIERS      = [13, 21, 34, 55, 89];        // Fibonacci, naturally
-const CAN_COSTS      = [80, 220, 520, 1200];        // to reach tier 1..4
-const PLOT_COSTS     = [60, 140, 300, 600, 1100, 1900];  // for plots 4..9
+const CAN_COSTS      = [200, 550, 1400, 3400];      // to reach tier 1..4
+const PLOT_COSTS     = [120, 300, 700, 1600, 3400, 7000];  // for plots 4..9
 const START_PLOTS    = 3;
 const MAX_PLOTS      = 9;
 
@@ -1299,49 +1307,49 @@ const MAX_PLOTS      = 9;
 const SPECIES = [
   {
     id: 'elm', name: 'Elm Sprig', form: 'stem', frac: [1, 2], pref: 'any', growMin: 5, lvl: 1,
-    stages: 6, seed: 4, price: 16, leafHue: 104, leafSat: 46,
+    stages: 6, seed: 5, price: 24, leafHue: 104, leafSat: 46,
     fact: 'Elm leaves advance half a turn each time, so they simply alternate left and right. This is the crudest Fibonacci fraction — 1/2 — and the start of the whole ladder.'
   },
   {
     id: 'daisy', name: 'Common Daisy', form: 'disc', frac: null, pref: 'day', growMin: 8, lvl: 1,
-    stages: 9, seed: 8, price: 32, petals: 34, seedR: 2.6,
+    stages: 9, seed: 7, price: 33, petals: 34, seedR: 2.6,
     disc: [46, 74, 46], petal: '#f4f1e2', leafHue: 96,
     fact: 'The white rays often number 34 — a Fibonacci number. The yellow centre packs its florets at the golden angle, which is why no two ever line up.'
   },
   {
     id: 'sedum', name: 'Sedum', form: 'rosette', frac: [2, 5], pref: 'day', growMin: 8, lvl: 2,
-    stages: 7, seed: 10, price: 32, leafHue: 128, leafSat: 34,
+    stages: 7, seed: 7, price: 29, leafHue: 128, leafSat: 34,
     fact: 'Two fifths of a turn per leaf: 144°. Follow five leaves and you have gone round exactly twice — both 2 and 5 are Fibonacci numbers.'
   },
   {
     id: 'beech', name: 'Beech Sprig', form: 'stem', frac: [1, 3], pref: 'night', growMin: 13, lvl: 3,
-    stages: 7, seed: 14, price: 42, leafHue: 88, leafSat: 44,
+    stages: 7, seed: 9, price: 34, leafHue: 88, leafSat: 44,
     fact: 'A third of a turn per leaf means beech leaves stack into three tidy columns up the twig. Three leaves, one full rotation.'
   },
   {
     id: 'chamomile', name: 'Chamomile', form: 'disc', frac: null, pref: 'day', growMin: 13, lvl: 4,
-    stages: 10, seed: 20, price: 70, petals: 21, seedR: 2.5,
+    stages: 10, seed: 19, price: 65, petals: 21, seedR: 2.5,
     disc: [44, 78, 50], petal: '#f7f4ea', leafHue: 100,
     fact: 'Chamomile commonly carries 21 ray florets. Its domed centre uses the same golden angle as the sunflower, with fewer seeds to pack.'
   },
   {
     id: 'houseleek', name: 'Houseleek', form: 'rosette', frac: [5, 13], pref: 'night', growMin: 21, lvl: 5,
-    stages: 7, seed: 26, price: 68, leafHue: 116, leafSat: 30,
+    stages: 7, seed: 15, price: 47, leafHue: 116, leafSat: 30,
     fact: 'Five thirteenths of a turn is 138.46° — within a degree of the golden angle. Houseleeks are one of the closest approximations you can find in a garden.'
   },
   {
     id: 'pear', name: 'Pear Sprig', form: 'stem', frac: [3, 8], pref: 'day', growMin: 21, lvl: 6,
-    stages: 8, seed: 34, price: 90, leafHue: 94, leafSat: 42,
+    stages: 8, seed: 24, price: 72, leafHue: 94, leafSat: 42,
     fact: 'Three eighths of a turn: walk up eight pear leaves and you have spiralled the twig exactly three times. Both numbers, again, are Fibonacci.'
   },
   {
     id: 'pinecone', name: 'Pinecone', form: 'cone', frac: [8, 21], pref: 'night', growMin: 34, lvl: 7,
-    stages: 9, seed: 48, price: 120, leafHue: 28, leafSat: 38,
+    stages: 9, seed: 30, price: 86, leafHue: 28, leafSat: 38,
     fact: 'Eight twenty-firsts of a turn, 137.14°, almost the golden angle. On a real cone the scales fall into two sets of spirals — 8 running one way and 13 the other.'
   },
   {
     id: 'sunflower', name: 'Sunflower', form: 'disc', frac: null, pref: 'day', growMin: 34, lvl: 8,
-    stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
+    stages: 12, seed: 56, price: 149, petals: 34, seedR: 3.2,
     disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
     fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
   },
@@ -1349,32 +1357,32 @@ const SPECIES = [
   /* ---- the second shelf: unlocked deeper into the game ---- */
   {
     id: 'oak', name: 'Oak Sprig', form: 'stem', frac: [2, 5], pref: 'day', growMin: 21, lvl: 9,
-    stages: 8, seed: 40, price: 104, leafHue: 84, leafSat: 40,
+    stages: 8, seed: 45, price: 114, leafHue: 84, leafSat: 40,
     fact: 'Two fifths of a turn — the same fraction sedum uses, on a very different plant. Oak, apricot and cherry all settle on 2/5: five leaves, two full twists.'
   },
   {
     id: 'aloe', name: 'Aloe', form: 'rosette', frac: [8, 21], pref: 'night', growMin: 34, lvl: 10,
-    stages: 8, seed: 54, price: 148, leafHue: 138, leafSat: 26,
+    stages: 8, seed: 56, price: 135, leafHue: 138, leafSat: 26,
     fact: 'Eight twenty-firsts of a turn, 137.14° — a rosette sitting one rung higher up the ladder than the houseleek, and a third of a degree from the golden angle.'
   },
   {
     id: 'vine', name: 'Climbing Vine', form: 'stem', frac: [5, 13], pref: 'any', growMin: 13, lvl: 11,
-    stages: 10, seed: 46, price: 132, leafHue: 108, leafSat: 48,
+    stages: 10, seed: 85, price: 193, leafHue: 108, leafSat: 48,
     fact: 'A climber that turns 5/13 of a circle between leaves so none shades the one below. Growing upward, that is the whole problem a plant is solving.'
   },
   {
     id: 'fern', name: 'Lady Fern', form: 'frond', frac: null, pref: 'night', growMin: 21, lvl: 12,
-    stages: 9, seed: 72, price: 205, leafHue: 128, leafSat: 44,
+    stages: 9, seed: 84, price: 182, leafHue: 128, leafSat: 44,
     fact: 'Not a spiral — a recursion. Each frond divides into pinnae, and each pinna is a smaller copy of the whole frond. Ferns draw the sequence as self-similarity instead of packing.'
   },
   {
     id: 'romanesco', name: 'Romanesco', form: 'fractal', frac: null, pref: 'day', growMin: 34, lvl: 14,
-    stages: 11, seed: 96, price: 268, leafHue: 96, leafSat: 52,
+    stages: 11, seed: 158, price: 314, leafHue: 96, leafSat: 52,
     fact: 'The most extraordinary thing in the garden. Buds spiral at the golden angle, and every bud is a smaller spiral of buds at the same angle — a logarithmic spiral of logarithmic spirals. Real romanesco keeps this up for several levels.'
   },
   {
     id: 'pineapple', name: 'Pineapple', form: 'cone', frac: [13, 34], pref: 'day', growMin: 55, lvl: 16,
-    stages: 11, seed: 120, price: 340, leafHue: 40, leafSat: 46,
+    stages: 11, seed: 236, price: 434, leafHue: 40, leafSat: 46,
     fact: 'Thirteen thirty-fourths of a turn, 137.65° — the closest any plant here comes to the golden angle. Count the hexagons on a real pineapple and you find 8 one way, 13 another, 21 a third.'
   }
 ];
@@ -1989,9 +1997,16 @@ function hash32(x) {
 }
 
 /* market price drifts each day, but is stable within one day */
+/* The day's roll on a species' price. It used to run 0.75..1.45, and
+   combined with the seed roll that gave every crop a 3.6× band in net
+   coins per drop — wider than the whole fifteen-tier ladder, so elm on a
+   good day out-earned aloe on a bad one and unlock levels stopped meaning
+   anything. Adjacent tiers sit about 15% apart, so a roll of this size
+   shuffles neighbours (which is the decision worth having) without
+   flattening the progression. */
 function priceMult(sp) {
   const h = hash32((dayIndex() * 2654435761 + (sp.idx + 1) * 40503) >>> 0);
-  return 0.75 + (h % 1000) / 1000 * 0.7;         // 0.75 .. 1.45
+  return 0.88 + (h % 1000) / 1000 * 0.30;        // 0.88 .. 1.18
 }
 /* every golden seed is worth +6.18% — a hundredth of φ−1 — forever */
 const PHI_BONUS = 0.0618;
@@ -2900,9 +2915,13 @@ function floatText(anchor, txt, color) {
 }
 
 /* seed prices drift on their own daily cycle — buy low, plant cheap */
+/* Seeds now cost 21–54% of a crop's price, so a swing here leverages the
+   margin much harder than it used to and has to be correspondingly gentler.
+   A bargain is still a bargain — it is just no longer worth more than four
+   levels of progress. */
 function seedMult(sp) {
   const h = hash32((dayIndex() * 2654435761 + (sp.idx + 101) * 48611) >>> 0);
-  return 0.7 + (h % 1000) / 1000 * 0.6;          // 0.7 .. 1.3
+  return 0.85 + (h % 1000) / 1000 * 0.30;        // 0.85 .. 1.15
 }
 function seedCostOf(sp) { return Math.max(1, Math.round(sp.seed * seedMult(sp))); }
 function cheapestSeedNow() {
@@ -3629,8 +3648,8 @@ function paintGrowFoot() {
   if (state.water <= 0) {
     act.disabled = true;
     act.textContent = 'no water · ' + fmtMS(msToNextDrop());
-    $('growfact').textContent = 'The clock still grows it — water refills every ' +
-      Math.round(WATER_REGEN_MS / 1000) + 's, or spend a compost 🪱.';
+    $('growfact').textContent = 'The clock takes it halfway on its own — a drop every ' +
+      fmtLong(WATER_REGEN_MS) + ' after that, or spend a compost 🪱.';
   } else {
     act.disabled = false;
     act.textContent = 'water · skip a stage 💧';
@@ -5024,7 +5043,7 @@ function paintJournal() {
    a pristine bloom. Skill is still yours alone; she buys you time.
    Charges a daily wage whether or not you visit.
    ============================================================ */
-const APPRENTICE_HIRE = 900;
+const APPRENTICE_HIRE = 420;
 /* She will not re-sow you into a corner: a garden with no coins and no
    plants is a dead save, so she always leaves this much in the purse. */
 const RESOW_FLOOR = 120;
@@ -5057,7 +5076,7 @@ const APP_TIERS = [
    tracks what she is actually worth on its own.
    Tuned against a 21-day simulation at three visit rates so that she
    costs a little over half of what she brings in at every rank. */
-const APP_SHARE = [0, 0.06, 0.10];             // by rank
+const APP_SHARE = [0, 0.05, 0.08];             // by rank
 function yesterdayEarned() {
   const h = state.history || [];
   if (!h.length) return 0;
@@ -5071,7 +5090,7 @@ function appWage(tier) {
   const share = Math.round(yesterdayEarned() * (APP_SHARE[lvl] || 0.03));
   return t.base + share;                        // the retainer is the floor
 }
-const APP_UPGRADE = [0, 1400];
+const APP_UPGRADE = [0, 900];
 function appTier() { return APP_TIERS[Math.max(0, Math.min(APP_TIERS.length - 1, state.appLevel - 1))]; }
 function hasApprentice() { return state.appLevel > 0; }
 function appSlot() { return Math.floor(NOW() / (60 * 60 * 1000)); }   // she works by the hour
@@ -5244,8 +5263,7 @@ function appSellStock(sinceMs) {
     if (!Object.keys(row).length) delete state.barn[id];
   });
   if (coins) {
-    gainCoins(coins);
-    state.runEarned += coins;
+    gainCoins(coins);                 // gainCoins already credits runEarned
     ledgerAdd('earned', coins);
   }
   return { n: n, coins: coins, sell: sell };

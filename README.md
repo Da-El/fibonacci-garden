@@ -51,6 +51,19 @@ pours on a sunflower take real aim. Combos pay out at Fibonacci counts (3, 5, 8,
 and a combo of **8 triggers Fibonacci Fever** — 90 seconds where everything sells at
 **×1.618** and the gold zones widen, so a hot streak feeds itself.
 
+## Water is the currency
+
+A drop arrives every **13 minutes** — about 110 a day — and your can holds 13 to 89 of
+them. So the day's regen is your budget and the can decides how much of it you can
+carry into one visit. Checking in more often lets you spend it sooner; it doesn't
+conjure more.
+
+Every price in the game is set from one number: **net coins per drop**. It climbs
+geometrically with each species you unlock, so a dearer seed always pays better per
+drop — as long as you can afford to finish it. The daily market roll is deliberately
+smaller than the gap between two tiers, so a bargain shuffles neighbours rather than
+making level 1 as good as level 16.
+
 ## The loop
 
 1. **Plant** a seed — seed prices drift daily, and the planter flags any species a
@@ -66,7 +79,8 @@ and a combo of **8 triggers Fibonacci Fever** — 90 seconds where everything se
    (×0 / ×1 / ×1.5 / ×2 / ×3, and one slice in four takes everything)
 6. **Deliver customer orders** — premium contracts with quality minimums and 4–12h
    deadlines
-7. **Reinvest** — plots (3→9), Fibonacci watering cans (13→21→34→55→89), compost,
+7. **Reinvest** — plots (3→9), Fibonacci watering cans (13→21→34→55→89 — the can is
+   how much of a day's water you can hold at once, so this is the real upgrade), compost,
    and **trellises** that shield a plot from storms
 
 ## Weather, seasons and the sky
