@@ -4324,16 +4324,25 @@ function openPlanter(plotIdx) {
         (want.length ? ';border-color:#6a5322' : '') + '">' +
         '<div class="thumb">' + plantSVG(sp, totalFor(sp), Infinity, 'icon') + '</div>' +
         /* The badge used to light up when the hour suited and say nothing when
-           it did not, so the one number that decides whether this seed can
-           reach ★★★ on the schedule you actually keep was left to be
-           inferred. The plant screen has said "now!" or "wait for daylight"
-           for iterations; the planter is where the choice is made. */
+           it did not, so the one thing that decides whether this seed can
+           reach ★★★ on the schedule you actually keep was left to be inferred.
+           The plant screen has said "now!" or "wait for daylight" for
+           iterations; the planter is where the choice is made.
+
+           The verdict replaces the description rather than following it. The
+           badge is `white-space: nowrap`, so it cannot break internally, and
+           "☀️ loves daytime — wait for daylight" measured 223px against the
+           222px of text a 320px phone gives a planter row — exactly on the
+           line where `.view`'s hidden overflow would start eating it. The
+           icon already says which half of the day it wants, so the words were
+           the part to lose. An easygoing plant keeps its description, because
+           it has no verdict to show. */
         '<div class="info"><h4>' + sp.name + ' <span class="prefbadge' + (match ? ' match' : '') +
-          '">' + prefIcon(sp) + ' ' + prefWord(sp) +
-          (isDusk() ? ' — 🌅 golden hour'
-                    : sp.pref === 'any' ? ''
-                    : match ? ' — now!'
-                            : ' — wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark')) +
+          '">' + prefIcon(sp) + ' ' +
+          (sp.pref === 'any' ? prefWord(sp)
+            : isDusk() ? '🌅 golden hour'
+            : match ? 'now!'
+            : 'wait for ' + (sp.pref === 'day' ? 'daylight' : 'dark')) +
           '</span>' + wantTag + '</h4>' +
           '<p>grows itself in ~' + fmtLong(sp.stages * sp.growMin * 60000) + ' · sells ' + priceOf(sp) + '🪙 base' + deal + '<br>' +
           'water to skip stages · up to ' + priceOfQ(sp, 3) + '🪙 at ★★★</p></div>' +

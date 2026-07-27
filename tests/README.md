@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,136 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,155 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -84,6 +84,7 @@ if you add a system, add the counter that proves it fires.
 | `barn-check.js` | the barn as a decision: what waiting pays, and whether a hoarder ever loses |
 | `season-check.js` | a real mid-run garden left for three days, three weeks and a season |
 | `hybrid-check.js` | every cross bred, then planted, drawn, poured, lifted and reloaded |
+| `fit-check.js` | the text at 320px: what cannot wrap, and whether it fits the row |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -156,6 +157,15 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**Measure the constraint that actually binds, not the first one you think of.** The
+planter's time-of-day badge was checked against the room left over *after* the species
+name — 223px into 128px, which read as a 74% overflow. It was not: the badge sits in a
+heading that wraps, so it drops onto its own line, and the real constraint is the badge
+against the whole row. That came out 223px into 222px — still a finding, and a sharper
+one, because it sits exactly on the line where the hidden overflow starts. Two structural
+facts made the difference (`min-width: 0` on the flex child, no `nowrap` on the heading),
+and both are now asserted, because changing either turns a wrap into a silent clip.
 
 **A cap on the wrong quantity is not a cap.** Hybrid prices were hard-capped and damped
 by generation, and breed-check confirmed both — but what decides whether a crop is worth

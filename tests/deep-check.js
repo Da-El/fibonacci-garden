@@ -179,18 +179,22 @@ function awayForDays(days, opts) {
     return G('$')('card').innerHTML.replace(/<[^>]+>/g, ' ');
   }
   const noon = planterAt(12), night = planterAt(1), dusk = planterAt(18);
+  /* The verdict replaced the description in iteration 92 rather than
+     following it: "☀️ loves daytime — wait for daylight" measured 223px
+     against the 222px of text a 320px phone gives a planter row, and the
+     badge cannot wrap. The icon carries which half of the day it wants. */
   console.log('\n  the planter at noon says of a day-lover: ' +
-    (/loves daytime\s+—\s+now!/.test(noon) ? '"loves daytime — now!"' : 'nothing'));
+    (/☀️\s*now!/.test(noon) ? '"☀️ now!"' : 'nothing'));
   console.log('  and at 01:30: ' +
-    (/loves daytime\s+—\s+wait for daylight/.test(night)
-      ? '"loves daytime — wait for daylight"' : 'nothing'));
+    (/☀️\s*wait for daylight/.test(night) ? '"☀️ wait for daylight"' : 'nothing'));
   check('the planter says when a species suits the hour you are in',
-        /loves daytime\s+—\s+now!/.test(noon), noon.slice(0, 0) || 'not found');
+        /☀️\s*now!/.test(noon), 'not found');
   check('and says to wait when it does not',
-        /loves daytime\s+—\s+wait for daylight/.test(night));
+        /☀️\s*wait for daylight/.test(night));
   check('and tells a night-lover the same, the other way round',
-        /loves the night\s+—\s+now!/.test(night) &&
-        /loves the night\s+—\s+wait for dark/.test(noon));
+        /🌙\s*now!/.test(night) && /🌙\s*wait for dark/.test(noon));
+  check('and an easygoing plant still says what easygoing means',
+        /easygoing/.test(noon) && /easygoing/.test(night));
   check('and names the golden hour when every plant is content',
         /golden hour/.test(dusk));
   /* An easygoing species must not be told to wait for anything. */

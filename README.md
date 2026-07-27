@@ -103,6 +103,12 @@ the garden think it is always dusk, and it is consistently worth about twice as 
 the evening gardener as to the morning one. That asymmetry is the point: it is a fix for
 the gardener whose life doesn't fit the shelf, not a bonus everybody has to buy.
 
+The planter says which it is at the moment you choose — `☀️ now!`, `☀️ wait for daylight`,
+`🌅 golden hour` — rather than lighting a badge up and leaving you to infer it. The words
+are terse because that badge is `white-space: nowrap`: a 320px phone gives a planter row
+222px of text, and the longer phrasing measured 223px, exactly where the view's hidden
+overflow starts eating it. The icon already says which half of the day a plant wants.
+
 ## Water is the currency
 
 A drop arrives every **13 minutes** — about 110 a day — and your can holds 13 to 89 of
@@ -289,7 +295,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,136 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,155 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
