@@ -448,6 +448,19 @@
     animation: bugjig .9s ease-in-out infinite;
   }
   @keyframes bugjig { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg) translateY(-1px); } }
+  /* the almanac's botanical notes: the countable claim, and the ladder */
+  .spiral {
+    font-size: 12.5px; line-height: 1.5; color: #e6f0d8; margin-top: 10px;
+    background: linear-gradient(160deg, #2e4a2233, #2e4a2214);
+    border: 1px solid #4d6f3a55; border-radius: 12px; padding: 10px 12px;
+  }
+  .spiral b { color: var(--gold); }
+  .ladder {
+    font-family: var(--mono); font-size: 10.5px; line-height: 1.7; color: var(--dim);
+    margin-top: 8px; padding: 9px 11px; border-radius: 11px; background: #ffffff07;
+  }
+  .ladder b { color: #cfe6b4; }
+  .hint2 { color: var(--dim); font-size: 10px; font-weight: 400; }
   .wilttag { color: var(--bad); }
   .thirstytag { color: var(--water); font-weight: 600; }
   .glasslbl { color: #b6dcf5; }
@@ -1474,6 +1487,75 @@ function angleOf(sp) { return sp.frac ? (sp.frac[0] / sp.frac[1]) * 360 : GOLDEN
 function fracLabel(sp) {
   if (!sp.frac) return 'golden angle · ' + GOLDEN.toFixed(3) + '°';
   return sp.frac[0] + '/' + sp.frac[1] + ' turn · ' + angleOf(sp).toFixed(2) + '°';
+}
+
+/* The spiral arms you can actually count on a grown plant. Place n elements
+   at a divergence angle and some numbers of arms stand out to the eye: those
+   m for which m turns of the angle land nearly back where they started, so
+   every mth element lines up. Finding them is just looking for the m that
+   minimises how far m*angle sits from a whole number of turns.
+   For the golden angle these always come out consecutive Fibonacci numbers,
+   which is the entire claim the game makes, made countable. */
+function spiralArms(sp, n) {
+  /* For a species with a stated fraction the answer is exact and needs no
+     searching: a/b turns per element gives a and b as the two parastichy
+     numbers. Only the golden-angle species have to be measured, because
+     which pair of Fibonacci numbers you see there depends on how many
+     elements the plant has grown. */
+  if (sp.frac) return [sp.frac[0], sp.frac[1]];
+  const a = angleOf(sp);
+  const scored = [];
+  for (let m = 2; m <= Math.min(n / 2, 60); m++) {
+    let off = (m * a) % 360;
+    if (off > 180) off -= 360;
+    // a near-miss on a large m is more visible than the same miss on a small one
+    scored.push({ m: m, err: Math.abs(off) * Math.sqrt(m) });
+  }
+  scored.sort(function (x, y) { return x.err - y.err; });
+  const out = [];
+  scored.forEach(function (s) {
+    if (out.length >= 2) return;
+    // arms that are multiples of one already chosen are the same family
+    if (out.some(function (o) { return s.m % o === 0 || o % s.m === 0; })) return;
+    out.push(s.m);
+  });
+  return out.sort(function (x, y) { return x - y; });
+}
+/* A single-numerator fraction — 1/2, 1/3 — does not make counter-rotating
+   spirals at all. The leaves land in that many straight columns, and calling
+   them spirals would simply be untrue. */
+function isColumnar(sp) { return !!sp.frac && sp.frac[0] === 1; }
+
+/* How many drops this species actually asks of you, now the clock does part
+   of the work. Under glass it asks for all of them. */
+function dropsToFinish(sp, glass) {
+  return sp.stages - (glass ? 0 : timerCeiling(sp));
+}
+
+/* The real phyllotactic ladder. Each rung is the mediant of the two before
+   it — add the tops, add the bottoms — and the sequence converges on the
+   golden angle. This is not a pattern imposed on the game; it is how the
+   series actually works, and it is also the rule the breeding bench uses. */
+const PHYLLO_LADDER = [[1, 2], [1, 3], [2, 5], [3, 8], [5, 13], [8, 21], [13, 34]];
+function ladderNote(sp) {
+  if (!sp.frac) {
+    return '<div class="ladder">Its seeds sit at the <b>golden angle</b> itself — the limit the ' +
+      'whole ladder below is climbing towards. 1/2, 1/3, 2/5, 3/8, 5/13, 8/21, 13/34 … ' +
+      'each rung is the two before it added together, top to top and bottom to bottom, ' +
+      'and they close in on <b>137.508°</b> and never quite arrive.</div>';
+  }
+  const i = PHYLLO_LADDER.findIndex(function (f) { return f[0] === sp.frac[0] && f[1] === sp.frac[1]; });
+  const rungs = PHYLLO_LADDER.map(function (f, k) {
+    return (k === i ? '<b>' + f.join('/') + '</b>' : f.join('/'));
+  }).join(' · ');
+  const a = i >= 2 ? PHYLLO_LADDER[i - 2] : null;
+  const b = i >= 2 ? PHYLLO_LADDER[i - 1] : null;
+  return '<div class="ladder">' + rungs + ' → 137.508°' +
+    (a ? '<br>This rung is <b>' + a.join('/') + ' ⊕ ' + b.join('/') + '</b>: ' +
+         a[0] + '+' + b[0] + ' over ' + a[1] + '+' + b[1] + '. That is the mediant, ' +
+         'and it is how the real series is built — and how this garden\'s crossbreeding works.'
+       : '<br>One of the two rungs the whole ladder is built up from.') +
+    '</div>';
 }
 
 /* ============================================================
@@ -4705,6 +4787,7 @@ function paintAlmanac() {
       d.addEventListener('click', function () {
         if (sp.hybrid) return showHybridCard(sp, false);
         const diff = Math.abs(angleOf(sp) - GOLDEN);
+        const arms = spiralArms(sp, totalFor(sp));
         $('card').innerHTML =
           '<div class="art">' + plantSVG(sp, totalFor(sp)) + '</div>' +
           '<h3>' + sp.name + '</h3><div class="sub">' + fracLabel(sp) +
@@ -4712,10 +4795,32 @@ function paintAlmanac() {
           '<div class="fact">' + sp.fact + '</div>' +
           '<div class="stats">' +
             '<div><dt>Elements</dt><dd>' + totalFor(sp) + '</dd></div>' +
-            '<div><dt>Water to grow</dt><dd>' + sp.stages + ' 💧</dd></div>' +
+            /* what it costs you, not what it costs in total — the clock does
+               the first half unless the bed is under glass */
+            '<div><dt>Drops from you</dt><dd>' + dropsToFinish(sp) + ' 💧<span class="hint2"> · ' +
+              sp.stages + ' under glass</span></dd></div>' +
             '<div><dt>Divergence</dt><dd>' + angleOf(sp).toFixed(2) + '°</dd></div>' +
             '<div><dt>From golden</dt><dd>' + (diff < 0.001 ? 'exact' : diff.toFixed(2) + '°') + '</dd></div>' +
-          '</div><button class="btn" id="c-close">close</button>';
+          '</div>' +
+          /* The claim the whole game rests on, made countable: these numbers
+             are derived from the divergence angle, not written down. */
+          (function () {
+            const unit = sp.form === 'disc' ? 'seed' : sp.form === 'cone' ? 'scale' : 'leaf';
+            if (isColumnar(sp)) {
+              return '<div class="spiral">Turning <b>' + angleOf(sp).toFixed(0) + '°</b> between one ' +
+                unit + ' and the next lands every ' + sp.frac[1] + 'th one in the same place, so they ' +
+                'stack into <b>' + sp.frac[1] + ' straight columns</b> rather than spirals — count them ' +
+                'round the stem. This is the bottom of the ladder, where the pattern is still simple ' +
+                'enough to see at a glance.</div>';
+            }
+            if (arms.length !== 2) return '';
+            return '<div class="spiral"><b>' + arms[0] + '</b> spirals wind one way and <b>' + arms[1] +
+              '</b> the other — count them on the picture. Both are Fibonacci numbers, and neither was ' +
+              'chosen: they fall out of turning ' + angleOf(sp).toFixed(2) + '° between one ' + unit +
+              ' and the next.</div>';
+          })() +
+          ladderNote(sp) +
+          '<button class="btn" id="c-close">close</button>';
         $('modal').classList.add('show');
         $('c-close').addEventListener('click', closeCard);
       });

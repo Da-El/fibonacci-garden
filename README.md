@@ -161,6 +161,19 @@ the ✨ pill, because a permanent reward you can't see isn't much of a reward. A
 Long-term goals: the **botanist's almanac** (all nine species at ★★★ pays a golden
 seed), **17 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
 
+## The almanac
+
+Every species you have grown gets a card, and the card makes the case the game keeps
+making. It gives the real divergence angle, how far that sits from the golden angle,
+and — computed from the angle rather than written down — **the spiral arms you can
+count on the picture**. A daisy shows 21 and 34, a sunflower 34 and 55, a pinecone 8
+and 21. All Fibonacci, none of them chosen.
+
+The low rungs are honest about being different: at 1/2 or 1/3 a turn the leaves stack
+into 2 or 3 straight **columns**, not spirals, so the card says columns. Each card also
+shows where its species sits on the ladder and which two rungs it is the mediant of —
+which is the same rule the breeding bench uses.
+
 ## Species
 
 | Plant | Form | Fraction | Angle |
