@@ -179,7 +179,16 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
     ['the almanac computes spiral arms rather than listing them', /function spiralArms/.test(html)],
     ['icon buttons are 40px, not 30', /.iconbtn {[^}]*width: 40px/.test(html)],
     ['the reduce-motion media query exists', /prefers-reduced-motion: reduce/.test(html)],
-    ['growth runs before the bees', html.indexOf('growthTick(); pollenTick()') > -1],
+    /* Tests the order, not whether the two calls sit next to each other. The
+       adjacency version went stale the moment the apprentice was moved
+       between them in iteration 58, and printed WRONG for four iterations
+       without failing anything, because this file only ever printed. */
+    ['growth runs before the bees', (function () {
+      const cu = html.slice(html.indexOf('function catchUpWithLedger'),
+                            html.indexOf('function showWelcomeBack'));
+      return cu.indexOf('growthTick()') > -1 &&
+             cu.indexOf('pollenTick()') > cu.indexOf('growthTick()');
+    })()],
     ['the pour reads its zone from the captured copy', html.indexOf('pos < z.center') > -1],
     ['the season boost is trimmed to at most +22%',
       Math.max.apply(null, E('SEASONS').map(function (s) {
@@ -213,7 +222,50 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       E('FEVER_COMBO') === 13 && E('FEVER_MS') === 34000],
     ['a long absence is described in days, weeks or years',
       /year/.test(E('fmtLong')(3650 * DAY))],
-    ['the garden name is capped where it is read', html.indexOf('GARDEN_NAME_MAX') > -1]
+    ['the garden name is capped where it is read', html.indexOf('GARDEN_NAME_MAX') > -1],
+
+    /* ---- iterations 59-62 ---- */
+    ['anything slower on the shelf is richer', (function () {
+      const eco = E('SPECIES').map(function (sp) {
+        const ceil = E('timerCeiling')(sp, null);
+        return { lvl: sp.lvl, id: sp.id,
+                 hours: ceil * sp.growMin / (sp.pref === 'any' ? 1 : 1.25) / 60,
+                 per: (sp.price * E('STAR_MULT')[2] - sp.seed) / sp.stages };
+      });
+      return eco.every(function (e) {
+        return !eco.some(function (o) {
+          return o.id !== e.id && o.lvl <= e.lvl &&
+                 o.hours < e.hours - 1e-9 && o.per >= e.per - 1e-9;
+        });
+      });
+    })()],
+    ['a plant is drawn the same way at every stage of its life',
+      html.indexOf('estimateElements(sp, totalFor(sp)) > DETAIL_BUDGET') > -1],
+    ['a rosette fits inside its own frame', html.indexOf('82 / Math.sqrt(total)') > -1],
+    ['the romanesco keeps a second level when detail is dropped',
+      E('FRACTAL_INNER') === 21],
+    ['a 44-pixel thumbnail draws thirteen elements, not two hundred',
+      E('ICON_ELEMENTS') === 13],
+    ['and the two forms that recurse know when they are drawn small',
+      html.indexOf('iconDetail() ? 1') > -1 && html.indexOf('!iconDetail() && i < FRACTAL_INNER') > -1],
+    ['the score re-times itself rather than waiting to be told',
+      html.indexOf('if (beatMs() !== musicBeat) musicRetime();') > -1],
+    ['the chord is as full as the garden is in bloom',
+      html.indexOf('2 + Math.round(blooms / 2)') > -1],
+    ['the settings screen says so', html.indexOf('your blooms fill the chord') > -1]
   ];
-  claims.forEach(function (c) { console.log('  ' + (c[1] ? 'ok   ' : 'WRONG') + ' ' + c[0]); });
+  let wrong = 0;
+  claims.forEach(function (c) {
+    if (!c[1]) wrong++;
+    console.log('  ' + (c[1] ? 'ok   ' : 'WRONG') + ' ' + c[0]);
+  });
+  /* This file used to only print. A claim that went stale — the bees one did,
+     for four iterations — sat in the output saying the game was wrong, and
+     nothing anywhere cared. An audit that cries wolf is worse than none, so
+     it reports a verdict the runner reads like every other file. */
+  console.log('\nPASS ' + (claims.length - wrong) + ' / FAIL ' + wrong);
+  if (wrong) {
+    claims.filter(function (c) { return !c[1]; })
+          .forEach(function (c) { console.log('  FAIL ' + c[0]); });
+  }
 }

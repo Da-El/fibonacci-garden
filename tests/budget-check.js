@@ -157,6 +157,57 @@ function weigh(h, id) {
         paints + ' rebuilds in 600 ticks');
 }
 
+/* ---- a permanent button must not collect a handler per repaint ----
+   Paint functions run every time their screen is opened. Any of them that
+   binds a handler with addEventListener to an element the static markup
+   declares stacks a new one each time, and then one tap fires all of them —
+   which for a shop button means buying every tier you can afford at once.
+
+   Only elements from the static markup count. Everything a paint function
+   writes with innerHTML is destroyed and rebuilt, so binding a handler to
+   one of those is correct and stacks nothing. Twenty-one elements looked
+   like they were leaking before the harness modelled that, and not one of
+   them was. */
+{
+  const src = require('fs').readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const staticIds = [];
+  const head = src.slice(0, src.indexOf('<script>'));
+  let m;
+  const re = /\bid="([A-Za-z0-9_-]+)"/g;
+  while ((m = re.exec(head))) staticIds.push(m[1]);
+
+  const g = loaded('elm');
+  g.E('hireApprentice()');
+  const FNS = ['paintMarket', 'paintShop', 'paintAlmanac', 'paintCodex',
+               'paintJournal', 'paintPlots', 'paintOrders', 'paintDailyRow',
+               'paintLedger', 'openSettings', 'openKeepsake', 'openPostcard',
+               'openBreeder', 'openPlanter(0)', 'openGrow(0)'];
+  const sweep = function () {
+    FNS.forEach(function (f) {
+      try { g.E(f.indexOf('(') > 0 ? f : f + '()'); } catch (e) {}
+    });
+  };
+  const count = function () {
+    const o = {};
+    staticIds.forEach(function (id) {
+      const el = g.h.doc.getElementById(id);
+      if (el && el._on) {
+        o[id] = Object.keys(el._on).reduce(function (a, t) { return a + el._on[t].length; }, 0);
+      }
+    });
+    return o;
+  };
+  sweep(); const a = count();
+  sweep(); const b = count();
+  const growing = Object.keys(b).filter(function (id) { return (b[id] || 0) > (a[id] || 0); })
+    .map(function (id) { return id + ' ' + a[id] + '->' + b[id]; });
+  console.log('\n  ' + staticIds.length + ' elements in the static markup; ' +
+    (growing.length ? 'gaining handlers: ' + growing.join(', ')
+                    : 'none gains a handler when its screen is redrawn'));
+  check('no permanent button collects a handler every time its screen is drawn',
+        !growing.length, growing.join('; '));
+}
+
 /* ---- nothing may be painted before there is anything to paint ---- */
 {
   const g = loaded();

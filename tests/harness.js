@@ -164,8 +164,32 @@ function makeEl(tag) {
     getAttribute: function (k) { return k in this.attrs ? this.attrs[k] : null; },
     removeAttribute: function (k) { delete this.attrs[k]; },
     hasAttribute: function (k) { return k in this.attrs; },
-    addEventListener: function () {}, removeEventListener: function () {},
-    dispatchEvent: function () { return true; },
+    /* Listeners are recorded rather than discarded, so a test can ask how
+       many are bound to an element and fire them. Throwing them away meant a
+       paint function that binds a handler to a permanent element every time
+       it runs — which stacks a new one on each call — looked identical to
+       one that binds it once. */
+    addEventListener: function (type, fn) {
+      (this._on = this._on || {});
+      (this._on[type] = this._on[type] || []).push(fn);
+    },
+    removeEventListener: function (type, fn) {
+      const a = this._on && this._on[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i > -1) a.splice(i, 1);
+    },
+    listenerCount: function (type) {
+      return ((this._on || {})[type] || []).length;
+    },
+    dispatchEvent: function (ev) {
+      const a = (this._on || {})[(ev && ev.type) || ''] || [];
+      const self = this;
+      a.slice().forEach(function (fn) {
+        try { fn.call(self, ev); } catch (e) { (self._errs = self._errs || []).push(e); }
+      });
+      return true;
+    },
     /* Returning null here would make paint code throw partway through a
        game function, truncating its side effects and quietly corrupting
        any simulation. Hand back a cached stub per selector instead. */
@@ -239,7 +263,20 @@ function makeEl(tag) {
     get: function () { return Object.keys(el._cls).join(' '); },
     set: function (v) { el._setCls(v); }
   });
-  Object.defineProperty(el, 'innerHTML', { get: function () { return el._html; }, set: function (v) { el._html = String(v); } });
+  Object.defineProperty(el, 'innerHTML', {
+    get: function () { return el._html; },
+    set: function (v) {
+      el._html = String(v);
+      /* Writing innerHTML destroys everything inside and builds it again, so
+         any element the new markup declares is a brand-new one with no
+         handlers on it. Without this the cached stub survived the rewrite
+         still carrying every listener ever bound to it, and a paint function
+         that binds a handler to a button it just wrote looked exactly like
+         one leaking a handler per call. Twenty-one elements looked like they
+         were stacking; not one of them was. */
+      if (el._freshIds) el._freshIds(el._html);
+    }
+  });
   Object.defineProperty(el, 'textContent', { get: function () { return el._text; }, set: function (v) { el._text = String(v); } });
   Object.defineProperty(el, 'innerText', { get: function () { return el._text; }, set: function (v) { el._text = String(v); } });
   Object.defineProperty(el, 'firstChild', { get: function () { return el.children[0] || null; } });
@@ -285,6 +322,20 @@ function build(opts) {
   const idRe = /\bid="([A-Za-z0-9_-]+)"/g;
   let g;
   while ((g = idRe.exec(html))) ids[g[1]] = makeEl('div');
+
+  /* Every element gets a way to say "the markup I just became declares these
+     ids, so those elements are new" — the browser throws the old ones away on
+     an innerHTML write, and with them every handler that was bound. */
+  const freshIds = function (markup) {
+    const re = /\bid="([A-Za-z0-9_-]+)"/g;
+    let m2;
+    while ((m2 = re.exec(markup))) {
+      const el = ids[m2[1]];
+      if (el) { el._on = {}; el._h = {}; }
+    }
+  };
+  const armFresh = function (el) { el._freshIds = freshIds; return el; };
+  Object.keys(ids).forEach(function (k) { armFresh(ids[k]); });
   /* Give the scene and its bed a real size, so a layout can be measured at a
      chosen viewport rather than at whatever the game's fallback happens to be. */
   const vw = opts.width || 390;
@@ -311,8 +362,8 @@ function build(opts) {
     hidden: false,
     visibilityState: 'visible',
     title: 'Fibonacci Garden',
-    getElementById: function (id) { if (!ids[id]) ids[id] = makeEl('div'); return ids[id]; },
-    createElement: function (t) { return makeEl(t); },
+    getElementById: function (id) { if (!ids[id]) ids[id] = armFresh(makeEl('div')); return ids[id]; },
+    createElement: function (t) { return armFresh(makeEl(t)); },
     createElementNS: function (ns, t) { return makeEl(t); },
     createTextNode: function (t) { const e = makeEl('#text'); e._text = t; return e; },
     createDocumentFragment: function () { return makeEl('#fragment'); },

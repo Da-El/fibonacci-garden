@@ -188,6 +188,20 @@ function viewBox(svg) {
   });
   check('no two species draw the same picture', !clashes.length, clashes.join('; '));
 
+  /* And the same has to hold at icon size. Clamping to thirteen elements is
+     what makes a 44-pixel thumbnail affordable, but a barn list is only
+     useful if you can tell an elm from a beech in it — and those two are
+     both stems in nearly the same green. */
+  const iconSeen = {}, iconClash = [];
+  SPECIES.forEach(function (sp) {
+    const svg = plantSVG(sp, E('totalFor')(sp), Infinity, 'icon')
+      .replace(/(lf|pt|dc|st)[a-z0-9]+/gi, '#');
+    if (iconSeen[svg]) iconClash.push(iconSeen[svg] + ' and ' + sp.id);
+    iconSeen[svg] = sp.id;
+  });
+  check('and no two are the same at thumbnail size either',
+        !iconClash.length, iconClash.join('; '));
+
   /* Weaker but more telling: the six growth forms must each look like
      themselves. A disc is petals round a seed head, a stem is leaves up a
      shaft — if two forms produce the same shapes, the second shelf added

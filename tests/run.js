@@ -34,7 +34,8 @@ const FILES = [
   ['draw-check',    'what the plants actually look like: bounds, growth, detail, distinctness'],
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
-  ['shelf-check',   'every species measured against every other: is any one of them dead?']
+  ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['audit',         'stated versus actual: every claim this project makes about itself']
 ];
 
 let pass = 0, fail = 0, broken = [];

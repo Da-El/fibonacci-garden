@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-427 checks. Each one loads the game's inline `<script>` into a headless harness and
+471 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -71,7 +71,7 @@ if you add a system, add the counter that proves it fires.
 | `away-check.js` | coming back after a day, a month, a decade, or a clock corrected backwards |
 | `sound-check.js` | every sound defined, triggered, and mixed within a sane range |
 | `a11y-check.js` | colour, motion, screen readers, tap targets |
-| `audit.js` | the sweep: which ledger events never fire, stated-vs-actual, drawing weight |
+| `audit.js` | the sweep: which ledger events never fire, drawing weight, and every claim this project makes about itself — it reports a verdict now, so a claim cannot rot unnoticed |
 
 Diagnostics rather than pass/fail: `progress.js` (the upgrade arc), `per-drop.js` (the
 species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this purchase
@@ -89,6 +89,15 @@ callback on the floor, so the entire score — forty iterations of it — existe
 only as source that could be read, never as behaviour that could be measured. The
 moment both were made real, the first run found the tempo stuck in double time. If a
 check can only inspect the source of a system, that is not a check on the system.
+
+**A stub that is too generous invents bugs that are not there.** The mirror of the
+above, and it cost a whole iteration. `getElementById` makes an element on demand and
+never returns null, so `if ($('x'))` guards always pass; and writing `innerHTML` used
+to leave the cached stubs alone, so a button a paint function had just written looked
+identical to one leaking a handler per call. Twenty-one elements appeared to be
+stacking listeners and a single tap appeared to spend 5050 coins. Not one of them was
+real. Before reporting anything the harness tells you, ask what it is pretending
+about — and check the finding against the game's actual markup.
 
 **The harness fixes the clock.** The game reads `Date.now()`, so runs used to start at
 whatever moment you happened to run them — shifting the day index, the weather, the
