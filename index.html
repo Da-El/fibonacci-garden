@@ -265,6 +265,18 @@
   }
   body.nomotion .gplant.thirsty .gart,
   body.nomotion .gplant.thirsty::after { animation: none; }
+  /* Under glass. A pane catches the light across the bed and the plant sits
+     perfectly still — nothing here is neglected, it is simply all yours. */
+  .gplant.glass .gart {
+    filter: drop-shadow(0 0 5px #9fd8ff33) saturate(1.06);
+  }
+  .gplant.glass::before {
+    content: ''; position: absolute; inset: -3px -4px -2px -4px;
+    border: 1px solid #a9dcff3d; border-radius: 4px;
+    background: linear-gradient(150deg, #cfeaff1f 0%, #cfeaff05 42%, #cfeaff17 100%);
+    pointer-events: none;
+  }
+  .gplant .gtag.glasstag { color: #dff0ff; background: #3c5f7fdd; font-weight: 600; }
   /* an empty or overgrown spot in the bed */
   .gspot {
     position: absolute; bottom: 0; cursor: pointer;
@@ -436,6 +448,8 @@
   @keyframes bugjig { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(10deg) translateY(-1px); } }
   .wilttag { color: var(--bad); }
   .thirstytag { color: var(--water); font-weight: 600; }
+  .glasslbl { color: #b6dcf5; }
+  .glasslbl b { color: #ffe27a; }
   /* the dry spell, and the day's notice that matters more than the spell */
   .drylbl  { color: #e8b96a; font-weight: 600; }
   .drywarn { color: #f0c249; font-weight: 700; }
@@ -1254,6 +1268,7 @@
           <p id="grow-sub">—</p>
         </div>
         <div class="iconbtn" id="trellisBtn" title="Trellis: protects this plot from storms" style="display:none">🛡️</div>
+        <div class="iconbtn" id="glassBtn" title="Glass over this bed" style="display:none">🔒</div>
         <div class="iconbtn" id="grow-close">✕</div>
       </div>
       <div id="canvas"></div>
@@ -1884,6 +1899,7 @@ function freshState() {
     bestCombo: 0,
     pourN: 0,                        // deterministic pour-zone counter
     trellised: [false, false, false],// storm protection per plot
+    glassed: [false, false, false], // beds under glass: the clock never touches them
     weeds: {},                       // plotIdx -> true while overgrown
     weedChecked: null,               // last weed slot processed
     stormChecked: null,              // last storm slot processed
@@ -1964,6 +1980,11 @@ function loadState() {
         p.trellised = Array.isArray(p.trellised) ? p.trellised : [];
         while (p.trellised.length < p.plotCount) p.trellised.push(false);
         p.trellised.length = p.plotCount;
+        p.glassed = Array.isArray(p.glassed) ? p.glassed : [];
+        while (p.glassed.length < p.plotCount) p.glassed.push(false);
+        p.glassed.length = p.plotCount;
+        // keep each growing plant's flag in step with its bed
+        p.plots.forEach(function (pl, i) { if (pl) pl.glass = p.glassed[i] ? 1 : 0; });
         p.weeds = p.weeds || {};
         if (typeof p.weedChecked !== 'number') p.weedChecked = null;
         if (typeof p.stormChecked !== 'number') p.stormChecked = null;
@@ -2376,6 +2397,8 @@ const ACHIEVEMENTS = [
   { id: 'o10',   name: 'Regular supplier',           golden: 1,  test: function (s) { return s.ordersDelivered >= 10; } },
   { id: 'can89', name: 'The 89-drop can',            coins: 200, test: function (s) { return CAN_TIERS[s.canTier] >= 89; } },
   { id: 'land9', name: 'All nine plots',             coins: 200, test: function (s) { return s.plotCount >= MAX_PLOTS; } },
+  { id: 'glass1', name: 'Under glass',               coins: 250, test: function (s) { return (s.glassed || []).some(Boolean); } },
+  { id: 'glass3', name: 'Three panes',               golden: 1,  test: function (s) { return (s.glassed || []).filter(Boolean).length >= 3; } },
   { id: 'gold1', name: 'A golden bloom',             coins: 150, test: function (s) { return s.goldenHarvests >= 1; } },
   { id: 'p1',    name: 'Replanted the garden',       coins: 100, test: function (s) { return s.prestiges >= 1; } },
   { id: 'alm',   name: 'Almanac complete at ★★★',    golden: 1,  test: function (s) { return s.almanacRewarded; } },
@@ -2427,7 +2450,7 @@ function bugTick() {
   const slot = bugSlot();
   let changed = false;
   state.plots.forEach(function (p, i) {
-    if (!p || p.bug) return;
+    if (!p || p.bug || p.glass) return;                  // aphids cannot get under glass
     const sp = byId[p.s];
     if (p.stage >= sp.stages || p.stage === 0) return;   // seeds & ripe plants are safe
     if (p.bugSlot === slot) return;                      // already rolled (or squashed) this slot
@@ -2492,6 +2515,47 @@ function clearWeed(i) {
   toast(worm ? 'Cleared — and found a worm! +1 🪱' : 'Weeds cleared');
   addXP(2);
   paintPlots();
+}
+
+/* ---- the glasshouse ---------------------------------------------
+   Glass over a single bed, and inside it one rule holds: nothing grows
+   on its own. The clock never advances a plant under glass, so every
+   stage is yours to pour.
+
+   That is a cost — a twelve-stage sunflower wants twelve drops instead
+   of six — and it works out to almost exactly the same coins per drop,
+   because pouring every stage is what makes a 💎 pristine possible and
+   pristine sells for twice the ★★★ price. Out in the beds the clock
+   takes half the stages before you get to them, so a pristine means
+   racing it from the moment you sow. Under glass it is calm and
+   deliberate instead: nothing is taken from you, nothing spoils, and a
+   single spilled drop is the only thing between you and the best bloom
+   in the game.
+
+   Aphids cannot get in, storms cannot reach it and a ripe bloom will not
+   wilt under glass. It is permanent, unlike a trellis, and it costs more
+   for each bed you glaze.                                             */
+const GLASS_LVL = 10;
+const GLASS_COST = 3000;
+const GLASS_STEP = 1.9;                    // each further bed costs more
+function glassCount() { return (state.glassed || []).filter(Boolean).length; }
+function glassCost() { return Math.round(GLASS_COST * Math.pow(GLASS_STEP, glassCount())); }
+function isGlassed(i) { return !!(state.glassed && state.glassed[i]); }
+
+function buyGlass() {
+  if (curPlot < 0 || isGlassed(curPlot)) return;
+  if (state.level < GLASS_LVL) return toast('Glass needs a level ' + GLASS_LVL + ' gardener');
+  const cost = glassCost();
+  if (state.coins < cost) return toast('Glass over this bed costs ' + cost + '🪙');
+  state.coins -= cost;
+  state.glassed[curPlot] = true;
+  const p = state.plots[curPlot];
+  if (p) p.glass = 1;                      // takes effect on what is already growing
+  ensureSolvent();
+  saveState(); sfx('levelUp'); paintTop(); paintPlots(); paintGrowFoot();
+  burstCenter($('canvas'), ['🔒', '✨', '💎']);
+  toast('Bed ' + (curPlot + 1) + ' is under glass — nothing grows on its own in here');
+  checkAch();
 }
 
 /* ---- trellis ----------------------------------------------------
@@ -2593,7 +2657,7 @@ function wiltMs() { return WILT_MS * (hasPerk('evergreen') ? 2 : 1); }
    it — otherwise she is judged as though she waited for you to get back,
    and saving a bloom from wilting becomes literally impossible. */
 function wiltPenalty(p, at) {
-  if (!p.ripeAt) return 0;
+  if (!p.ripeAt || p.glass) return 0;      // nothing spoils under glass
   return Math.floor(Math.max(0, (at === undefined ? NOW() : at) - p.ripeAt) / wiltMs());
 }
 function harvestStars(sp, p, at) {
@@ -2638,7 +2702,10 @@ function stageDurMs(sp, p) {
    leave enough pours that ★★★ stays reachable — she buys you drops, never
    quality. */
 const TIMER_REACH = 0.5;
-function timerCeiling(sp) {
+/* `p` is optional: pass the plant and a bed under glass reports a ceiling of
+   zero, because in there the clock never advances anything. */
+function timerCeiling(sp, p) {
+  if (p && p.glass) return 0;
   const reach = hasApprentice() ? appTier().reach : TIMER_REACH;
   return Math.max(1, Math.ceil(sp.stages * reach));
 }
@@ -2647,7 +2714,7 @@ function timerCeiling(sp) {
 function isThirsty(p) {
   if (!p || p.bug) return false;
   const sp = byId[p.s];
-  return !!sp && p.stage < sp.stages && p.stage >= timerCeiling(sp);
+  return !!sp && p.stage < sp.stages && p.stage >= timerCeiling(sp, p);
 }
 function thirstyCount() { return state.plots.filter(isThirsty).length; }
 
@@ -2657,7 +2724,7 @@ function growthTick() {
     if (!p) return;
     const sp = byId[p.s];
     if (!sp || p.stage >= sp.stages) return;
-    const ceil = timerCeiling(sp);
+    const ceil = timerCeiling(sp, p);
     let guard = 0;
     while (p.stage < ceil && guard++ < 50) {
       const dur = stageDurMs(sp, p);
@@ -2699,7 +2766,7 @@ function growthTick() {
 function etaToReady(sp, p) {
   const dur = stageDurMs(sp, p);
   if (!isFinite(dur)) return null;                 // aphids: growth paused
-  const ceil = timerCeiling(sp);
+  const ceil = timerCeiling(sp, p);
   if (p.stage >= ceil) return 0;                   // stalled — it needs a drop
   const first = Math.max(0, dur - (NOW() - p.stageAt));
   return first + (ceil - p.stage - 1) * dur;
@@ -3085,7 +3152,7 @@ function stormTick() {
   for (let s = state.stormChecked + 1; s <= cur; s++) {
     if (weatherAt(s).id !== 'storm') continue;
     state.plots.forEach(function (p, i) {
-      if (!p || state.trellised[i]) return;
+      if (!p || state.trellised[i] || p.glass) return;   // glass shrugs a storm off
       if (hash32((s * 53 + i * 17 + 29) >>> 0) % 100 >= stormDmgChance()) return;
       const sp = byId[p.s];
       if (p.stage >= sp.stages) {
@@ -3591,14 +3658,20 @@ function paintPlots() {
       const h = w * 1.5 * growFrac;
 
       // the clock has given this one all it will — it is waiting on a drop
-      const thirsty = !done && !p.bug && p.stage >= timerCeiling(sp);
+      const thirsty = !done && !p.bug && p.stage >= timerCeiling(sp, p);
+      /* A plant under glass is always waiting on you, by design, so the
+         droop of a neglected plant would be the wrong reading entirely —
+         it gets a glazed sheen instead. */
+      const glass = !!p.glass;
 
       const d = document.createElement('div');
-      d.className = 'gplant' + (done ? ' ready' : (thirsty ? ' thirsty' : ''));
+      d.className = 'gplant' + (glass ? ' glass' : '') +
+        (done ? ' ready' : (thirsty && !glass ? ' thirsty' : ''));
       d.setAttribute('role', 'button');
       d.setAttribute('tabindex', '0');
-      d.setAttribute('aria-label', sp.name + ', ' +
+      d.setAttribute('aria-label', (glass ? 'under glass, ' : '') + sp.name + ', ' +
         (done ? 'ready to harvest, ' + starStr(st).length + ' stars, worth ' + priceOfQ(sp, st) + ' coins'
+              : glass ? 'stage ' + p.stage + ' of ' + sp.stages + ', every stage is yours to pour'
               : thirsty ? 'grown as far as the clock will take it, waiting to be watered'
               : 'stage ' + p.stage + ' of ' + sp.stages + (p.bug ? ', aphids' : '')));
       d.addEventListener('keydown', function (e) {
@@ -3613,15 +3686,20 @@ function paintPlots() {
       d.style.bottom = baseY + 'px';
       d.style.zIndex = 10 + rowI;
       d.style.opacity = 0.78 + depth * 0.22;
+      const flawless = glass && !(p.spills | 0) && p.perfects >= p.stage;
       d.innerHTML =
-        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn' : (thirsty ? ' thirsty' : ''))) + '">' +
+        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn'
+                            : glass ? ' glasstag' : (thirsty ? ' thirsty' : ''))) + '">' +
           (done ? (wilting ? 'wilting ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
                 : p.bug ? '🐛 paused'
+                // under glass the number that matters is whether it is still flawless
+                : glass ? p.stage + '/' + sp.stages + (flawless ? ' · 💎 flawless' : '')
                 : thirsty ? p.stage + '/' + sp.stages + ' · 💧 needs you'
                 : p.stage + '/' + sp.stages + ' · ' + fmtLong(etaToReady(sp, p))) +
         '</div>' +
-        (state.trellised[i] || p.pollen
-          ? '<span class="gmark">' + (state.trellised[i] ? '🛡️' : '') + (p.pollen ? '🍯' : '') + '</span>'
+        (glass || state.trellised[i] || p.pollen
+          ? '<span class="gmark">' + (glass ? '🔒' : state.trellised[i] ? '🛡️' : '') +
+            (p.pollen ? '🍯' : '') + '</span>'
           : '') +
         '<div class="gart">' + plantSVG(sp, elementsAt(sp, p.stage)) + '</div>';
       d.addEventListener('click', function () { openGrow(i); });
@@ -3701,7 +3779,8 @@ function plant(plotIdx, spId) {
   if (state.coins < cost) return;
   if (state.plots[plotIdx]) return;
   state.coins -= cost;
-  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0, hired: false };
+  state.plots[plotIdx] = { s: spId, stage: 0, q: 0, stageAt: NOW(), perfects: 0, spills: 0,
+                           hired: false, glass: isGlassed(plotIdx) ? 1 : 0 };
   state.lastSown[plotIdx] = spId;              // what a head gardener would put back
   sfx('plant');
   saveState(); closeCard(); paintTop(); paintPlots();
@@ -3728,7 +3807,12 @@ function openGrow(plotIdx) {
   }
   $('canvas').innerHTML = plantSVG(sp, elementsAt(sp, p.stage), Infinity);
   $('bugBtn').classList.toggle('show', !!p.bug);
-  $('trellisBtn').style.display = state.trellised[plotIdx] ? 'none' : '';
+  $('trellisBtn').style.display = state.trellised[plotIdx] || isGlassed(plotIdx) ? 'none' : '';
+  /* Glass is a late, permanent choice, so the button only appears once you
+     could actually take it — and never on a bed that already has it. */
+  $('glassBtn').style.display = isGlassed(plotIdx) || state.level < GLASS_LVL ? 'none' : '';
+  $('glassBtn').title = 'Glass over this bed (' + glassCost() + '🪙) — the clock stops, ' +
+                        'nothing spoils, and every stage is yours to pour';
   $('trellisBtn').title = 'Trellis this plot (' + TRELLIS_COST + '🪙) — storms can\'t damage it';
   paintGrowFoot();
   $('grow').classList.add('show');
@@ -3768,7 +3852,14 @@ function paintGrowFoot() {
   } else {
     gt.classList.add('show');
     const dur = stageDurMs(sp, p);
-    if (!isFinite(dur)) {
+    if (p.glass) {
+      /* No clock at all in here, so there is no countdown to show — what
+         matters is whether the run is still flawless. */
+      const clean = !(p.spills | 0) && p.perfects >= p.stage;
+      gt.querySelector('i').style.width = (p.stage / sp.stages * 100) + '%';
+      gt.querySelector('.tlbl').innerHTML = '<span class="glasslbl">🔒 under glass — nothing grows on its own' +
+        (clean ? ' · <b>💎 still flawless</b>' : ' · the pristine is gone') + '</span>';
+    } else if (!isFinite(dur)) {
       gt.querySelector('i').style.width = '0%';
       gt.querySelector('.tlbl').innerHTML = '<span class="wilttag">🐛 aphids — growth stopped</span>';
     } else if (isThirsty(p)) {
@@ -3782,7 +3873,7 @@ function paintGrowFoot() {
       const frac = Math.min(1, (NOW() - p.stageAt) / dur);
       gt.querySelector('i').style.width = (frac * 100) + '%';
       const rate = growthRate(p, sp);
-      const left = timerCeiling(sp) - p.stage;
+      const left = timerCeiling(sp, p) - p.stage;
       gt.querySelector('.tlbl').textContent =
         'next stage grows itself in ' + fmtLong(Math.max(0, dur - (NOW() - p.stageAt))) +
         (rate > 1 ? ' · ' + (weatherNow().id === 'rain' ? '🌧️' : prefIcon(sp)) + ' ×' + rate.toFixed(2) : '') +
@@ -4088,6 +4179,7 @@ $('act').addEventListener('click', doAct);
 $('compostBtn').addEventListener('click', doCompost);
 $('bugBtn').addEventListener('click', squashBug);
 $('trellisBtn').addEventListener('click', buyTrellis);
+$('glassBtn').addEventListener('click', buyGlass);
 $('canvas').addEventListener('click', doAct);
 $('grow-close').addEventListener('click', function () {
   cancelPour();
@@ -4844,6 +4936,7 @@ function buyPlot() {
   state.plotCount++;
   state.plots.push(null);
   state.trellised.push(false);
+  state.glassed.push(false);
   const rescued = ensureSolvent();
   saveState(); paintTop(); paintShop(); paintPlots();
   toast(rescued ? 'Plot ' + state.plotCount + ' cleared — a neighbour spotted you a seed'
@@ -5340,6 +5433,10 @@ function appTick() {
   for (let i = 0; i < state.plots.length; i++) {
     const p = state.plots[i];
     if (!p || p.stage < byId[p.s].stages) continue;
+    /* Never the glasshouse. Nothing wilts in there, so there is nothing to
+       rescue, and a pristine you poured by hand is a moment to walk in on
+       rather than find already crated up in the barn. */
+    if (p.glass) continue;
     // she finds it within the hour of it ripening, but never before her shift
     const pickAt = Math.min(NOW(), Math.max(p.ripeAt || 0, onDutySince) + 3600000);
     const was = p.s;
@@ -5352,7 +5449,7 @@ function appTick() {
   let didSow = 0;
   if (t.resow) {
     for (let i = 0; i < state.plotCount; i++) {
-      if (state.plots[i] || state.weeds[i]) continue;
+      if (state.plots[i] || state.weeds[i] || isGlassed(i)) continue;
       const sp = byId[state.lastSown[i]];
       if (!sp || sp.lvl > state.level) continue;
       const cost = seedCostOf(sp);

@@ -106,6 +106,23 @@ plan:
 Seasons rotate weekly and favour a different growth form each time, boosting both
 its **price and its growth speed**.
 
+## The glasshouse
+
+From level 10 you can put **glass over a single bed**, and inside it one rule holds:
+**nothing grows on its own.** The clock never advances a plant under glass, so every
+stage is yours to pour.
+
+That's a cost — a twelve-stage sunflower wants twelve drops instead of six — and it
+works out to roughly the same coins per drop, because pouring every stage is what makes
+a **💎 pristine** possible, and pristine sells for twice the ★★★ price. Out in the beds
+the clock takes half the stages before you reach them, so a pristine means racing it
+from the moment you sow. Under glass it's calm and deliberate instead: nothing is taken
+from you, aphids can't get in, storms can't reach it, a ripe bloom won't wilt, and your
+apprentice won't touch it. A single spilled drop is the only thing between you and the
+best bloom in the game — and it halves what the bed pays.
+
+Glass is permanent, and each further pane costs 90% more than the last.
+
 ## The dry spell
 
 Weather turns over every twenty minutes, which is too quick to plan around. Twice a
@@ -133,7 +150,7 @@ and **storms and aphids grow bolder with every replant** — mastery has to cost
 something.
 
 Long-term goals: the **botanist's almanac** (all nine species at ★★★ pays a golden
-seed), **15 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
+seed), **17 achievements**, and a daily-gift streak whose seventh day pays a golden seed.
 
 ## Species
 
