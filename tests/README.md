@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-245 checks. Each one loads the game's inline `<script>` into a headless harness and
+417 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -26,6 +26,12 @@ That turned out to be the pattern, not the exception:
 - The **pour minigame** — the one interaction the whole game rests on — threw on every
   single tap for two releases, because the early/late feedback read an object that had
   just been nulled.
+- Every **succulent** was drawn a sixth too large for its frame and clipped on all four
+  sides. The one check that had ever looked at the drawing read raw coordinates and
+  ignored the rotation that put the leaves there.
+- The **score** went double-time the first time fever fired and stayed there for the
+  rest of the session, because it was re-timed from one place — the moment fever starts
+  — and there is no fever-*ending* code in the game at all.
 
 Every one of those was a *measurement* gap, not a reasoning error. So the rule here is:
 if you add a system, add the counter that proves it fires.
@@ -34,7 +40,10 @@ if you add a system, add the counter that proves it fires.
 
 | file | what it holds the game to |
 |---|---|
-| `harness.js` | loads the game headless; can preload a save so migration is testable |
+| `harness.js` | loads the game headless; preloads a save, records what is drawn and played, and lets a test step the intervals by hand |
+| `draw-check.js` | the markup every plant renders to: bounds under rotation, growth, detail, distinctness |
+| `score-check.js` | the generative score: mode by season, tempo by hour and fever, and whether it ever changes back |
+| `shelf-check.js` | every species against every other — anything slower has to be richer |
 | `sim.js` | a 21-day simulated player at three visit rates and any pour accuracy |
 | `regress.js` | the clock ceiling, quality, the apprentice, orders, the economy, prestige |
 | `pour-check.js` | timing windows in milliseconds, the difficulty curve, and that a pour resolves |
@@ -64,11 +73,18 @@ Diagnostics rather than pass/fail: `progress.js` (the upgrade arc), `per-drop.js
 species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this purchase
 worth it), `prestige-check.js` (the golden-seed curve).
 
-## Two cautions
+## Cautions
 
 **A green suite only covers what it exercises.** The pour crash hid because nothing had
 ever driven `startPour` → `lockPour` end to end, and `performance.now()` was frozen so
 the minigame could never resolve.
+
+**A stub that returns nothing makes the code above it untestable, silently.** The
+harness handed the game a null `AudioContext` and a `setInterval` that dropped its
+callback on the floor, so the entire score — forty iterations of it — existed in tests
+only as source that could be read, never as behaviour that could be measured. The
+moment both were made real, the first run found the tempo stuck in double time. If a
+check can only inspect the source of a system, that is not a check on the system.
 
 **The harness fixes the clock.** The game reads `Date.now()`, so runs used to start at
 whatever moment you happened to run them — shifting the day index, the weather, the

@@ -20,6 +20,97 @@ function makeStyle() {
    browser's job — but whether the game's drawing code throws, and whether the
    text it writes stays inside the picture, is the game's job and was never
    checked. */
+/* A Web Audio context that plays nothing and remembers everything.
+
+   Every node the game builds is a plain object with the methods the game
+   calls, so the real audio code runs end to end; every oscillator that gets
+   start()ed is appended to ctx.notes with its frequency, waveform, when it
+   was scheduled and how loud the gain envelope was told to make it. That is
+   enough to ask real questions of the score — did the tempo change, did the
+   chord get fuller, is it the right mode for the season — without any of it
+   making a sound. */
+function makeAudioContext() {
+  function Ctx() {
+    const ctx = this;
+    this.currentTime = 0;
+    this.state = 'running';
+    this.notes = [];
+    this.sampleRate = 44100;
+    function param(name, owner) {
+      return {
+        value: 0,
+        setValueAtTime: function (v, t) { owner[name] = v; owner[name + 'At'] = t; return this; },
+        linearRampToValueAtTime: function (v, t) { owner[name + 'To'] = v; return this; },
+        exponentialRampToValueAtTime: function (v, t) {
+          owner.peak = Math.max(owner.peak || 0, v); return this;
+        },
+        setTargetAtTime: function (v) { return this; },
+        cancelScheduledValues: function () { return this; }
+      };
+    }
+    function node(kind) {
+      const n = { kind: kind, peak: 0, connectedTo: null };
+      n.connect = function (dest) { n.connectedTo = dest; return dest; };
+      n.disconnect = function () {};
+      return n;
+    }
+    this.destination = node('destination');
+    this.createGain = function () {
+      const n = node('gain');
+      n.gain = param('gainValue', n);
+      return n;
+    };
+    this.createBiquadFilter = function () {
+      const n = node('filter');
+      n.frequency = param('freq', n);
+      n.Q = param('q', n);
+      n.type = 'lowpass';
+      return n;
+    };
+    this.createOscillator = function () {
+      const n = node('osc');
+      n.frequency = param('freq', n);
+      n.detune = param('detune', n);
+      n.type = 'sine';
+      n.start = function (t) {
+        /* Walk the graph to whichever gain this note goes through, so a
+           note's loudness is the envelope it was actually given. */
+        let g = n.connectedTo, hops = 0, peak = 0;
+        while (g && hops++ < 6) { if (g.peak) { peak = g.peak; break; } g = g.connectedTo; }
+        ctx.notes.push({ freq: n.freq, type: n.type, at: t, peak: peak, kind: 'osc' });
+      };
+      n.stop = function () {};
+      return n;
+    };
+    this.createBufferSource = function () {
+      const n = node('buffer');
+      n.buffer = null;
+      n.playbackRate = param('rate', n);
+      n.start = function (t) { ctx.notes.push({ at: t, kind: 'noise' }); };
+      n.stop = function () {};
+      return n;
+    };
+    this.createBuffer = function (ch, len, rate) {
+      return { length: len, sampleRate: rate, numberOfChannels: ch,
+               getChannelData: function () { return new Float32Array(len); } };
+    };
+    this.createStereoPanner = function () {
+      const n = node('pan'); n.pan = param('pan', n); return n;
+    };
+    this.createDynamicsCompressor = function () {
+      const n = node('comp');
+      ['threshold', 'knee', 'ratio', 'attack', 'release'].forEach(function (k) {
+        n[k] = param(k, n);
+      });
+      return n;
+    };
+    this.resume = function () { ctx.state = 'running'; return Promise.resolve(); };
+    this.suspend = function () { ctx.state = 'suspended'; return Promise.resolve(); };
+    this.close = function () { return Promise.resolve(); };
+  }
+  return Ctx;
+}
+
 function makeCanvasContext(el) {
   const ops = [];
   const noop = function (name) {
@@ -198,6 +289,8 @@ function build(opts) {
   };
 
   const timers = [];
+  const intervals = [];
+  let intervalSeq = 0;
   const win = {
     document: doc,
     localStorage: localStorage,
@@ -210,11 +303,27 @@ function build(opts) {
     cancelAnimationFrame: function () {},
     setTimeout: function (fn, ms) { timers.push({ fn: fn, at: clock + (ms || 0) }); return timers.length; },
     clearTimeout: function () {},
-    setInterval: function () { return 0; },
-    clearInterval: function () {},
+    /* Intervals used to be dropped on the floor, which meant every repeating
+       thing in the game — the tick loop, the score — existed in tests only
+       as source to be read. They are recorded now, and a test can step them
+       by hand. Nothing fires unless a test asks it to. */
+    setInterval: function (fn, ms) {
+      intervals.push({ id: ++intervalSeq, fn: fn, ms: ms || 0 });
+      return intervalSeq;
+    },
+    clearInterval: function (id) {
+      for (let i = 0; i < intervals.length; i++) {
+        if (intervals[i].id === id) { intervals.splice(i, 1); return; }
+      }
+    },
     addEventListener: function () {}, removeEventListener: function () {},
     getComputedStyle: function () { return { getPropertyValue: function () { return ''; }, fontSize: '16px' }; },
-    AudioContext: null, webkitAudioContext: null,
+    /* A recording Web Audio context. Null here meant every note the game
+       played returned at the first line, so the score — which is nothing
+       but notes — could not be measured at all, only read. Now each note
+       lands in ctx.notes and a test can ask what the garden actually
+       sounded like. */
+    AudioContext: makeAudioContext(), webkitAudioContext: null,
     /* A frozen performance.now() means the pour minigame can never resolve:
        markerPos() is (now - t0) / period, so the marker sits at 0 forever and
        the outcome sounds never fire. Advance it a little on every read so
@@ -260,7 +369,17 @@ function build(opts) {
     get: function (name) { return evalIn(name); },
     call: function (expr) { return evalIn(expr); },
     setClock: function (t) { clock = t; evalIn('__CLOCK_SET')(t); },
-    store: store, win: win, doc: doc, timers: timers, ids: ids
+    store: store, win: win, doc: doc, timers: timers, ids: ids,
+    intervals: intervals,
+    /* Fire every registered interval n times, newest list each pass so a
+       callback that re-times itself is followed rather than lost. */
+    tickIntervals: function (n) {
+      for (let i = 0; i < (n || 1); i++) {
+        intervals.slice().forEach(function (t) {
+          if (intervals.indexOf(t) > -1) t.fn();
+        });
+      }
+    }
   };
 }
 

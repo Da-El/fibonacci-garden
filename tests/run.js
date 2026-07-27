@@ -32,6 +32,7 @@ const FILES = [
   ['fever-check',   'fever: how often it fires, what it is worth, and that it ends'],
   ['away-check',    'coming back after a day, a month, a decade, or a corrected clock'],
   ['draw-check',    'what the plants actually look like: bounds, growth, detail, distinctness'],
+  ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?']
 ];
 

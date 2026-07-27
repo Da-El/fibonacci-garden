@@ -3192,7 +3192,7 @@ const SCALES = {
 };
 const SEASON_ROOT = { spring: 293.66, summer: 329.63, autumn: 261.63, winter: 220.00 };
 const SCORE_WALK = [1, 1, 2, 3, 5, 8];        // the sequence, as scale degrees
-let musicTimer = null, scoreStep = 0, musicBus = null;
+let musicTimer = null, scoreStep = 0, musicBus = null, musicBeat = 0;
 
 function noteAt(rootHz, scale, degree, octave) {
   const n = scale[((degree % scale.length) + scale.length) % scale.length];
@@ -3248,11 +3248,28 @@ function playBar() {
 
   // bass root
   musicNote(noteAt(root, scale, deg, oct - 1), beat * 1.9, 0.075, 0, 'sine');
-  // a triad, arpeggiated — the interval steps are Fibonacci
-  [0, 2, 4].forEach(function (iv, i) {
-    musicNote(noteAt(root, scale, deg + iv, oct), beat * 1.1,
-              fever ? 0.05 : 0.036, i * beat * 0.16, 'triangle');
-  });
+
+  /* The chord is as full as the garden is: stacked thirds, one more voice
+     for every two beds in bloom, so an empty bed is a bare pair and nine
+     ripe plants ring out as a ninth chord. This is the only part of the
+     score that listens to what you have actually grown — iteration 20
+     called it music that plays the garden, and for forty iterations it
+     played nothing but the calendar and the clock.
+
+     The entries are spaced by the sequence rather than evenly, so the roll
+     of the chord is the thing the game is about. The old comment claimed
+     that and the code underneath it did not. */
+  const blooms = state.plots.filter(function (p) {
+    const s = p && byId[p.s];
+    return !!s && p.stage >= s.stages;
+  }).length;
+  const voices = Math.max(2, Math.min(5, 2 + Math.round(blooms / 2)));
+  let when = 0;
+  for (let v = 0; v < voices; v++) {
+    musicNote(noteAt(root, scale, deg + v * 2, oct), beat * 1.1,
+              (fever ? 0.05 : 0.036) / (1 + v * 0.22), when * beat * 0.06, 'triangle');
+    when += FIB[v];
+  }
   // a wandering high voice, only sometimes, so it never feels looped
   if (hash32((scoreStep * 2654435761 + 11) >>> 0) % 100 < (fever ? 85 : 45)) {
     const lead = deg + SCORE_WALK[(scoreStep + 2) % SCORE_WALK.length];
@@ -3264,19 +3281,27 @@ function playBar() {
 function startMusic() {
   if (musicTimer) return;
   playBar();
-  musicTimer = setInterval(function () {
-    if (!opt.music || !opt.sound) return;
-    playBar();
-  }, 2000);
-  // re-time when fever starts or the sun goes down
   musicRetime();
 }
+/* The tempo is a function of the hour and of whether fever is running, and
+   both of those change while the score is playing. It used to be re-timed
+   from one place only — the moment fever started — and there is no
+   fever-*ending* code anywhere, feverActive() being nothing but a
+   comparison against a timestamp. So the score went double-time on your
+   first combo of thirteen and stayed there for the rest of the session,
+   and "the hour sets the tempo" was only ever true of the hour you happened
+   to open the app in.
+
+   So it checks itself at the end of every bar instead of waiting to be
+   told. One path, and it cannot be stranded by a transition nobody hooked. */
 function musicRetime() {
   clearInterval(musicTimer);
+  musicBeat = beatMs();
   musicTimer = setInterval(function () {
     if (!opt.music || !opt.sound) return;
     playBar();
-  }, beatMs());
+    if (beatMs() !== musicBeat) musicRetime();
+  }, musicBeat);
 }
 function stopMusic() { clearInterval(musicTimer); musicTimer = null; }
 
@@ -7082,7 +7107,7 @@ function doInstall() {
 const OPTIONS = [
   { k: 'sound',   icon: '🔊', name: 'Sound effects', desc: 'pours, harvests, coins — all synthesized' },
   { k: 'ambient', icon: '🐦', name: 'Garden ambience', desc: 'birds by day, crickets at night, rain when it rains' },
-  { k: 'music',   icon: '🎵', name: 'Generative score', desc: 'the season picks the mode, the hour sets the tempo' },
+  { k: 'music',   icon: '🎵', name: 'Generative score', desc: 'the season picks the mode, the hour sets the tempo, your blooms fill the chord' },
   { k: 'haptics', icon: '📳', name: 'Vibration', desc: 'a nudge on perfect pours and spills' },
   { k: 'motion',  icon: '✨', name: 'Motion & particles', desc: 'screen shake, bursts, floating text' },
   { k: 'cb',      icon: '👁', name: 'Colour-blind marks', desc: 'adds arrows and symbols where colour alone carried meaning' }
