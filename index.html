@@ -844,6 +844,33 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- decorations ---------- */
+  .deco {
+    position: absolute; pointer-events: none; line-height: 1;
+    filter: drop-shadow(0 2px 3px #0007);
+  }
+  .deco.twinkle { animation: lanternglow 3.4s ease-in-out infinite; }
+  @keyframes lanternglow {
+    0%, 100% { filter: drop-shadow(0 0 4px #ffd97066); }
+    50%      { filter: drop-shadow(0 0 13px #ffd970cc); }
+  }
+  #gardenname {
+    font-size: 15px; font-weight: 600; letter-spacing: -.01em;
+    background: none; border: none; color: var(--text); padding: 0;
+    width: 100%; font-family: var(--sans);
+  }
+  #gardenname:focus { outline: none; border-bottom: 1px dashed var(--gold); }
+  .decorow .swatch {
+    width: 44px; height: 44px; flex: 0 0 auto; border-radius: 10px;
+    background: #ffffff08; display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .decoslots { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .decoslot {
+    font-family: var(--mono); font-size: 9px; padding: 4px 9px; border-radius: 100px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); cursor: pointer;
+  }
+  .decoslot.on { background: linear-gradient(160deg, var(--leaf), var(--leaf-d)); color: #06210a; border-color: transparent; font-weight: 700; }
+
   /* ---------- the proof ---------- */
   #proofwrap { text-align: center; }
   #proofsvg { width: 100%; max-width: 250px; height: auto; }
@@ -1100,6 +1127,16 @@
       <div id="canlist"></div>
       <div class="sectitle">Land</div>
       <div id="landlist"></div>
+      <div class="sectitle">Your garden</div>
+      <div class="row-item">
+        <div class="thumb" style="font-size:20px">🏡</div>
+        <div class="info">
+          <input id="gardenname" maxlength="28" placeholder="Fibonacci Garden" aria-label="Garden name">
+          <p>tap to name it — it appears on your postcard</p>
+        </div>
+      </div>
+      <div class="sectitle">Decorations <span id="decoinfo"></span></div>
+      <div id="decolist"></div>
       <div class="sectitle">App</div>
       <div id="installwrap"></div>
       <div class="sectitle">Records</div>
@@ -1603,6 +1640,8 @@ function freshState() {
     lastGiftDay: null,               // daily gift bookkeeping
     giftStreak: 0,
     ladySlot: 0,                     // last ladybug slot seen
+    decos: {},                       // decorations placed in the garden
+    gardenName: '',
     hybrids: {},                     // id -> {a,b} crosses the player has bred
     bred: 0,
     chapters: {},                    // journal chapters claimed
@@ -1670,6 +1709,8 @@ function loadState() {
         if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
         p.giftStreak = p.giftStreak | 0;
         p.ladySlot = p.ladySlot | 0;
+        p.decos = p.decos || {};
+        p.gardenName = typeof p.gardenName === 'string' ? p.gardenName : '';
         p.hybrids = p.hybrids || {};
         p.bred = p.bred | 0;
         p.chapters = p.chapters || {};
@@ -1825,6 +1866,8 @@ function doPrestige() {
     earned: state.earned,
     harvested: state.harvested,
     ach: state.ach,
+    decos: state.decos,              // what you built stays built
+    gardenName: state.gardenName,
     hybrids: state.hybrids,          // bred plants are knowledge, not stock
     bred: state.bred,
     chapters: state.chapters,        // the journal is a record, it survives
@@ -1896,7 +1939,9 @@ function ladyTick() {
   if (slot === state.ladySlot) return;
   state.ladySlot = slot;
   saveState();
-  if (hash32((slot * 97 + 41) >>> 0) % 100 >= (hasPerk('ladymagnet') ? 36 : 18)) return;
+  let chance = hasPerk('ladymagnet') ? 36 : 18;
+  if (hasDeco('bath')) chance += 12;                  // they come for the water
+  if (hash32((slot * 97 + 41) >>> 0) % 100 >= chance) return;
   if (document.getElementById('ladybug')) return;
   spawnLadybug(slot);
 }
@@ -2613,7 +2658,8 @@ function weatherAt(slot) {
 }
 function weatherNow() { return weatherAt(weatherSlot()); }
 function regenIntervalMs() {
-  return Math.round(WATER_REGEN_MS / weatherNow().regen / (hasPerk('dawndew') ? 1.25 : 1));
+  return Math.round(WATER_REGEN_MS / weatherNow().regen /
+    (hasPerk('dawndew') ? 1.25 : 1) / (hasDeco('pond') ? 1.08 : 1));
 }
 
 /* storms roll damage per slot per unprotected plot — deterministic,
@@ -2621,8 +2667,9 @@ function regenIntervalMs() {
 /* storms and aphids both bite harder the more you've prestiged —
    mastery earns richer prices AND rougher weather */
 function stormDmgChance() {
-  if (hasPerk('stormsense')) return 15;
-  return Math.min(45, 30 + state.prestiges * 5);
+  let c = hasPerk('stormsense') ? 15 : Math.min(45, 30 + state.prestiges * 5);
+  if (hasDeco('fence')) c = Math.round(c * 0.9);      // the fence takes some of it
+  return c;
 }
 function stormTick() {
   const cur = weatherSlot();
@@ -2664,6 +2711,7 @@ function isDay()   { const h = hourNow(); return h >= 6 && h < 18; }
 function isDusk()  { const h = hourNow(); return h === 5 || h === 6 || h === 18 || h === 19; }
 function prefMatch(sp) {
   if (isDusk()) return true;                      // golden hour suits everything
+  if (hasDeco('lantern') && sp.pref === 'night') return true;   // it thinks it's dusk
   return sp.pref === 'any' || (sp.pref === 'day') === isDay();
 }
 function prefIcon(sp) { return sp.pref === 'day' ? '☀️' : sp.pref === 'night' ? '🌙' : '✦'; }
@@ -2843,6 +2891,7 @@ function toast(msg) {
 
 function paintTop() {
   $('coins').textContent = state.coins;
+  $('brand').textContent = gardenName();
   $('brandsub').textContent = 'level ' + state.level + ' gardener · ' +
     state.xp + '/' + xpForNext() + ' xp';
   $('golden').textContent = state.golden;
@@ -3137,6 +3186,7 @@ function paintPlots() {
     }
   });
 
+  paintDecos();
   $('scenelocked').textContent = state.plotCount < MAX_PLOTS
     ? '🔒 ' + (MAX_PLOTS - state.plotCount) + ' more plots in the shop' : '';
 
@@ -4047,6 +4097,36 @@ function paintShop() {
   Object.keys(PERK_CHOICES).forEach(function (lv) {
     PERK_CHOICES[lv].forEach(function (pk) { if (state.perks[pk.id]) owned.push(pk); });
   });
+  // the garden's own name
+  const nameEl = $('gardenname');
+  if (nameEl && document.activeElement !== nameEl) nameEl.value = state.gardenName || '';
+  if (nameEl && !nameEl._wired) {
+    nameEl._wired = true;
+    nameEl.addEventListener('input', function () {
+      state.gardenName = nameEl.value.slice(0, 28);
+      saveState();
+    });
+    nameEl.addEventListener('blur', function () { paintTop(); });
+  }
+
+  // decorations
+  const decoOwned = DECOS.filter(function (d) { return hasDeco(d.id); }).length;
+  $('decoinfo').textContent = decoOwned + '/' + DECOS.length + ' placed';
+  $('decolist').innerHTML = DECOS.map(function (d) {
+    const have = hasDeco(d.id), afford = state.coins >= d.cost;
+    return '<div class="row-item decorow" style="' + (have ? '' : afford ? '' : 'opacity:.45') + '">' +
+      '<div class="swatch">' + d.icon + '</div>' +
+      '<div class="info"><h4>' + d.name + '</h4><p>' + d.blurb + '</p></div>' +
+      '<div class="actions">' +
+        (have ? '<span class="badge up">placed</span>'
+              : '<button class="mini gold" data-deco="' + d.id + '"' + (afford ? '' : ' disabled') + '>' +
+                d.cost + '🪙</button>') +
+      '</div></div>';
+  }).join('');
+  $('decolist').querySelectorAll('[data-deco]').forEach(function (b) {
+    b.addEventListener('click', function () { buyDeco(b.dataset.deco); });
+  });
+
   // install / offline status
   const installed = isInstalled();
   $('installwrap').innerHTML =
@@ -4965,6 +5045,71 @@ function renderBreeder() {
   });
 }
 
+/* ============================================================
+   Make it yours — a name, and things to put in the garden
+   Decorations sit in the scene at fixed spots. A few do something
+   small; the rest are simply yours. Both flow into the postcard.
+   ============================================================ */
+const DECOS = [
+  { id: 'path',    icon: '🪨', name: 'Stone path',   cost: 180,
+    blurb: 'a way through the bed', spot: 'front' },
+  { id: 'fence',   icon: '🪵', name: 'Picket fence', cost: 260,
+    blurb: 'storms damage plants 10% less often', spot: 'edges', effect: 'storm' },
+  { id: 'pond',    icon: '💧', name: 'Small pond',   cost: 420,
+    blurb: 'the can refills 8% faster', spot: 'left', effect: 'water' },
+  { id: 'bath',    icon: '🐦', name: 'Birdbath',     cost: 340,
+    blurb: 'ladybirds visit more often', spot: 'right', effect: 'lady' },
+  { id: 'lantern', icon: '🏮', name: 'Lantern',      cost: 300,
+    blurb: 'night-lovers earn care by day too', spot: 'back', effect: 'night' },
+  { id: 'gnome',   icon: '🧙', name: 'Garden gnome', cost: 500,
+    blurb: 'he does nothing. he is simply here.', spot: 'front2' }
+];
+function hasDeco(id) { return !!(state.decos && state.decos[id]); }
+function buyDeco(id) {
+  const d = DECOS.filter(function (x) { return x.id === id; })[0];
+  if (!d || hasDeco(id)) return;
+  if (state.coins < d.cost) return toast(d.name + ' costs ' + d.cost + '🪙');
+  state.coins -= d.cost;
+  state.decos = state.decos || {};
+  state.decos[id] = true;
+  saveState(); sfx('gift'); shakeApp();
+  paintTop(); paintShop(); paintPlots();
+  toast(d.icon + ' ' + d.name + ' — placed in the garden');
+  checkAch();
+}
+/* where each decoration sits, as a fraction of the scene */
+const DECO_SPOTS = {
+  front:  [{ x: .16, y: .955, s: 15 }, { x: .30, y: .975, s: 13 }, { x: .45, y: .955, s: 15 }],
+  front2: [{ x: .80, y: .95, s: 21 }],
+  edges:  [{ x: .04, y: .92, s: 15 }, { x: .96, y: .92, s: 15 }, { x: .5, y: .995, s: 13 }],
+  left:   [{ x: .10, y: .80, s: 22 }],
+  right:  [{ x: .90, y: .80, s: 19 }],
+  back:   [{ x: .70, y: .60, s: 19 }]
+};
+function paintDecos() {
+  const scene = $('scene');
+  if (!scene) return;
+  Array.prototype.slice.call(scene.querySelectorAll('.deco')).forEach(function (e) { e.remove(); });
+  if (!state.decos) return;
+  const W = scene.clientWidth || 340, H = scene.clientHeight || 275;
+  DECOS.forEach(function (d) {
+    if (!hasDeco(d.id)) return;
+    (DECO_SPOTS[d.spot] || []).forEach(function (p) {
+      const e = document.createElement('span');
+      e.className = 'deco' + (d.id === 'lantern' && !isDay() ? ' twinkle' : '');
+      e.textContent = d.icon;
+      e.style.fontSize = p.s + 'px';
+      e.style.left = (p.x * W - p.s / 2) + 'px';
+      e.style.top = (p.y * H - p.s) + 'px';
+      e.style.zIndex = d.spot === 'back' ? 9 : 20;
+      scene.appendChild(e);
+    });
+  });
+}
+function gardenName() {
+  return (state.gardenName && state.gardenName.trim()) || 'Fibonacci Garden';
+}
+
 /* ---- the postcard ---- */
 function drawPostcard() {
   const W = 640, H = 400;
@@ -5025,12 +5170,20 @@ function drawPostcard() {
     c.restore();
   }
 
+  // whatever the gardener has built, along the front
+  const placed = DECOS.filter(function (d) { return hasDeco(d.id); });
+  placed.forEach(function (d, i) {
+    c.font = '26px -apple-system, Segoe UI, Roboto, sans-serif';
+    const x = 34 + i * ((W - 90) / Math.max(1, placed.length - 1 || 1));
+    c.fillText(d.icon, Math.min(x, W - 46), H - 44);
+  });
+
   // title plate
   c.fillStyle = '#0a0d06cc';
   c.fillRect(0, 0, W, 74);
   c.fillStyle = '#f2f6e6';
   c.font = '600 27px -apple-system, Segoe UI, Roboto, sans-serif';
-  c.fillText('Fibonacci Garden', 26, 37);
+  c.fillText(gardenName(), 26, 37);
   c.fillStyle = '#f2c53c';
   c.font = '15px ui-monospace, Menlo, monospace';
   const bits = ['level ' + state.level, state.harvested + ' harvested',
