@@ -35,6 +35,7 @@ const FILES = [
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['screens-check', 'every secondary screen opened and read against what the game knows'],
   ['world-check',   'two gardens on the same day see the same sky, and no play bends it'],
   ['boon-check',    'the ladybird and the compost: two systems that hand you something free'],
   ['gift-check',    'the daily gift and the streak: what it pays, and what breaking it costs'],
