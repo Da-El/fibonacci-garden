@@ -1300,6 +1300,38 @@ const SPECIES = [
     stages: 12, seed: 60, price: 168, petals: 34, seedR: 3.2,
     disc: [42, 80, 52], petal: '#f0b52e', leafHue: 98,
     fact: 'The showpiece. 376 seeds at the golden angle interlock into spiral arms — on a bloom this size you can count 21 running one way and 34 the other. One angle does all of it.'
+  },
+
+  /* ---- the second shelf: unlocked deeper into the game ---- */
+  {
+    id: 'oak', name: 'Oak Sprig', form: 'stem', frac: [2, 5], pref: 'day', growMin: 21, lvl: 9,
+    stages: 8, seed: 40, price: 104, leafHue: 84, leafSat: 40,
+    fact: 'Two fifths of a turn — the same fraction sedum uses, on a very different plant. Oak, apricot and cherry all settle on 2/5: five leaves, two full twists.'
+  },
+  {
+    id: 'aloe', name: 'Aloe', form: 'rosette', frac: [8, 21], pref: 'night', growMin: 34, lvl: 10,
+    stages: 8, seed: 54, price: 148, leafHue: 138, leafSat: 26,
+    fact: 'Eight twenty-firsts of a turn, 137.14° — a rosette sitting one rung higher up the ladder than the houseleek, and a third of a degree from the golden angle.'
+  },
+  {
+    id: 'vine', name: 'Climbing Vine', form: 'stem', frac: [5, 13], pref: 'any', growMin: 13, lvl: 11,
+    stages: 10, seed: 46, price: 132, leafHue: 108, leafSat: 48,
+    fact: 'A climber that turns 5/13 of a circle between leaves so none shades the one below. Growing upward, that is the whole problem a plant is solving.'
+  },
+  {
+    id: 'fern', name: 'Lady Fern', form: 'frond', frac: null, pref: 'night', growMin: 21, lvl: 12,
+    stages: 9, seed: 72, price: 205, leafHue: 128, leafSat: 44,
+    fact: 'Not a spiral — a recursion. Each frond divides into pinnae, and each pinna is a smaller copy of the whole frond. Ferns draw the sequence as self-similarity instead of packing.'
+  },
+  {
+    id: 'romanesco', name: 'Romanesco', form: 'fractal', frac: null, pref: 'day', growMin: 34, lvl: 14,
+    stages: 11, seed: 96, price: 268, leafHue: 96, leafSat: 52,
+    fact: 'The most extraordinary thing in the garden. Buds spiral at the golden angle, and every bud is a smaller spiral of buds at the same angle — a logarithmic spiral of logarithmic spirals. Real romanesco keeps this up for several levels.'
+  },
+  {
+    id: 'pineapple', name: 'Pineapple', form: 'cone', frac: [13, 34], pref: 'day', growMin: 55, lvl: 16,
+    stages: 11, seed: 120, price: 340, leafHue: 40, leafSat: 46,
+    fact: 'Thirteen thirty-fourths of a turn, 137.65° — the closest any plant here comes to the golden angle. Count the hexagons on a real pineapple and you find 8 one way, 13 another, 21 a third.'
   }
 ];
 
@@ -1580,9 +1612,124 @@ function renderCone(sp, n, total, freshFrom) {
    species+count, which is the overwhelming majority of them. */
 const svgCache = {};
 let svgCacheHits = 0, svgCacheMiss = 0;
+/* ---- FROND: a fern, branching recursively ------------------------
+   Each frond carries F(n) pinnae, and every pinna is a smaller copy
+   of the whole frond. The self-similarity is the point: a fern is
+   the sequence drawn as a shape rather than a spiral.            */
+function renderFrond(sp, n, total, freshFrom) {
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const hue = sp.leafHue, sat = sp.leafSat || 44;
+  let s = defsFor(sp, uid);
+  // how many fronds are open, and how finely each is divided
+  let opened = 0, fronds = [];
+  for (let st = 0; st < sp.stages && opened < n; st++) {
+    fronds.push(FIB[st]);
+    opened += FIB[st];
+  }
+  // recursion depth is what makes a fern expensive; two levels reads
+  // as self-similar already, three only when we can afford it
+  const depth = hiDetail() ? Math.min(3, Math.max(1, fronds.length - 2))
+                           : Math.min(2, Math.max(1, fronds.length - 3));
+  const bottom = 140;
+  s += stemShape(0, bottom, 0, bottom - 46, 5, 3.4, 3, uid);
+
+  function frond(x, y, len, ang, lvl, count, idx) {
+    let g = '';
+    const rad = ang * Math.PI / 180;
+    const ex = x + Math.cos(rad) * len, ey = y + Math.sin(rad) * len;
+    // the rachis
+    g += '<path d="M' + x.toFixed(1) + ' ' + y.toFixed(1) +
+      ' Q ' + (x + Math.cos(rad) * len * .5 - Math.sin(rad) * len * .12).toFixed(1) + ' ' +
+      (y + Math.sin(rad) * len * .5 + Math.cos(rad) * len * .12).toFixed(1) + ' ' +
+      ex.toFixed(1) + ' ' + ey.toFixed(1) + '" fill="none" stroke="hsl(' + hue + ' ' + sat + '% ' +
+      (22 + lvl * 8) + '%)" stroke-width="' + Math.max(0.7, len * .045).toFixed(2) + '" stroke-linecap="round"/>';
+    if (lvl >= depth) {
+      // a leaflet at the tip
+      g += '<g transform="translate(' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')">' +
+        '<path d="' + leafPath(len * .5, len * .2) + '" fill="url(#lf' + uid + ')"/></g>';
+      return g;
+    }
+    // F(n) pinnae alternating along the rachis, each a smaller frond
+    const pin = FIB[Math.min(FIB.length - 1, 4 - lvl + Math.min(2, fronds.length - 3))] || 5;
+    for (let i = 1; i <= pin; i++) {
+      const t = i / (pin + 1);
+      const px = x + Math.cos(rad) * len * t, py = y + Math.sin(rad) * len * t;
+      const side = i % 2 ? 1 : -1;
+      const sub = len * (0.46 - t * 0.22);
+      g += frond(px, py, sub, ang + side * (52 - lvl * 8), lvl + 1, count, i);
+    }
+    return g;
+  }
+
+  fronds.forEach(function (cnt, i) {
+    const spread = fronds.length === 1 ? 0 : (i / (fronds.length - 1) - 0.5) * 2;
+    const ang = -90 + spread * 46;
+    const len = 62 + i * 5;
+    s += '<g' + (opened - cnt >= freshFrom
+      ? ' class="fresh" style="animation-delay:' + (i * .06).toFixed(2) + 's"' : '') + '>' +
+      frond(0, bottom - 44, len, ang, 1, cnt, 0) + '</g>';
+  });
+  return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
+}
+
+/* ---- FRACTAL: romanesco ------------------------------------------
+   Cones arranged at the golden angle, and each cone is itself a
+   smaller ring of cones at the same angle. Real romanesco does
+   this for several levels; two reads clearly at this size.      */
+function renderFractal(sp, n, total, freshFrom) {
+  const uid = (sp.id || 'x').replace(/[^a-z0-9]/gi, '') + (++gradSeq);
+  const ang = angleOf(sp) * Math.PI / 180;
+  const hue = sp.leafHue, sat = sp.leafSat || 52;
+  const R = 96, k = R / Math.sqrt(total);
+  let s = defsFor(sp, uid);
+  s += stemShape(0, R + 150, 0, R * .6, 5.4, 3.6, 4, uid);
+  // outer bracts
+  for (let b = 0; b < 5; b++) {
+    const th = 200 + b * 28;
+    s += '<g transform="rotate(' + th + ')"><path d="' + leafPath(R * .95, R * .3) +
+      '" fill="hsl(' + hue + ' ' + (sat - 14) + '% 22%)" opacity=".8"/></g>';
+  }
+  for (let i = 0; i < n; i++) {
+    const r = k * Math.sqrt(i + .5), th = (i + .5) * ang;
+    const t = total > 1 ? i / (total - 1) : 0;
+    const x = Math.cos(th) * r, y = Math.sin(th) * r;
+    const size = 6 + (1 - t) * 9;
+    const li = 26 + (1 - t) * 22;
+    // a bud: a cone drawn as a spiral of smaller cones
+    s += '<g transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"' +
+      (i >= freshFrom ? ' class="fresh" style="animation-delay:' + ((i - freshFrom) * .02).toFixed(3) + 's"' : '') + '>' +
+      '<circle cx="0" cy="0" r="' + size.toFixed(1) + '" fill="hsl(' + hue + ' ' + sat + '% ' + li.toFixed(0) + '%)"/>';
+    if (hiDetail() && size > 8) {
+      for (let j = 0; j < 6; j++) {
+        const jr = size * .55 * Math.sqrt((j + .5) / 6), jt = (j + .5) * ang;
+        s += '<circle cx="' + (Math.cos(jt) * jr).toFixed(1) + '" cy="' + (Math.sin(jt) * jr).toFixed(1) +
+          '" r="' + (size * .27).toFixed(1) + '" fill="hsl(' + (hue + 6) + ' ' + (sat + 8) + '% ' +
+          (li + 16).toFixed(0) + '%)"/>';
+      }
+    }
+    s += '<path d="M0 ' + (-size).toFixed(1) + ' L' + (size * .5).toFixed(1) + ' ' + (size * .5).toFixed(1) +
+      ' L' + (-size * .5).toFixed(1) + ' ' + (size * .5).toFixed(1) + ' Z" fill="hsl(' + hue + ' ' +
+      (sat + 10) + '% ' + (li + 20).toFixed(0) + '%)" opacity=".35"/></g>';
+  }
+  return '<svg viewBox="-150 -150 300 320">' + s + '</svg>';
+}
+
+/* Rough element count for a plant, used to decide whether full detail
+   is affordable. A 143-leaf vine at five paths a leaf is 700+ nodes;
+   nine of those in one bed is a megabyte of SVG and a visibly slow
+   repaint, so busy plants drop to low detail automatically. */
+const DETAIL_BUDGET = 420;
+function estimateElements(sp, n) {
+  if (sp.form === 'stem')    return n * 5 + 3;
+  if (sp.form === 'frond')   return n * 6;
+  if (sp.form === 'fractal') return n * 8;
+  if (sp.form === 'cone')    return n * 3 + 2;
+  if (sp.form === 'rosette') return n * 3 + 1;
+  return n * 2 + 44;                       // disc: seeds plus petals
+}
 function plantSVG(sp, n, freshFrom, lod) {
   const total = totalFor(sp);
-  LOD = lod === 'low' ? 'low' : 'high';
+  LOD = (lod === 'low' || estimateElements(sp, n) > DETAIL_BUDGET) ? 'low' : 'high';
   const cacheable = freshFrom === undefined || freshFrom === Infinity;
   const key = cacheable ? sp.id + '|' + n + '|' + LOD : null;
   if (key && svgCache[key] !== undefined) { svgCacheHits++; return svgCache[key]; }
@@ -1592,6 +1739,8 @@ function plantSVG(sp, n, freshFrom, lod) {
   if (sp.form === 'disc')         out = renderDisc(sp, n, total, freshFrom);
   else if (sp.form === 'rosette') out = renderRosette(sp, n, total, freshFrom);
   else if (sp.form === 'stem')    out = renderStem(sp, n, total, freshFrom);
+  else if (sp.form === 'frond')   out = renderFrond(sp, n, total, freshFrom);
+  else if (sp.form === 'fractal') out = renderFractal(sp, n, total, freshFrom);
   else                            out = renderCone(sp, n, total, freshFrom);
   if (key) {
     // keep the cache from growing without bound across many hybrids
@@ -1786,14 +1935,14 @@ function goldenMult() { return 1 + state.golden * PHI_BONUS; }
    One week per season, cycling with the calendar. Each season
    favours a growth form at market — rotate what you plant.        */
 const SEASONS = [
-  { id: 'spring', icon: '🌸', name: 'spring', boost: { stem: 1.3 },
-    blurb: 'sprigs sell +30%' },
-  { id: 'summer', icon: '🌻', name: 'summer', boost: { disc: 1.3 },
-    blurb: 'flower discs sell +30%' },
-  { id: 'autumn', icon: '🍂', name: 'autumn', boost: { cone: 1.45, rosette: 1.15 },
+  { id: 'spring', icon: '🌸', name: 'spring', boost: { stem: 1.3, frond: 1.35 },
+    blurb: 'sprigs +30%, ferns +35%' },
+  { id: 'summer', icon: '🌻', name: 'summer', boost: { disc: 1.3, fractal: 1.3 },
+    blurb: 'discs & romanesco +30%' },
+  { id: 'autumn', icon: '🍂', name: 'autumn', boost: { cone: 1.45, rosette: 1.15, fractal: 1.2 },
     blurb: 'cones +45%, rosettes +15%' },
-  { id: 'winter', icon: '❄️', name: 'winter', boost: { rosette: 1.3, cone: 1.15 },
-    blurb: 'evergreens +30%' }
+  { id: 'winter', icon: '❄️', name: 'winter', boost: { rosette: 1.3, cone: 1.15, frond: 1.2 },
+    blurb: 'evergreens +30%, ferns +20%' }
 ];
 function seasonNow() { return SEASONS[Math.floor(dayIndex() / 7) % 4]; }
 function seasonMult(sp) { return seasonNow().boost[sp.form] || 1; }
@@ -2013,7 +2162,14 @@ function harvestReveal(sp, stars, isGolden, value) {
    XP from everything you actually do; levels unlock species and,
    at the odd milestones, a permanent choice of two perks. Level,
    XP and perks are mastery — they survive replanting.             */
-function xpForNext() { return FIB[Math.min(state.level + 2, FIB.length - 1)] * 10; }
+/* The curve is Fibonacci up to the cap, then keeps climbing gently so
+   the deep species (levels 9-16) are a real journey rather than a
+   formality once the sequence runs out of terms. */
+function xpForNext() {
+  const i = state.level + 2;
+  if (i < FIB.length) return FIB[i] * 10;
+  return Math.round(FIB[FIB.length - 1] * 10 * (1 + (i - FIB.length + 1) * 0.35));
+}
 function hasPerk(id) { return !!state.perks[id]; }
 const PERK_CHOICES = {
   3: [{ id: 'greenthumb', icon: '🌿', name: 'Green thumb', desc: 'all sale prices +10%' },
@@ -4432,7 +4588,7 @@ const CHAPTERS = [
   { id: 'c9', title: 'The whole ladder',
     quote: 'Every wild plant, at its best. Then do it all again.',
     objs: [
-      { t: 'All nine wild species at ★★★',    get: function (s) { return BASE_SPECIES.filter(function (x) { return s.almanac[x.id] === 3; }).length; }, need: 9 },
+      { t: 'Every wild species at ★★★',       get: function (s) { return BASE_SPECIES.filter(function (x) { return s.almanac[x.id] === 3; }).length; }, need: -1 },
       { t: 'Replant the garden once',         get: function (s) { return s.prestiges; }, need: 1 },
       { t: 'Breed five hybrids',              get: function (s) { return s.bred | 0; }, need: 5 }
     ],
@@ -4456,9 +4612,12 @@ function chapterProgress(ch) {
   let hit = 0;
   const rows = ch.objs.map(function (o) {
     const have = Math.max(0, o.get(state) | 0);
-    const done = have >= o.need;
+    // need: -1 means "all wild species", resolved live so adding
+    // species raises the bar instead of leaving it stale at nine
+    const o_need = o.need === -1 ? BASE_SPECIES.length : o.need;
+    const done = have >= o_need;
     if (done) hit++;
-    return { t: o.t, have: Math.min(have, o.need), need: o.need, done: done };
+    return { t: o.t, have: Math.min(have, o_need), need: o_need, done: done };
   });
   return { rows: rows, hit: hit, all: hit === ch.objs.length };
 }
@@ -4825,8 +4984,11 @@ function flyBees() {
    up that ladder IS the maths of the game.
    ============================================================ */
 const BREED_COST = 400;
-/* no hybrid may out-earn the best wild plant by more than half again */
-const HYBRID_PRICE_CAP = 250;
+/* no hybrid may out-earn the best wild plant by more than half again.
+   Derived, not hardcoded, so adding species can't silently make
+   breeding pointless or a money printer. */
+const HYBRID_PRICE_CAP = Math.round(
+  Math.max.apply(null, BASE_SPECIES.map(function (s) { return s.price; })) * 1.5);
 /* each cross costs more than the last, so breeding is a considered
    act rather than something you spam between waterings */
 function breedCost() {
@@ -4880,7 +5042,14 @@ function makeHybrid(aId, bId) {
     disc: donor.disc, petal: donor.petal,
     fact: hybridFact(A, B, frac)
   };
-  if (form === 'disc' && !h.disc) { h.disc = [44, 76, 48]; h.petal = '#f3efdf'; h.petals = 21; h.seedR = 2.7; }
+  // forms that need extra fields must always have them, whatever the parents were
+  if ((form === 'disc' || form === 'fractal') && !h.disc) {
+    h.disc = [44, 76, 48]; h.petal = '#f3efdf';
+  }
+  if (form === 'disc') {
+    if (!h.petals) h.petals = 21;
+    if (!h.seedR) h.seedR = 2.7;
+  }
   return h;
 }
 const HY_PREFIX = ['Dawn', 'Ember', 'Quiet', 'Gilded', 'Wander', 'Hollow', 'Bright', 'Silver', 'Amber', 'Vesper'];
