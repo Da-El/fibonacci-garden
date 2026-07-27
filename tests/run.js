@@ -20,7 +20,8 @@ const FILES = [
   ['journal-check', 'the journal: every objective reachable by a gardener who did everything'],
   ['a11y-check',    'colour, motion, screen readers and tap targets'],
   ['market-check',  'the price spread, and whether the market explains it'],
-  ['save-check',    'old saves, corrupt saves, export codes, a failing localStorage']
+  ['save-check',    'old saves, corrupt saves, export codes, a failing localStorage'],
+  ['daily-check',   'a year of Dailies: every one winnable, fair, and worth winning']
 ];
 
 let pass = 0, fail = 0, broken = [];

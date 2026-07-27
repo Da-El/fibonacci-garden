@@ -211,7 +211,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 199 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 210 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and

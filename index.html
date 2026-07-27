@@ -5895,15 +5895,30 @@ function appSellStock(sinceMs) {
    separate from your garden — it cannot be farmed, and losing it
    costs you nothing but the attempt.
    ============================================================ */
+/* The Daily is generated from the date, so everybody gets the same one and a
+   bad seed would be a bad day for every player at once, with nobody able to
+   tell. Both numbers are therefore derived from the crop rather than rolled
+   independently of it.
+
+   The drop budget is a whole number of plants. It used to be 12, 16 or 20
+   regardless of a species needing 6 to 12 stages, so a quarter of the drops
+   handed out could not be spent on anything — you were given water and no
+   way to use it.
+
+   Par is a fraction of what a flawless run scores, so the margin is the same
+   whichever species comes up. It used to be computed from a fractional
+   number of plants, which made some days beatable by 6% and others by 89%. */
+const DAILY_PAR_FRACTION = 0.68;
 function dailySpec(day) {
   const h = hash32((day * 2654435761 + 8191) >>> 0);
   const pool = BASE_SPECIES.filter(function (s) { return s.lvl <= 8; });   // always growable
   const sp = pool[h % pool.length];
-  const drops = 12 + (hash32(h) % 3) * 4;              // 12, 16 or 20
+  const plants = 2 + (hash32(h) % 3);                  // 2, 3 or 4 whole plants
+  const drops = sp.stages * plants;
   const plots = 2 + (hash32(h + 7) % 2);               // 2 or 3
-  // par = what a competent player should manage
-  const par = Math.round(sp.price * (drops / sp.stages) * 0.85);
-  return { sp: sp, drops: drops, plots: plots, par: par, day: day };
+  const flawless = plants * Math.round(sp.price * STAR_MULT[3]);
+  const par = Math.round(flawless * DAILY_PAR_FRACTION);
+  return { sp: sp, drops: drops, plots: plots, par: par, plants: plants, day: day };
 }
 function dailyState() {
   const d = dayIndex();
@@ -5945,7 +5960,11 @@ function dailyRender(spec, d) {
 
   $('card').innerHTML =
     '<h3>The Daily</h3>' +
-    '<div class="sub">' + spec.sp.name + ' · ' + spec.drops + ' drops · par ' + spec.par + '🪙</div>' +
+    /* Say the budget in plants as well as drops — "exactly 3 sunflowers'
+       worth" is a plan, where "36 drops" is arithmetic homework. */
+    '<div class="sub">' + spec.sp.name + ' · ' + spec.drops + ' drops — exactly <b>' +
+      spec.plants + '</b> plant' + (spec.plants > 1 ? 's' : '') + ' worth · par ' +
+      spec.par + '🪙</div>' +
     (dailyPour
       ? '<div id="dpourwrap"><div id="pourbar" style="margin-bottom:7px">' +
           '<div class="zone zgood"></div><div class="zone zgold"></div>' +
