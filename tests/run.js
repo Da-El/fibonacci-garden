@@ -35,6 +35,7 @@ const FILES = [
   ['budget-check',  'what each screen hands the browser: nodes, markup, and wasted rebuilds'],
   ['score-check',   'the generative score: mode, tempo, and whether it ever changes back'],
   ['shelf-check',   'every species measured against every other: is any one of them dead?'],
+  ['tutor-check',   'the first five minutes, walked step by step the way a player does'],
   ['audit',         'stated versus actual: every claim this project makes about itself']
 ];
 

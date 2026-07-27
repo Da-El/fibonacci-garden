@@ -419,6 +419,9 @@ function build(opts) {
 
   const timers = [];
   const intervals = [];
+  let timerSeq = 0;
+  let timerNow = 0;
+  const timerErrs = [];
   let intervalSeq = 0;
   const win = {
     document: doc,
@@ -430,8 +433,19 @@ function build(opts) {
     matchMedia: function () { return { matches: false, addEventListener: function () {}, addListener: function () {} }; },
     requestAnimationFrame: function (fn) { return 0; },
     cancelAnimationFrame: function () {},
-    setTimeout: function (fn, ms) { timers.push({ fn: fn, at: clock + (ms || 0) }); return timers.length; },
-    clearTimeout: function () {},
+    /* Deferred work is real work. Every coachDid() in the game — the four
+       steps of the tutorial that wait for the player to do something — fires
+       from inside a setTimeout, so with these dropped on the floor the
+       interactive spine of onboarding could never advance in a test. */
+    setTimeout: function (fn, ms) {
+      timers.push({ id: ++timerSeq, fn: fn, at: timerNow + (ms || 0) });
+      return timerSeq;
+    },
+    clearTimeout: function (id) {
+      for (let i = 0; i < timers.length; i++) {
+        if (timers[i].id === id) { timers.splice(i, 1); return; }
+      }
+    },
     /* Intervals used to be dropped on the floor, which meant every repeating
        thing in the game — the tick loop, the score — existed in tests only
        as source to be read. They are recorded now, and a test can step them
@@ -500,6 +514,31 @@ function build(opts) {
     setClock: function (t) { clock = t; evalIn('__CLOCK_SET')(t); },
     store: store, win: win, doc: doc, timers: timers, ids: ids,
     intervals: intervals,
+    /* Fire every deferred callback that is due, oldest first, following any
+       it schedules in turn. Bounded so a timer that re-arms itself cannot
+       hang a test. */
+    runTimers: function (ms) {
+      /* Advance a virtual clock and fire only what is due by then. Firing
+         everything regardless of its delay is not a faster test, it is a
+         different game: a pour locks itself after 3800ms if you hesitate, so
+         draining the whole queue at once auto-spilled every drop and skipped
+         the tutorial step that teaches you to tap in the gold. */
+      timerNow += (ms === undefined ? 100 : ms);
+      let fired = 0, rounds = 0;
+      while (rounds++ < 20) {
+        const due = timers.filter(function (t) { return t.at <= timerNow; });
+        if (!due.length) break;
+        due.forEach(function (t) {
+          const i = timers.indexOf(t);
+          if (i > -1) timers.splice(i, 1);
+          fired++;
+          try { t.fn(); } catch (e) { timerErrs.push(e); }
+        });
+      }
+      return fired;
+    },
+    timerErrors: timerErrs,
+    pendingTimers: function () { return timers.length; },
     /* Fire every registered interval n times, newest list each pass so a
        callback that re-times itself is followed rather than lost. */
     tickIntervals: function (n) {

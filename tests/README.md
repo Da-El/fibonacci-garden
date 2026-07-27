@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-471 checks. Each one loads the game's inline `<script>` into a headless harness and
+498 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -44,6 +44,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, and lets a test step the intervals by hand |
+| `tutor-check.js` | the first five minutes walked step by step, each one advanced by the action it waits for |
 | `budget-check.js` | what each screen hands the browser: DOM nodes, markup, wasted rebuilds |
 | `draw-check.js` | the markup every plant renders to: bounds under rotation, growth, detail, distinctness |
 | `score-check.js` | the generative score: mode by season, tempo by hour and fever, and whether it ever changes back |
@@ -86,7 +87,9 @@ the minigame could never resolve.
 **A stub that returns nothing makes the code above it untestable, silently.** The
 harness handed the game a null `AudioContext` and a `setInterval` that dropped its
 callback on the floor, so the entire score — forty iterations of it — existed in tests
-only as source that could be read, never as behaviour that could be measured. The
+only as source that could be read, never as behaviour that could be measured. The same
+was true of `setTimeout`: every `coachDid()` in the game fires from one, so the four
+interactive steps of the tutorial had never advanced once under test. The
 moment both were made real, the first run found the tempo stuck in double time. If a
 check can only inspect the source of a system, that is not a check on the system.
 
