@@ -3942,14 +3942,39 @@ function paintGrowFoot() {
 let pour = null;                    // {t0, period, center, gw, goodw, auto}
 const FIBSET = { 3: 1, 5: 1, 8: 1, 13: 1, 21: 1, 34: 1, 55: 1, 89: 1 };
 
-function pourZonesFor(stage) {
+/* The pour's difficulty is a length of time, not a width on a bar, so it is
+   set in milliseconds and the width is derived from the sweep.
+
+   It used to be the other way round: a fixed fraction of the bar, on a bar
+   that sweeps almost twice as fast for the priciest species. The tightest
+   gold window that produced was 26ms — below the precision of a human tap,
+   so late pours on a pineapple were luck wearing the costume of skill, and
+   nothing on screen told you that. These bounds keep the whole shelf
+   landable while still asking for real timing at the top. */
+const POUR_MS_EASY = 150;      // an elm's first stage
+const POUR_MS_HARD = 75;       // a pineapple's last
+const POUR_GOOD_MS = 105;      // the forgiving band either side of the gold
+
+/* How demanding this particular pour should be, 0 (easiest) to 1 (hardest).
+   Maturity leads, because a plant getting harder as it fills out is the
+   feeling worth having; the species tier is the lesser half. */
+function pourDifficulty(sp, stage) {
+  const grown = sp.stages > 1 ? Math.min(1, stage / (sp.stages - 1)) : 1;
+  const tier = SPECIES.length > 1 ? sp.idx / (SPECIES.length - 1) : 0;
+  return Math.min(1, grown * 0.6 + tier * 0.4);
+}
+function pourPeriodFor(sp) { return Math.max(650, 1150 - sp.idx * 45); }
+
+function pourZonesFor(stage, sp) {
   const h = hash32((state.pourN * 2654435761 + 4241) >>> 0);
+  const sweep = pourPeriodFor(sp) / 2;                    // ms for one pass of the bar
+  const ms = POUR_MS_EASY + (POUR_MS_HARD - POUR_MS_EASY) * pourDifficulty(sp, stage);
   return {
     center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
-    gw: Math.max(0.08, 0.20 - stage * 0.012) *
+    gw: (ms / sweep) *
         (feverActive() ? 1.5 : 1) *                       // fever widens the gold
         (hasPerk('steadyhand') ? 1.3 : 1),
-    goodw: 0.14
+    goodw: POUR_GOOD_MS / sweep
   };
 }
 function resolvePour(pos, z) {
@@ -3965,12 +3990,12 @@ function markerPos() {
 function startPour() {
   const p = state.plots[curPlot];
   const sp = byId[p.s];
-  const z = pourZonesFor(p.stage);
+  const z = pourZonesFor(p.stage, sp);
   state.pourN++;
   saveState();
   pour = {
     t0: performance.now(),
-    period: Math.max(650, 1150 - sp.idx * 45),            // pricier plants sweep faster
+    period: pourPeriodFor(sp),                            // pricier plants sweep faster
     center: z.center, gw: z.gw, goodw: z.goodw,
     auto: setTimeout(function () { lockPour(); }, 3800)   // hesitate and it locks itself
   };
@@ -4007,6 +4032,11 @@ function lockPour() {
   if (!p) return;
   const sp = byId[p.s];
 
+  /* Which side of the gold you landed on. "SPILLED" alone tells a player
+     nothing they can act on; early or late is the one thing that lets them
+     correct on the next drop, and the whole game rests on this tap. */
+  const side = pos < pour.center ? 'EARLY' : 'LATE';
+
   if (result === 'spill') {
     state.water--;
     if (state.water === waterCap() - 1) state.lastTick = NOW();
@@ -4016,7 +4046,7 @@ function lockPour() {
     saveState();
     sfx('spill');
     hurtFlash(); shakeApp();
-    floatText($('canvas'), 'SPILLED!', 'var(--bad)');
+    floatText($('canvas'), 'SPILLED — too ' + side.toLowerCase(), 'var(--bad)');
     burstCenter($('canvas'), ['💦', '💧', '😖']);
     paintGrowFoot(); paintTop();
     setTimeout(function () { coachDid('poured'); }, 60);   // a miss still teaches it
@@ -4039,7 +4069,8 @@ function lockPour() {
     if (state.combo >= 8 && state.combo % 8 === 0) startFever();
   } else {
     sfx('good');
-    floatText($('canvas'), 'good', 'var(--leaf)');
+    // near-misses point the same way, so a good pour still teaches the timing
+    floatText($('canvas'), 'good · a touch ' + side.toLowerCase(), 'var(--leaf)');
   }
   advanceStage('water', result === 'perfect');
   addXP(result === 'perfect' ? 3 : 1);
@@ -5665,11 +5696,17 @@ function dailyRender(spec, d) {
   });
   if (dailyPour) dailySetupPour(spec, d);
 }
+const DAILY_PERIOD = 950;
 function dailyStartPour(spec, d, idx) {
   const p = d.plots[idx];
-  const z = pourZonesFor(p.stage);
-  dailyPour = { idx: idx, t0: performance.now(), period: 950,
-                center: z.center, gw: z.gw, goodw: z.goodw };
+  /* The Daily sweeps at its own fixed rate, so its zones have to be sized
+     against that sweep rather than the species' — otherwise the windows
+     come out wrong by the ratio between the two. */
+  const z = pourZonesFor(p.stage, spec.sp);
+  // widths are a fraction of the bar, so converting sweeps multiplies by the ratio
+  const scale = pourPeriodFor(spec.sp) / DAILY_PERIOD;
+  dailyPour = { idx: idx, t0: performance.now(), period: DAILY_PERIOD,
+                center: z.center, gw: z.gw * scale, goodw: z.goodw * scale };
   dailyRender(spec, d);
 }
 function dailySetupPour(spec, d) {
