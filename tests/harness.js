@@ -145,6 +145,58 @@ function makeCanvasContext(el) {
   return ctx;
 }
 
+/* A small HTML reader: enough of one to turn the markup this game writes
+   into elements a test can find and press.
+
+   Not a browser parser and not trying to be. It handles the tags, quoted
+   attributes, self-closing forms and text this game actually emits, and it
+   deliberately does not descend into <svg> — a full-grown romanesco is two
+   thousand nodes of artwork and none of it is anything anyone presses. */
+function parseHTML(parent, html, make) {
+  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[a-zA-Z-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>/g;
+  const stack = [parent];
+  let m, last = 0, skipDepth = 0, skipTag = null;
+  const VOID = ['br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'use', 'path',
+                'circle', 'ellipse', 'rect', 'line', 'polygon', 'stop'];
+  while ((m = tagRe.exec(html))) {
+    const closing = m[1] === '/', name = m[2].toLowerCase(), attrs = m[3], selfClose = m[4] === '/';
+    /* Text between the previous tag and this one belongs to whatever is open. */
+    const text = html.slice(last, m.index).replace(/\s+/g, ' ').trim();
+    if (text && !skipDepth && stack.length > 1) {
+      const top = stack[stack.length - 1];
+      top._text = (top._text ? top._text + ' ' : '') + text;
+    }
+    last = tagRe.lastIndex;
+
+    if (skipDepth) {
+      if (name === skipTag) { if (closing) skipDepth--; else if (!selfClose) skipDepth++; }
+      continue;
+    }
+    if (name === 'svg' && !closing) { skipDepth = 1; skipTag = 'svg'; continue; }
+    if (closing) { if (stack.length > 1) stack.pop(); continue; }
+
+    const el = make(name);
+    const aRe = /([a-zA-Z-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+    let a;
+    while ((a = aRe.exec(attrs))) {
+      const k = a[1], v = a[2] !== undefined ? a[2] : (a[3] !== undefined ? a[3] : (a[4] || ''));
+      el.setAttribute(k, v);
+      if (k.indexOf('data-') === 0) {
+        const key = k.slice(5).replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); });
+        el.dataset[key] = v;
+      }
+      if (k === 'id') el.id = v;
+    }
+    stack[stack.length - 1].appendChild(el);
+    if (!selfClose && VOID.indexOf(name) < 0) stack.push(el);
+  }
+  const tail = html.slice(last).replace(/\s+/g, ' ').trim();
+  if (tail && stack.length > 1) {
+    const top = stack[stack.length - 1];
+    top._text = (top._text ? top._text + ' ' : '') + tail;
+  }
+}
+
 function makeEl(tag) {
   const el = {
     tagName: (tag || 'div').toUpperCase(),
@@ -234,9 +286,11 @@ function makeEl(tag) {
           });
         })(this);
       }, this);
-      /* Nothing in the tree is usually a test working with a synthetic
-         fragment rather than a real defect, so fall back to the stub. */
-      return out.length ? out : [this.querySelector(sel)];
+      /* An empty result is empty. Handing back a stub when nothing matched
+         invented an element that was never in the page — an unlabelled,
+         unreachable one — and every check counting what is in the bed
+         counted it. */
+      return out;
     },
     getBoundingClientRect: function () { return { left: 0, top: 0, width: 320, height: 480, right: 320, bottom: 480 }; },
     focus: function () {}, blur: function () {}, click: function () {}, select: function () {},
@@ -275,6 +329,14 @@ function makeEl(tag) {
          one leaking a handler per call. Twenty-one elements looked like they
          were stacking; not one of them was. */
       if (el._freshIds) el._freshIds(el._html);
+      /* And it builds real children. Half this game's interface is written
+         as a string — every modal, every list, every row of the market and
+         the shop — and with innerHTML kept as text and nothing else, none of
+         it existed as anything a test could find, focus or press. The scene
+         could be driven by keyboard because it uses createElement; the
+         planter could not, because it does not. */
+      el.children = []; el.childNodes = [];
+      if (el._parseHTML) el._parseHTML(el, el._html);
     }
   });
   Object.defineProperty(el, 'textContent', { get: function () { return el._text; }, set: function (v) { el._text = String(v); } });
@@ -334,7 +396,18 @@ function build(opts) {
       if (el) { el._on = {}; el._h = {}; }
     }
   };
-  const armFresh = function (el) { el._freshIds = freshIds; return el; };
+  const armFresh = function (el) {
+    el._freshIds = freshIds;
+    /* Children written as markup get the same treatment, so a card that
+       writes a list which itself writes rows is walkable all the way down. */
+    el._parseHTML = function (into, markup) {
+      parseHTML(into, markup, function (tag) {
+        const kid = armFresh(makeEl(tag));
+        return kid;
+      });
+    };
+    return el;
+  };
   Object.keys(ids).forEach(function (k) { armFresh(ids[k]); });
   /* Give the scene and its bed a real size, so a layout can be measured at a
      chosen viewport rather than at whatever the game's fallback happens to be. */
@@ -408,11 +481,29 @@ function build(opts) {
           });
         })(this);
       }, this);
-      /* Nothing in the tree is usually a test working with a synthetic
-         fragment rather than a real defect, so fall back to the stub. */
-      return out.length ? out : [this.querySelector(sel)];
+      /* An empty result is empty. Handing back a stub when nothing matched
+         invented an element that was never in the page — an unlabelled,
+         unreachable one — and every check counting what is in the bed
+         counted it. */
+      return out;
     },
-    addEventListener: function () {}, removeEventListener: function () {},
+    /* Window- and document-level listeners are where all the keyboard play
+       lives: Escape closes what is open, and Space or Enter both starts a
+       pour and takes the shot. Discarding them meant none of that could be
+       driven — the one route through this game for anyone who does not
+       touch the screen. */
+    _on: {},
+    addEventListener: function (type, fn) { (this._on[type] = this._on[type] || []).push(fn); },
+    removeEventListener: function (type, fn) {
+      const a = this._on[type]; if (!a) return;
+      const i = a.indexOf(fn); if (i > -1) a.splice(i, 1);
+    },
+    dispatchEvent: function (ev) {
+      const a = (this._on[(ev && ev.type) || ''] || []).slice();
+      const self = this;
+      a.forEach(function (fn) { try { fn.call(self, ev); } catch (e) { (self._errs = self._errs || []).push(e); } });
+      return true;
+    },
     activeElement: null,
     fonts: { ready: Promise.resolve() }
   };
@@ -459,7 +550,23 @@ function build(opts) {
         if (intervals[i].id === id) { intervals.splice(i, 1); return; }
       }
     },
-    addEventListener: function () {}, removeEventListener: function () {},
+    /* Window- and document-level listeners are where all the keyboard play
+       lives: Escape closes what is open, and Space or Enter both starts a
+       pour and takes the shot. Discarding them meant none of that could be
+       driven — the one route through this game for anyone who does not
+       touch the screen. */
+    _on: {},
+    addEventListener: function (type, fn) { (this._on[type] = this._on[type] || []).push(fn); },
+    removeEventListener: function (type, fn) {
+      const a = this._on[type]; if (!a) return;
+      const i = a.indexOf(fn); if (i > -1) a.splice(i, 1);
+    },
+    dispatchEvent: function (ev) {
+      const a = (this._on[(ev && ev.type) || ''] || []).slice();
+      const self = this;
+      a.forEach(function (fn) { try { fn.call(self, ev); } catch (e) { (self._errs = self._errs || []).push(e); } });
+      return true;
+    },
     getComputedStyle: function () { return { getPropertyValue: function () { return ''; }, fontSize: '16px' }; },
     /* A recording Web Audio context. Null here meant every note the game
        played returned at the first line, so the score — which is nothing
