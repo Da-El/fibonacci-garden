@@ -84,6 +84,8 @@
   #wtimer {
     font-size: 10px; color: var(--dim); margin-left: 2px; letter-spacing: .02em;
   }
+  /* the permanent price bonus, said out loud rather than hidden in a tooltip */
+  #gbonus { font-size: 10px; color: var(--gold); margin-left: 3px; letter-spacing: .02em; }
   #top .grow { flex: 1; }
   #brand { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
   #brandsub { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
@@ -1161,7 +1163,7 @@
         <div id="brand">Fibonacci Garden</div>
         <div id="brandsub">plant · water · harvest · sell</div>
       </div>
-      <div class="pill" id="p-golden"><i>✨</i><b id="golden">0</b></div>
+      <div class="pill" id="p-golden"><i>✨</i><b id="golden">0</b><span id="gbonus"></span></div>
       <div class="pill" id="p-weather"><i id="wxicon">☁️</i></div>
       <div class="pill" id="p-coins"><i>🪙</i><b id="coins">0</b></div>
       <div class="pill" id="p-water"><i>💧</i><b id="water">0</b><span id="wtimer"></span></div>
@@ -2144,7 +2146,16 @@ function goldPriceOf(sp) { return priceOfQ(sp, 3) * GOLD_PRICE_X; }
    Replant the garden: everything resets except the almanac and
    golden seeds. Each successive seed costs 15% more run-earnings
    than the last, so the spiral tightens as it climbs.            */
-const PRESTIGE_UNIT = 2500;
+/* What a golden seed costs in a run's earnings. It was 2,500, set against
+   an economy two and a half times richer than the current one, and the
+   result was that a keen gardener could replant on day three — before they
+   had bought most of what there is to buy. Worse, the first three seeds
+   came to 11,381 against an upgrade tree of 39,520, so resetting was
+   simply cheaper than building, which is exactly backwards.
+   At 12,000 the first seed lands after a substantial run rather than during
+   the opening week, and prestige becomes what it should be: the thing you
+   do once you have run out of garden to buy. */
+const PRESTIGE_UNIT = 12000;
 function goldenSeedCost(nOwned) {
   return Math.round(PRESTIGE_UNIT * Math.pow(1.45, nOwned));
 }
@@ -3383,6 +3394,11 @@ function paintTop() {
     state.xp + '/' + xpForNext() + ' xp';
   $('golden').textContent = state.golden;
   $('p-golden').classList.toggle('show', state.golden > 0);
+  /* What the seeds are actually worth, on the pill itself. It used to live
+     only in a title attribute, which a phone never shows — so the one
+     permanent reward in the game was invisible on the platform it is for. */
+  $('gbonus').textContent = state.golden
+    ? '+' + Math.round((goldenMult() - 1) * 100) + '%' : '';
   $('p-golden').title = state.golden + ' golden seeds · all sale prices ×' + goldenMult().toFixed(3);
   $('water').textContent = state.water + '/' + waterCap();
   $('p-water').classList.toggle('empty', state.water === 0);
@@ -6591,7 +6607,8 @@ function GO(v) {
   if (v === 'almanac') { paintAlmanac(); paintLedger(); paintCodex(); }
   if (v === 'shop')    {
     paintShop();
-    if (state.runEarned > 400) hint('prestige');
+    // proportional to what a seed costs, so it is not explained a fortnight early
+    if (state.runEarned > PRESTIGE_UNIT * 0.4) hint('prestige');
     if (canBreed().length >= 2) hint('breed');
   }
 }

@@ -145,7 +145,11 @@ and more.
 
 When a garden has earned enough, **replant it** for **golden seeds** — each raises all
 sale prices by 6.18% (a hundredth of φ−1) forever. Coins, plots and upgrades reset;
-the almanac, achievements, levels and perks stay. Each successive seed costs 45% more,
+the almanac, achievements, levels and perks stay. The first seed costs 12,000 earned in a run and each successive one 45% more, so
+three seeds cost more than the entire upgrade tree — replanting is what you do once
+you have run out of garden to buy, not instead of buying it. The running bonus is shown
+on the ✨ pill, because a permanent reward you cannot see is not much of a reward.
+Also,
 and **storms and aphids grow bolder with every replant** — mastery has to cost
 something.
 
