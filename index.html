@@ -245,6 +245,9 @@
   }
   .gplant .gtag.ready { color: #2a1d05; background: var(--gold); font-weight: 700; }
   .gplant .gtag.warn { color: #fff; background: #b3402ecc; }
+  /* about to lose a star — said before it happens, not after */
+  .gplant .gtag.soon { color: #2a1d05; background: #e8a33ce6; font-weight: 700; }
+  body.cb .gplant .gtag.soon::before { content: '⏳ '; }
   /* the clock has done all it will — this plant is waiting on a drop */
   .gplant .gtag.thirsty { color: #eaf6ff; background: #2f6da8dd; font-weight: 600; }
   .gplant .gmark {
@@ -3916,7 +3919,11 @@ function paintPlots() {
 
       const sp = byId[p.s];
       const done = p.stage >= sp.stages;
+      /* Flagged before the first star goes, not after. A warning that arrives
+         once the damage is done is a receipt, not a warning — and at a six-hour
+         window there is real money in the last hour of it. */
       const wilting = done && wiltPenalty(p) > 0;
+      const wiltSoon = done && !wilting && (NOW() - p.ripeAt) > wiltMs() * 0.6;
       const st = harvestStars(sp, p);
       // the plant grows visually as well as numerically
       const growFrac = 0.42 + (p.stage / sp.stages) * 0.58;
@@ -3953,9 +3960,9 @@ function paintPlots() {
       d.style.opacity = 0.78 + depth * 0.22;
       const flawless = glass && !(p.spills | 0) && p.perfects >= p.stage;
       d.innerHTML =
-        '<div class="gtag' + (done ? ' ready' : (p.bug ? ' warn'
+        '<div class="gtag' + (done ? (wilting ? ' warn' : wiltSoon ? ' soon' : ' ready') : (p.bug ? ' warn'
                             : glass ? ' glasstag' : (thirsty ? ' thirsty' : ''))) + '">' +
-          (done ? (wilting ? 'wilting ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
+          (done ? (wilting ? 'wilting ' : wiltSoon ? '⏳ ' : '') + starStr(st) + ' ' + priceOfQ(sp, st) + '🪙'
                 : p.bug ? '🐛 paused'
                 // under glass the number that matters is whether it is still flawless
                 : glass ? p.stage + '/' + sp.stages + (flawless ? ' · 💎 flawless' : '')

@@ -97,6 +97,31 @@ function check(n, c, d) { (c ? ok : bugs).push(n + (d ? ' — ' + d : '')); }
         'without ' + without + ', with ' + with_);
 }
 
+/* ---- and the warning must arrive before the damage ---- */
+{
+  const h = H.build(); const E = h.evalIn; const s = E('state');
+  s.offset = 0; s.coins = 99999; s.level = 12;
+  const sp = E('byId')['elm'];
+  const tagAt = function (hrs) {
+    s.plots[0] = { s: 'elm', stage: sp.stages, q: 99, stageAt: E('NOW()'),
+                   ripeAt: E('NOW()') - hrs * HOUR, perfects: 6, spills: 0,
+                   hired: false, glass: 0 };
+    E('paintPlots()');
+    const bed = h.doc.getElementById('bed');
+    const el = (bed.children || []).filter(function (c) {
+      return c.className && c.className.indexOf('gplant') > -1;
+    }).pop();
+    const m = (el.innerHTML.match(/<div class="(gtag[^"]*)"/) || []);
+    return m[1] || '';
+  };
+  const fresh = tagAt(0), soon = tagAt(4), gone = tagAt(7);
+  console.log('\n  the tag on a ripe bloom: 0h "' + fresh + '"  4h "' + soon + '"  7h "' + gone + '"');
+  check('a freshly ripe bloom reads as ready', /ready/.test(fresh), fresh);
+  /* A warning that arrives once the damage is done is a receipt. */
+  check('it warns before the first star goes, not after', /soon/.test(soon), soon);
+  check('and says so plainly once it is losing them', /warn/.test(gone), gone);
+}
+
 console.log('\nPASS ' + ok.length + ' / FAIL ' + bugs.length);
 ok.forEach(function (t) { console.log('  ok   ' + t); });
 bugs.forEach(function (t) { console.log('  FAIL ' + t); });

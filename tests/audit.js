@@ -197,7 +197,15 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       })()],
     ['the Daily par is a fraction of a flawless run', html.indexOf('DAILY_PAR_FRACTION') > -1],
     ['the breeding bench shows which rungs you hold', html.indexOf('function ladderStrip') > -1],
-    ['the bench says whether a cross lands on a rung', html.indexOf('function onLadder') > -1]
+    ['the bench says whether a cross lands on a rung', html.indexOf('function onLadder') > -1],
+    ['the wheel does not beat selling',
+      E('WHEEL').reduce(function (a, w) { return a + w.m; }, 0) / E('WHEEL').length <= 1.0],
+    ['a level costs one Fibonacci step every two', html.indexOf('XP_STEP') > -1],
+    ['rich soil extends the clock rather than hurrying it',
+      html.indexOf("hasPerk('richsoil') ? 1 : 0") > -1],
+    ['deep well scales with the can', html.indexOf("hasPerk('deepwell') ? 1.25 : 1") > -1],
+    ['a ripe bloom wilts in hours, not a day', E('WILT_MS') <= 8 * 3600000],
+    ['the wilt warning arrives before the damage', html.indexOf('wiltSoon') > -1]
   ];
   claims.forEach(function (c) { console.log('  ' + (c[1] ? 'ok   ' : 'WRONG') + ' ' + c[0]); });
 }
