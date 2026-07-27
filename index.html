@@ -2547,7 +2547,7 @@ function harvestReveal(sp, stars, isGolden, value) {
     '<div class="rname">' + sp.name + '</div>' +
     '<div class="rstars">' + starHtml + '</div>' +
     (isGolden ? '<div class="rgold">✨ golden bloom ✨</div>' : '') +
-    '<div class="rval">worth ' + value + '🪙</div>';
+    '<div class="rval">worth ' + fmtCoins(value) + '🪙</div>';
   r.classList.add('show');
   burstCenter(r, isGolden ? ['✨', '🌟', '✨', '💛', '✨'] : ['🌸', '🌿', '✨', '🌼']);
   setTimeout(function () {
@@ -2624,13 +2624,47 @@ function addXP(n) {
         (unlocked.length ? ' ' + unlocked[0].name + ' unlocked' : ''));
   paintTop();
   if (PERK_CHOICES[state.level]) offerPerks(state.level);
+  else offerLatePerk(state.level);
   checkAch();
+}
+
+/* Every draft asks you to give one thing up to take another, and six drafts
+   means six perks passed over. The last of them is at level 15 and the last
+   species at 16 — so a hundred days of play reaches level 26 with every
+   level past the fifteenth paying nothing at all but a bigger number.
+
+   After fifteen, every third level hands back one of the ones you turned
+   down. It costs nothing to write, it uses what is already there, and it
+   means the choice you made early was a choice about *when*, not a door
+   closed for good. */
+const LATE_PERK_EVERY = 3;
+function leftoverPerks() {
+  const all = [];
+  Object.keys(PERK_CHOICES).forEach(function (lvl) {
+    PERK_CHOICES[lvl].forEach(function (pk) { if (!state.perks[pk.id]) all.push(pk); });
+  });
+  return all;
+}
+function offerLatePerk(lvl) {
+  const top = Math.max.apply(null, Object.keys(PERK_CHOICES).map(Number));
+  if (lvl <= top || (lvl - top) % LATE_PERK_EVERY !== 0) return;
+  const left = leftoverPerks();
+  if (!left.length) return;
+  const pair = left.slice(0, Math.min(2, left.length));
+  showPerkCard('Level ' + lvl + ' — take one back', pair);
 }
 function offerPerks(lvl) {
   const pair = PERK_CHOICES[lvl];
   if (!pair || pair.some(function (pk) { return state.perks[pk.id]; })) return;
+  showPerkCard('Level ' + lvl + ' — choose a perk', pair);
+}
+
+/* One card, two ways in: the drafts on the way up, and the ones handed back
+   afterwards. */
+function showPerkCard(heading, pair) {
+  if (!pair || !pair.length) return;
   $('card').innerHTML =
-    '<h3>Level ' + lvl + ' — choose a perk</h3>' +
+    '<h3>' + heading + '</h3>' +
     '<div class="sub">permanent · survives replanting</div>' +
     pair.map(function (pk, i) {
       return '<div class="row-item" style="cursor:pointer" data-perk="' + i + '">' +
@@ -3705,6 +3739,25 @@ function fmtMS(ms) {
    away came back as "336h 0m" and a decade as "87600h 0m" — technically the
    duration, and no use at all on the one screen whose whole job is to tell you
    how long you were gone. */
+/* Coins, shortened once they stop being readable.
+
+   The top bar wrote the number straight out, which is fine at 400 and fine
+   at 4,000 and not fine at all at 3,711,369 — a hundred days of play puts
+   seven digits in a pill built for three, with no separators to break them
+   up. Under ten thousand the exact figure is what you want, because that is
+   the range where you are counting whether you can afford the next bed.
+   Above it, one decimal of a k or an M says everything anyone needs. */
+function fmtCoins(n) {
+  n = Math.round(n || 0);
+  if (Math.abs(n) < 10000) return String(n);
+  if (Math.abs(n) < 1000000) {
+    const k = n / 1000;
+    return (Math.abs(k) < 100 ? k.toFixed(1) : String(Math.round(k))) + 'k';
+  }
+  const m = n / 1000000;
+  return (Math.abs(m) < 100 ? m.toFixed(2) : String(Math.round(m))) + 'M';
+}
+
 function fmtLong(ms) {
   const m = Math.round(ms / 60000);
   if (m < 60) return m + 'm';
@@ -3741,7 +3794,7 @@ function toast(msg) {
 }
 
 function paintTop() {
-  $('coins').textContent = state.coins;
+  $('coins').textContent = fmtCoins(state.coins);
   $('brand').textContent = gardenName();
   $('brandsub').textContent = 'level ' + state.level + ' gardener · ' +
     state.xp + '/' + xpForNext() + ' xp';
@@ -4165,7 +4218,7 @@ function openPlanter(plotIdx) {
       '</div>';
   });
   $('card').innerHTML =
-    '<h3>Plant a seed</h3><div class="sub">plot ' + (plotIdx + 1) + ' · you have ' + state.coins + '🪙</div>' +
+    '<h3>Plant a seed</h3><div class="sub">plot ' + (plotIdx + 1) + ' · you have ' + fmtCoins(state.coins) + '🪙</div>' +
     rows + '<button class="btn" id="c-close">cancel</button>';
   $('modal').classList.add('show');
   $('c-close').addEventListener('click', closeCard);
@@ -4442,7 +4495,20 @@ function lockPour() {
     return;
   }
   if (result === 'perfect') {
-    state.combo++;
+    /* The streak does not build while fever is already running.
+
+       Thirteen pours takes about thirty-three seconds of real play and fever
+       lasts thirty-four, so a precise player could assemble the next one
+       inside the current one and it simply never lapsed: measured across a
+       hundred days, fever covered 67% of every pour at ±20ms and 58% at
+       ±30ms. That is not a bonus, it is the price list. Iteration 56 took
+       away the gold zone widening, which was the loud version of this loop;
+       this is the quiet one, and only the careless end was ever bounded.
+
+       Now the streak that earns the next fever has to be built after this
+       one ends, which is what "earned separately" was always supposed to
+       mean. */
+    if (!feverActive()) state.combo++;
     state.bestCombo = Math.max(state.bestCombo, state.combo);
     ledgerAdd('combo', state.combo);
     sfx('perfect', state.combo);
@@ -4731,7 +4797,7 @@ function paintMarket() {
   const list = $('barnlist');
   const count = barnCountAll();
   const value = barnValueAll();
-  $('barninfo').textContent = count ? count + ' held · worth ' + value + '🪙' : '';
+  $('barninfo').textContent = count ? count + ' held · worth ' + fmtCoins(value) + '🪙' : '';
   $('marketnote').style.display = count ? 'none' : 'block';
 
   /* The verdict, said plainly, above the stock: is today good, and is it

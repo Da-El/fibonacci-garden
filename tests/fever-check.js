@@ -75,8 +75,16 @@ const h = H.build(); const E = h.evalIn;
      the time, which makes it the price list rather than a bonus. */
   check('a careless player is not simply living in fever', careless.share <= 0.35,
         Math.round(careless.share * 100) + '% of their pours');
+  /* And neither is a precise one. Only the careless end was ever bounded
+     here, which is how fever came to cover 67% of a ±20ms player's pours
+     across a hundred days without anything noticing: thirteen pours takes
+     about as long as fever lasts, so the next streak was assembled inside
+     the current fever and it simply never lapsed. The streak no longer
+     builds while fever is running. */
+  check('and nor is a precise one', precise.share <= 0.45,
+        Math.round(precise.share * 100) + '% of their pours');
   check('accuracy makes a real difference to how often it fires',
-        precise.share / careless.share >= 2.0,
+        precise.share / careless.share >= 1.6,
         '×' + (precise.share / careless.share).toFixed(1) + ' between the extremes');
   check('and to what a run is worth', precise.mult / careless.mult >= 1.5,
         '×' + precise.mult.toFixed(2) + ' against ×' + careless.mult.toFixed(2));

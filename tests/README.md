@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-676 checks. Each one loads the game's inline `<script>` into a headless harness and
+697 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -40,6 +40,9 @@ That turned out to be the pattern, not the exception:
   empty bed, so three weeks of tidy play turns up one — the chapter was unreachable for
   anyone who replants what they lift, and the simulation was zeroing the weed array
   directly rather than calling the function that counts.
+- **Fever** covered 67% of a precise player's pours across a hundred days. Thirteen
+  pours takes about as long as fever lasts, so the next streak was assembled inside the
+  current one and it never lapsed. Only the careless end had ever been bounded.
 - **Winter** told you to grow evergreens for +18%. It gave evergreens +10% and
   succulents +18%. Every number in the blurb was a number the season really gives and
   every plant it named was one it really boosts, so a check on either alone passed.
@@ -58,6 +61,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `long-check.js` | a hundred days: big numbers, a level bar past the shelf, a save at scale |
 | `prestige2-check.js` | a second and third run: what a replant costs, what it keeps, what it is worth |
 | `keys-check.js` | the whole loop played by keyboard: plant, pour, take the shot, escape out |
 | `chapter-check.js` | the journal walked against a real run: when each chapter actually falls |
