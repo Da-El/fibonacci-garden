@@ -124,12 +124,20 @@ const h = H.build(); const E = h.evalIn;
     Math.round((patient / never - 1) * 100) + '% over never replanting, and ' +
     Math.round((patient / eager - 1) * 100) + '% over replanting on sight');
   /* And when to do it has to be a real decision rather than a button you
-     mash — replanting the moment a seed is available should be worse than
-     waiting for the garden to be worth more. */
+     mash. There is a wrong answer at both ends: never replanting leaves the
+     bonus on the table, and replanting the moment a single seed is on offer
+     is worse than not replanting at all — you give up nine beds and an
+     89-drop can for six per cent on the price of everything.
+
+     That second half only became true when fever was tamed in iteration 72.
+     Before it, fever covered most of a precise player's pours and papered
+     over the cost of starting again, so every replanting strategy came out
+     ahead. It is a better shape now: a decision with a right answer, a
+     wrong answer, and a reason. */
   check('and being patient about it beats replanting on sight',
         patient > eager, patient + ' vs ' + eager);
-  check('but replanting eagerly is still better than never',
-        eager > never, eager + ' vs ' + never);
+  check('and replanting on sight is a genuine mistake',
+        eager <= never * 1.02, eager + ' vs ' + never + ' for never replanting');
 }
 
 /* ---- is the second run faster than the first? ---- */

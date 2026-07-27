@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-697 checks. Each one loads the game's inline `<script>` into a headless harness and
+709 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -103,6 +103,11 @@ species ladder in coins per drop), `rank-check.js` and `hive-check.js` (is this 
 worth it), `prestige-check.js` (the golden-seed curve).
 
 ## Cautions
+
+**Bound both ends, not the one you were worried about.** Iteration 56 measured fever and
+asserted a careless player is not living in it. Nothing ever asked the same of a precise
+one, and fever quietly grew back to 67% of their pours over sixteen iterations behind a
+green suite. A quantity that can be wrong in two directions needs two bounds.
 
 **Guard the loops that run on a timer first.** A crash in a modal is one bad screen you
 close. A crash in the once-a-second tick stops the heartbeat for the rest of the

@@ -16,7 +16,8 @@ const h = H.build(); const E = h.evalIn;
 
 /* One long run, shared by everything below — it is the expensive part. */
 const LONG = S.run({ seed: 4242, profile: 'diligent', realPour: true, tapError: 30,
-                     hive: true, apprentice: true, days: 100, prestigeAt: 3 });
+                     hive: true, apprentice: true, glass: true, days: 100,
+                     prestigeAt: 3 });
 
 /* ---- a hundred days must simply work ---- */
 {
@@ -34,6 +35,22 @@ const LONG = S.run({ seed: 4242, profile: 'diligent', realPour: true, tapError: 
         JSON.stringify({ lifetime: LONG.lifetime, coins: LONG.coins, level: LONG.level }));
   check('and the garden is still being played at the end',
         LONG.harvests > 1000, LONG.harvests + ' harvests');
+
+  /* Money has to have somewhere to go, or the number in the corner is the
+     only thing still growing. The hive has no ceiling — 1.7× a level for a
+     linear return — and glass runs to half a million for the ninth pane.
+     The simulation bought the hive once and never again and never bought
+     glass at all, which is how a hundred days came to end with 3.7 million
+     coins in hand and the late game looked empty. It is not; this was not
+     looking. */
+  console.log('    spent it on: hive level ' + LONG.hiveLevel + ', ' +
+              LONG.panes + ' panes of glass');
+  check('there is still somewhere for late money to go',
+        LONG.hiveLevel >= 6 || LONG.panes >= 5,
+        'hive ' + LONG.hiveLevel + ', panes ' + LONG.panes);
+  check('and a hundred days does not end sitting on everything it earned',
+        LONG.coins < LONG.lifetime * 0.4,
+        LONG.coins + ' in hand of ' + LONG.lifetime + ' earned');
 }
 
 /* ---- and the numbers must fit where they are shown ---- */

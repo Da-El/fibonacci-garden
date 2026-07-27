@@ -285,7 +285,37 @@ if (extra.length) console.log('  (also seen: ' + extra.map(function (k) { return
       html.indexOf('function isRipe(p)') > -1 &&
       html.indexOf('p && p.stage >= byId[p.s].stages') < 0],
     ['and stock the game cannot name is worth nothing, not NaN',
-      E('tierPrice')(null, 1) === 0]
+      E('tierPrice')(null, 1) === 0],
+
+    /* ---- iterations 69-72 ---- */
+    ['no journal objective asks you to neglect the garden',
+      !E('CHAPTERS').some(function (c) {
+        return c.objs.some(function (o) {
+          return /weeds/i.test(o.t) && o.need > 1;
+        });
+      })],
+    ['a bed can be planted and poured from the keyboard',
+      html.indexOf("s.addEventListener('keydown'") > -1 &&
+      html.indexOf("d.addEventListener('keydown'") > -1],
+    ['and the shot can be taken with the space bar',
+      /e\.key === ' ' \|\| e\.key === 'Enter'/.test(html) &&
+      html.indexOf('doAct();') > -1],
+    ['and Escape gets you out of a pour',
+      /if \(pour\) \{ cancelPour\(\)/.test(html)],
+    ['a replant keeps what you learned and takes what you bought',
+      html.indexOf('almanac: state.almanac') > -1 &&
+      html.indexOf('perks: state.perks') > -1 &&
+      html.indexOf('state = freshState();') > -1],
+    ['coins are shortened once they stop being readable',
+      E('fmtCoins')(3711369) === '3.71M' && E('fmtCoins')(9999) === '9999'],
+    ['and the top bar is what uses it',
+      html.indexOf("$('coins').textContent = fmtCoins(state.coins)") > -1],
+    ['a level past the last draft still pays something',
+      html.indexOf('function offerLatePerk') > -1 && E('LATE_PERK_EVERY') === 3],
+    ['and the streak does not build while fever is already running',
+      html.indexOf('if (!feverActive()) state.combo++;') > -1],
+    ['late money still has somewhere to go',
+      /hiveLevel/.test(html) && !/hiveLevel >= \d+/.test(html)]
   ];
   let wrong = 0;
   claims.forEach(function (c) {

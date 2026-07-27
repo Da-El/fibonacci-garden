@@ -239,6 +239,32 @@ function run(cfg) {
         }
       }
     }
+    /* Once the beds and the can are bought there is still somewhere for
+       money to go — glass over a bed, and the hive, which has no ceiling and
+       costs 1.7× a level for a linear return. The simulation bought the hive
+       once and never again, and never bought glass at all, so a hundred days
+       ended with 3.7 million coins in hand and the late game looked like it
+       had nothing to spend on. It has; this was not looking. */
+    {
+      const s = S();
+      if (cfg.glass && s.level >= E('GLASS_LVL')) {
+        const panes = (s.glassed || []).filter(Boolean).length;
+        const cost = Math.round(E('GLASS_COST') * Math.pow(E('GLASS_STEP'), panes));
+        if (panes < s.plotCount && s.coins > cost * 3) {
+          for (let i = 0; i < s.plotCount; i++) {
+            if (s.glassed[i]) continue;
+            E('curPlot = ' + i);
+            guardCall('buyGlass', function () { E('buyGlass()'); return true; });
+            break;
+          }
+        }
+      }
+      if (cfg.hive && E('hasHive()')) {
+        const up = Math.round(E('HIVE_COST') * Math.pow(1.7, s.hiveLevel));
+        if (s.coins > up * 4) guardCall('buyHive', function () { E('buyHive()'); return true; });
+      }
+    }
+
     /* Replant the whole garden once enough has been earned to be worth
        golden seeds. A player does this deliberately and rarely, so the bar
        is a real one: at least the asked-for number of seeds, and never
@@ -325,6 +351,8 @@ function run(cfg) {
        is the only one that can compare a player who prestiges against one
        who does not. */
     lifetime: s.earned | 0,
+    hiveLevel: s.hiveLevel | 0,
+    panes: (s.glassed || []).filter(Boolean).length,
     prestiges: log.prestiges || 0,
     prestigeDays: log.prestigeDays || [],
     golden: s.golden | 0,
