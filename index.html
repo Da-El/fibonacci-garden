@@ -2515,12 +2515,40 @@ function ladyTick() {
 function ladyBoon(slot) {
   const kind = hash32((slot * 7 + 3) >>> 0) % 4;
   if (kind === 0) {
-    const c = 15 + Math.round(barnValueAll() * 0.1);
+    /* A tenth of the barn, but never more than about three good blooms.
+
+       Uncapped, this was a money printer: it pays out in coins and leaves
+       the stock where it is, so a player who hoards instead of selling taps
+       a bug twice an hour for a tenth of everything they own, for ever. A
+       barn of nine thousand six hundred blooms turned one tap into 200,705
+       coins — thirteen hundred times the next best thing a ladybird can
+       give you, which is five drops of water.
+
+       Scaled to the best thing you can grow instead of the pile you are
+       sitting on: it still grows with the garden, and it cannot be farmed. */
+    const best = SPECIES.filter(function (sp) { return sp.lvl <= state.level; })
+      .reduce(function (m, sp) { return Math.max(m, priceOf(sp)); }, 0);
+    const c = Math.min(15 + Math.round(barnValueAll() * 0.1),
+                       Math.max(60, Math.round(best * 3)));
     gainCoins(c);
     return '+' + c + '🪙';
   }
   if (kind === 1) { state.compost += 2; return '+2 compost 🪱'; }
-  if (kind === 2) { state.water = Math.min(waterCap(), state.water + 5); return '+5 water 💧'; }
+  if (kind === 2) {
+    /* Five drops, and whatever will not fit comes as coins.
+
+       It used to be a flat min() against the cap, so tapping a ladybird with
+       a full can gave you precisely nothing — and still said "+5 water 💧"
+       while doing it. The one moment in this game that is pure luck should
+       not be the one that lies to you. */
+    const room = Math.max(0, waterCap() - state.water);
+    const drops = Math.min(5, room);
+    state.water += drops;
+    const spare = 5 - drops;
+    if (spare) gainCoins(spare * 20);
+    if (!drops) return '+' + (spare * 20) + '🪙 — your can was full';
+    return '+' + drops + ' water 💧' + (spare ? ' +' + spare * 20 + '🪙' : '');
+  }
   state.feverUntil = Math.max(state.feverUntil, NOW()) + 30000;
   return '+30s of fever 🔥';
 }

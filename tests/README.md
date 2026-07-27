@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-728 checks. Each one loads the game's inline `<script>` into a headless harness and
+768 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -40,6 +40,9 @@ That turned out to be the pattern, not the exception:
   empty bed, so three weeks of tidy play turns up one — the chapter was unreachable for
   anyone who replants what they lift, and the simulation was zeroing the weed array
   directly rather than calling the function that counts.
+- The **ladybird** paid a tenth of your barn in coins and left the stock alone, with no
+  ceiling — so hoarding instead of selling turned one tap into 200,705 coins, thirteen
+  hundred times the next best thing it can give you.
 - The **daily gift** paid a golden seed every seventh day — the permanent bonus on every
   price in the game, worth twelve thousand coins by the only other route. A hundred days
   of opening the app paid fourteen of them against three for actually replanting, so two
@@ -67,6 +70,7 @@ if you add a system, add the counter that proves it fires.
 | file | what it holds the game to |
 |---|---|
 | `harness.js` | loads the game headless; preloads a save, records what is drawn and played, parses innerHTML into real elements, and lets a test step timers and press keys |
+| `boon-check.js` | the ladybird and the compost: what the free things are really worth |
 | `gift-check.js` | the daily gift and the streak: what it pays, what breaking it costs |
 | `long-check.js` | a hundred days: big numbers, a level bar past the shelf, a save at scale |
 | `prestige2-check.js` | a second and third run: what a replant costs, what it keeps, what it is worth |
