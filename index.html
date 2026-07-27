@@ -357,6 +357,53 @@
     100% { opacity: 0; transform: translate(-50%, -56px) scale(1); }
   }
 
+  /* ---------- fever ---------- */
+  #feverbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 28; display: none;
+    padding: 6px 0 5px; text-align: center;
+    background: linear-gradient(90deg, #f2c53c22, #f2c53c55, #f2c53c22);
+    border-bottom: 1px solid #f2c53c66;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--gold);
+    animation: feverpulse 1s ease-in-out infinite;
+  }
+  #feverbar.show { display: block; }
+  @keyframes feverpulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.45); } }
+
+  /* ---------- ladybug ---------- */
+  #ladybug {
+    position: absolute; z-index: 47; font-size: 24px; cursor: pointer;
+    filter: drop-shadow(0 2px 4px #0008);
+    transition: left 7s linear, top 7s linear;
+    animation: bugjig .5s ease-in-out infinite;
+  }
+
+  /* ---------- harvest reveal ---------- */
+  #reveal {
+    position: absolute; inset: 0; z-index: 26; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    background: #0e120ce8; backdrop-filter: blur(2px);
+  }
+  #reveal.show { display: flex; }
+  #reveal .rstars { display: flex; gap: 8px; font-size: 34px; }
+  #reveal .rstars span {
+    color: var(--gold); opacity: 0; transform: scale(2.4);
+    animation: starslam .45s cubic-bezier(.2, .9, .3, 1.4) forwards;
+    text-shadow: 0 0 22px #f2c53c88;
+  }
+  #reveal .rstars span.dead { color: #4a4436; text-shadow: none; }
+  @keyframes starslam { to { opacity: 1; transform: scale(1); } }
+  #reveal .rname { font-size: 16px; font-weight: 600; }
+  #reveal .rval {
+    font-family: var(--mono); font-size: 26px; color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  #reveal .rgold {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .2em;
+    text-transform: uppercase; color: #ffd97a;
+    animation: feverpulse .8s ease-in-out infinite;
+  }
+
   /* ---------- quality / care ---------- */
   .stars { color: var(--gold); letter-spacing: 1px; }
   .prefbadge {
@@ -592,6 +639,7 @@
       </div>
       <div id="canvas"></div>
       <button id="bugBtn" title="Squash the aphids!">🐛</button>
+      <div id="reveal"></div>
       <div id="grow-foot">
         <div id="addflash"></div>
         <div id="carebar"></div>
@@ -620,6 +668,7 @@
       <div class="tab" data-v="shop"><span class="ic">🛒</span>shop</div>
     </div>
 
+    <div id="feverbar">🔥 FIBONACCI FEVER · prices ×1.618 · <span id="fevertime"></span></div>
     <div id="modal"><div id="card"></div></div>
     <div id="hurt"></div>
     <div id="toast"></div>
@@ -872,6 +921,10 @@ function freshState() {
     weeds: {},                       // plotIdx -> true while overgrown
     weedChecked: null,               // last weed slot processed
     stormChecked: null,              // last storm slot processed
+    feverUntil: 0,                   // fever end timestamp
+    lastGiftDay: null,               // daily gift bookkeeping
+    giftStreak: 0,
+    ladySlot: 0,                     // last ladybug slot seen
     lastTick: Date.now(),
     offset: 0,                       // prototype time-skip
     harvested: 0,
@@ -921,6 +974,10 @@ function loadState() {
         p.weeds = p.weeds || {};
         if (typeof p.weedChecked !== 'number') p.weedChecked = null;
         if (typeof p.stormChecked !== 'number') p.stormChecked = null;
+        p.feverUntil = p.feverUntil || 0;
+        if (typeof p.lastGiftDay !== 'number') p.lastGiftDay = null;
+        p.giftStreak = p.giftStreak | 0;
+        p.ladySlot = p.ladySlot | 0;
         // plants from before the living clock get a timer starting now
         p.plots.forEach(function (pl) {
           if (pl && typeof pl.stageAt !== 'number') pl.stageAt = Date.now();
@@ -994,9 +1051,29 @@ const SEASONS = [
 function seasonNow() { return SEASONS[Math.floor(dayIndex() / 7) % 4]; }
 function seasonMult(sp) { return seasonNow().boost[sp.form] || 1; }
 
+/* ---- fibonacci fever --------------------------------------------
+   Land a combo of 8 (and every 8 after) and the market runs hot:
+   all sale prices ×φ for 90 seconds. Harvest fast, sell faster.   */
+const PHI = 1.6180339887;
+const FEVER_MS = 90 * 1000;
+function feverActive() { return NOW() < state.feverUntil; }
+function startFever() {
+  state.feverUntil = NOW() + FEVER_MS;
+  saveState();
+  shakeApp();
+  toast('🔥 FIBONACCI FEVER — everything sells ×1.618 for 90s!');
+  paintFever();
+}
+function paintFever() {
+  const on = feverActive();
+  $('feverbar').classList.toggle('show', on);
+  if (on) $('fevertime').textContent = Math.ceil((state.feverUntil - NOW()) / 1000) + 's';
+}
+
 function priceOf(sp) {
   return Math.max(1, Math.round(
-    sp.price * priceMult(sp) * weatherNow().sell * goldenMult() * seasonMult(sp)));
+    sp.price * priceMult(sp) * weatherNow().sell * goldenMult() * seasonMult(sp) *
+    (feverActive() ? PHI : 1)));
 }
 
 /* golden mutation: a harvest occasionally comes up gilded and sells
@@ -1048,6 +1125,118 @@ function doPrestige() {
   checkAch();
   paintAll(); GO('garden');
   toast('Replanted · +' + claim + ' golden seed' + (claim > 1 ? 's' : '') + ' ✨');
+}
+
+/* ---- daily gift -------------------------------------------------
+   One gift per day; consecutive days climb a 7-rung ladder ending
+   in a golden seed, then the ladder repeats.                      */
+const GIFTS = [
+  { label: '20🪙',          coins: 20 },
+  { label: '30🪙',          coins: 30 },
+  { label: '2 compost 🪱',  compost: 2 },
+  { label: '50🪙',          coins: 50 },
+  { label: '3 compost 🪱',  compost: 3 },
+  { label: '80🪙',          coins: 80 },
+  { label: 'a golden seed ✨', golden: 1 }
+];
+function checkDailyGift() {
+  const today = dayIndex();
+  if (state.lastGiftDay === today) return;
+  const streak = state.lastGiftDay === today - 1 ? state.giftStreak + 1 : 1;
+  const gift = GIFTS[(streak - 1) % 7];
+  $('card').innerHTML =
+    '<h3>🎁 Daily gift</h3>' +
+    '<div class="sub">day ' + streak + ' of your streak</div>' +
+    '<div class="fact" style="text-align:center;font-size:15px">Today: <b style="color:var(--gold)">' +
+    gift.label + '</b>' + (streak % 7 === 0 ? '' :
+      '<br><span style="font-size:11px;color:var(--dim)">day 7 pays a golden seed — don\'t break the chain</span>') +
+    '</div>' +
+    '<button class="btn" id="c-gift" style="background:linear-gradient(160deg,var(--gold),var(--amber));color:#2a1d05;border-color:transparent;font-weight:700">claim</button>';
+  $('modal').classList.add('show');
+  $('c-gift').addEventListener('click', function () {
+    state.lastGiftDay = today;
+    state.giftStreak = streak;
+    if (gift.coins)   { state.coins += gift.coins; state.earned += gift.coins; state.runEarned += gift.coins; }
+    if (gift.compost) state.compost += gift.compost;
+    if (gift.golden)  state.golden += gift.golden;
+    saveState(); closeCard(); paintTop(); shakeApp();
+    toast('🎁 Claimed ' + gift.label + ' · streak ' + streak);
+  });
+}
+
+/* ---- lucky ladybug ----------------------------------------------
+   Every so often one wanders across the screen. Tap for a boon.   */
+const LADY_SLOT_MS = 5 * 60 * 1000;
+function ladyTick() {
+  const slot = Math.floor(NOW() / LADY_SLOT_MS);
+  if (slot === state.ladySlot) return;
+  state.ladySlot = slot;
+  saveState();
+  if (hash32((slot * 97 + 41) >>> 0) % 100 >= 18) return;
+  if (document.getElementById('ladybug')) return;
+  spawnLadybug(slot);
+}
+function ladyBoon(slot) {
+  const kind = hash32((slot * 7 + 3) >>> 0) % 4;
+  if (kind === 0) {
+    const c = 15 + Math.round(barnValueAll() * 0.1);
+    state.coins += c; state.earned += c; state.runEarned += c;
+    return '+' + c + '🪙';
+  }
+  if (kind === 1) { state.compost += 2; return '+2 compost 🪱'; }
+  if (kind === 2) { state.water = Math.min(waterCap(), state.water + 5); return '+5 water 💧'; }
+  state.feverUntil = Math.max(state.feverUntil, NOW()) + 30000;
+  return '+30s of fever 🔥';
+}
+function spawnLadybug(slot) {
+  const app = $('app');
+  const b = document.createElement('span');
+  b.id = 'ladybug';
+  b.textContent = '🐞';
+  const fromLeft = hash32(slot >>> 0) % 2 === 0;
+  b.style.left = fromLeft ? '-30px' : 'calc(100% + 6px)';
+  b.style.top = (15 + hash32((slot * 3) >>> 0) % 55) + '%';
+  app.appendChild(b);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      b.style.left = fromLeft ? 'calc(100% + 6px)' : '-30px';
+      b.style.top = (15 + hash32((slot * 5 + 1) >>> 0) % 55) + '%';
+    });
+  });
+  const gone = setTimeout(function () { b.remove(); }, 7200);
+  b.addEventListener('click', function (e) {
+    e.stopPropagation();
+    clearTimeout(gone);
+    const msg = ladyBoon(slot);
+    saveState();
+    floatText(b, '🐞 ' + msg, 'var(--leaf)');
+    burst(app, ['🐞', '✨', '🍀'], b.offsetLeft, b.offsetTop);
+    b.remove();
+    paintTop(); paintFever();
+    toast('Lucky ladybug! ' + msg);
+  });
+}
+
+/* ---- harvest reveal ---------------------------------------------*/
+function harvestReveal(sp, stars, isGolden, value) {
+  const r = $('reveal');
+  let starHtml = '';
+  for (let i = 1; i <= 3; i++) {
+    starHtml += '<span class="' + (i <= stars ? '' : 'dead') + '" style="animation-delay:' +
+      (0.1 + i * 0.18) + 's">★</span>';
+  }
+  r.innerHTML =
+    '<div class="rname">' + sp.name + '</div>' +
+    '<div class="rstars">' + starHtml + '</div>' +
+    (isGolden ? '<div class="rgold">✨ golden bloom ✨</div>' : '') +
+    '<div class="rval">worth ' + value + '🪙</div>';
+  r.classList.add('show');
+  burstCenter(r, isGolden ? ['✨', '🌟', '✨', '💛', '✨'] : ['🌸', '🌿', '✨', '🌼']);
+  setTimeout(function () {
+    r.classList.remove('show');
+    $('grow').classList.remove('show');
+    paintTop(); paintPlots(); paintMarket();
+  }, 1150);
 }
 
 /* ---- achievements -----------------------------------------------
@@ -1816,7 +2005,8 @@ function pourZonesFor(stage) {
   const h = hash32((state.pourN * 2654435761 + 4241) >>> 0);
   return {
     center: 0.25 + (h % 1000) / 1000 * 0.5,               // 25%..75%
-    gw: Math.max(0.08, 0.20 - stage * 0.012),             // gold shrinks per stage
+    gw: Math.max(0.08, 0.20 - stage * 0.012) *
+        (feverActive() ? 1.5 : 1),                        // fever widens the gold
     goodw: 0.14
   };
 }
@@ -1896,6 +2086,7 @@ function lockPour() {
       floatText($('p-coins'), '+' + bonus + '🪙 combo!', 'var(--gold)');
       toast('🔥 Fibonacci combo ' + state.combo + ' · +' + bonus + '🪙');
     }
+    if (state.combo >= 8 && state.combo % 8 === 0) startFever();
   } else {
     floatText($('canvas'), 'good', 'var(--leaf)');
   }
@@ -2005,10 +2196,9 @@ function harvest() {
     state.runEarned += bonus;
   }
   saveState();
-  $('grow').classList.remove('show');
   curPlot = -1;
-  paintTop(); paintPlots(); paintMarket();
-  toast((isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '! Worth ' + goldPriceOf(sp) + '🪙'
+  harvestReveal(sp, stars, isGolden, isGolden ? goldPriceOf(sp) : priceOfQ(sp, stars));
+  toast((isGolden ? '✨ A GOLDEN ' + sp.name.toLowerCase() + '!'
                   : 'Harvested ' + starStr(stars) + ' ' + sp.name.toLowerCase() + (wilted ? ' (wilted)' : '')) +
         (bonus ? ' · new species +' + bonus + '🪙' : '') + goldenNote);
   checkAch();
@@ -2404,7 +2594,9 @@ weedTick();
 ensureSolvent();          // also un-sticks any save left stranded by an older build
 checkAch();               // catch anything a migrated save already qualifies for
 paintAll();
+paintFever();
 GO('garden');
+checkDailyGift();         // greet a new day with its gift
 
 let tickN = 0;
 setInterval(function () {
@@ -2415,6 +2607,8 @@ setInterval(function () {
   const grew = growthTick();
   bugTick();
   weedTick();
+  ladyTick();
+  paintFever();
   paintTop();
   paintSky();
   const bugsNow = state.plots.filter(function (p) { return p && p.bug; }).length;
