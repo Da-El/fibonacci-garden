@@ -844,6 +844,53 @@
   .toggle.on .switch { background: linear-gradient(90deg, var(--leaf), var(--leaf-d)); border-color: transparent; }
   .toggle.on .switch::after { transform: translateX(17px); background: #eafbe4; }
 
+  /* ---------- the proof ---------- */
+  #proofwrap { text-align: center; }
+  #proofsvg { width: 100%; max-width: 250px; height: auto; }
+  #proofangle {
+    font-family: var(--mono); font-size: 27px; color: var(--gold);
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  #proofname { font-family: var(--mono); font-size: 10.5px; color: var(--muted); min-height: 15px; }
+  #proofslider {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 26px;
+    background: transparent; margin: 8px 0 2px;
+  }
+  #proofslider::-webkit-slider-runnable-track {
+    height: 5px; border-radius: 3px;
+    background: linear-gradient(90deg, #3a4a2a, var(--gold), #3a4a2a);
+  }
+  #proofslider::-moz-range-track {
+    height: 5px; border-radius: 3px;
+    background: linear-gradient(90deg, #3a4a2a, var(--gold), #3a4a2a);
+  }
+  #proofslider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(160deg, var(--gold), var(--amber));
+    border: 2px solid #1a1a10; margin-top: -9px; cursor: grab;
+  }
+  #proofslider::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid #1a1a10;
+    background: linear-gradient(160deg, var(--gold), var(--amber)); cursor: grab;
+  }
+  .proofpills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin: 9px 0 4px; }
+  .proofpill {
+    font-family: var(--mono); font-size: 9.5px; padding: 4px 9px; border-radius: 100px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); cursor: pointer;
+  }
+  .proofpill:hover { border-color: #5c6b3f; color: var(--pale); }
+  .proofpill.on { background: linear-gradient(160deg, var(--gold), var(--amber)); color: #2a1d05; border-color: transparent; font-weight: 700; }
+  #proofverdict {
+    font-size: 12.5px; line-height: 1.5; color: var(--muted); margin-top: 8px;
+    background: #ffffff07; border-radius: 10px; padding: 10px 12px; min-height: 54px;
+    border-left: 2px solid var(--line);
+  }
+  #proofverdict.good { border-left-color: var(--leaf); }
+  #proofverdict.bad  { border-left-color: var(--bad); }
+  #proofverdict b { color: var(--pale); }
+  .gapbar { height: 5px; border-radius: 3px; background: #ffffff10; overflow: hidden; margin-top: 7px; }
+  .gapbar i { display: block; height: 100%; border-radius: 3px; transition: width .25s, background .25s; }
+
   /* ---------- accessibility ---------- */
   :focus-visible {
     outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px;
@@ -1042,6 +1089,8 @@
       </div>
       <div class="sectitle">Achievements <span id="achinfo"></span></div>
       <div id="achlist"></div>
+      <div class="sectitle" style="margin-top:20px">The mathematics</div>
+      <div id="codex"></div>
     </div>
 
     <!-- SHOP -->
@@ -3653,6 +3702,158 @@ function sellAll() {
   toast('Sold the whole barn · +' + gain + '🪙');
 }
 
+/* ============================================================
+   Why 137.5° — the proof, playable
+   Drag the angle and watch the seeds repack. Rational angles fall
+   into spokes and waste the disc; the golden angle never repeats,
+   so it fills evenly. The player sees it rather than being told.
+   ============================================================ */
+const PROOF_N = 320;
+const PROOF_PRESETS = [
+  { deg: 90,      label: '90° (1/4)' },
+  { deg: 120,     label: '120° (1/3)' },
+  { deg: 135,     label: '135° (3/8)' },
+  { deg: 137.0,   label: '137°' },
+  { deg: GOLDEN,  label: '137.507° φ' },
+  { deg: 138.0,   label: '138°' },
+  { deg: 144,     label: '144° (2/5)' },
+  { deg: 180,     label: '180° (1/2)' }
+];
+let proofDeg = GOLDEN;
+
+/* how evenly a given angle packs: the smallest gap between any two
+   seeds, as a fraction of the ideal. This is the actual measure the
+   golden angle maximises. */
+function packingScore(deg) {
+  const ang = deg * Math.PI / 180;
+  const N = 160, k = 1 / Math.sqrt(N);
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const r = k * Math.sqrt(i + 0.5), th = (i + 0.5) * ang;
+    pts.push([Math.cos(th) * r, Math.sin(th) * r]);
+  }
+  let minD = Infinity;
+  for (let i = 0; i < N; i++)
+    for (let j = i + 1; j < N; j++) {
+      const d = Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+      if (d < minD) minD = d;
+    }
+  return minD / k;                    // 1.0 would be a perfect lattice
+}
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+function nearestFraction(deg) {
+  // best small-denominator fraction of a turn within a tenth of a degree
+  let best = null;
+  for (let den = 2; den <= 34; den++)
+    for (let num = 1; num < den; num++) {
+      const d = Math.abs(num / den * 360 - deg);
+      if (d < 0.12 && (!best || den < best.den)) best = { num: num, den: den, err: d };
+    }
+  return best;
+}
+function proofSeedSVG(deg) {
+  const ang = deg * Math.PI / 180;
+  const R = 108, k = R / Math.sqrt(PROOF_N);
+  let s = '<circle cx="0" cy="0" r="' + (R + 8) + '" fill="#0d1109" stroke="#2c3722"/>';
+  for (let i = 0; i < PROOF_N; i++) {
+    const r = k * Math.sqrt(i + 0.5), th = (i + 0.5) * ang;
+    const t = i / (PROOF_N - 1);
+    s += '<circle cx="' + (Math.cos(th) * r).toFixed(1) + '" cy="' + (Math.sin(th) * r).toFixed(1) +
+      '" r="3.1" fill="hsl(' + (46 - t * 26) + ' ' + (82 - t * 12) + '% ' + (70 - t * 32) + '%)"/>';
+  }
+  return '<svg id="proofsvg" viewBox="-125 -125 250 250">' + s + '</svg>';
+}
+function paintProof() {
+  const near = nearestFraction(proofDeg);
+  const score = packingScore(proofDeg);
+  const gap = Math.abs(proofDeg - GOLDEN);
+  $('proofdisc').innerHTML = proofSeedSVG(proofDeg);
+  $('proofangle').textContent = proofDeg.toFixed(3) + '°';
+  $('proofname').textContent = near
+    ? 'that is ' + near.num + '/' + near.den + ' of a full turn'
+    : 'no simple fraction comes close';
+  const v = $('proofverdict');
+  if (near && near.den <= 13) {
+    v.className = 'bad';
+    v.innerHTML = 'A seed lands every <b>' + ordinal(near.den) + '</b> turn, so they stack into <b>' +
+      near.den + ' spokes</b> with wasted space between. Any angle that is a simple fraction ' +
+      'of a turn eventually repeats itself.';
+  } else if (gap < 0.02) {
+    v.className = 'good';
+    v.innerHTML = 'The <b>golden angle</b>. φ is the hardest number to approximate with a fraction — ' +
+      'its continued fraction is all 1s, the slowest possible convergence — so the seeds <b>never line up</b> ' +
+      'and the disc fills evenly. This is why real sunflowers use it.';
+  } else if (gap < 1.2) {
+    v.className = '';
+    v.innerHTML = 'Close to φ, and it nearly works — but drift <b>' + gap.toFixed(2) +
+      '°</b> off and slow spirals appear as the seeds slide gradually back into alignment.';
+  } else {
+    v.className = '';
+    v.innerHTML = 'No tidy fraction, so no hard spokes — but not φ either. The packing is uneven ' +
+      'and gaps open up as the disc grows.';
+  }
+  const pct = Math.max(0, Math.min(1, (score - 0.35) / 0.65));
+  $('proofgap').style.width = (pct * 100).toFixed(0) + '%';
+  $('proofgap').style.background = pct > 0.8 ? 'var(--leaf)' : pct > 0.5 ? 'var(--gold)' : 'var(--bad)';
+  $('proofscore').textContent = 'evenness ' + (score).toFixed(3);
+  document.querySelectorAll('.proofpill').forEach(function (p) {
+    p.classList.toggle('on', Math.abs(+p.dataset.deg - proofDeg) < 0.005);
+  });
+}
+function paintCodex() {
+  const wrap = $('codex');
+  wrap.innerHTML =
+    '<div id="jrnhead"><h4>Why 137.507°?</h4>' +
+    '<p>Every plant in this garden places its seeds at one fixed angle. Drag it and see what happens.</p></div>' +
+    '<div id="proofwrap">' +
+      '<div id="proofdisc"></div>' +
+      '<div id="proofangle"></div>' +
+      '<div id="proofname"></div>' +
+      '<input type="range" id="proofslider" min="60" max="200" step="0.001" ' +
+        'aria-label="Divergence angle in degrees">' +
+      '<div class="gapbar"><i id="proofgap"></i></div>' +
+      '<div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:3px" id="proofscore"></div>' +
+      '<div class="proofpills">' +
+        PROOF_PRESETS.map(function (p) {
+          return '<span class="proofpill" data-deg="' + p.deg + '">' + p.label + '</span>';
+        }).join('') +
+      '</div>' +
+      '<div id="proofverdict"></div>' +
+    '</div>' +
+    '<div class="sectitle" style="margin-top:18px">The ladder</div>' +
+    '<div class="row-item"><div class="info"><p style="font-size:11px;line-height:1.9">' +
+      [[1,2],[1,3],[2,5],[3,8],[5,13],[8,21],[13,34],[21,55]].map(function (f) {
+        const d = f[0] / f[1] * 360;
+        const owner = BASE_SPECIES.filter(function (s) {
+          return s.frac && s.frac[0] === f[0] && s.frac[1] === f[1];
+        }).map(function (s) { return s.name; })[0];
+        return '<b style="color:var(--gold)">' + f[0] + '/' + f[1] + '</b> = ' + d.toFixed(2) +
+          '° &nbsp;<span style="color:var(--dim)">Δ' + Math.abs(d - GOLDEN).toFixed(2) + '°</span>' +
+          (owner ? ' &nbsp;<span style="color:var(--leaf)">' + owner + '</span>' : '');
+      }).join('<br>') +
+    '<br><br>Every one of those numerators and denominators is a Fibonacci number, and each fraction is the ' +
+    '<b>mediant</b> of the two before it. Follow the ladder far enough and it converges on ' +
+    '<b style="color:var(--gold)">137.507°</b> — which is why the breeding bench works the way it does.' +
+    '</p></div></div>';
+  $('proofslider').value = proofDeg;
+  $('proofslider').addEventListener('input', function () {
+    proofDeg = parseFloat(this.value);
+    paintProof();
+  });
+  wrap.querySelectorAll('.proofpill').forEach(function (p) {
+    p.addEventListener('click', function () {
+      proofDeg = parseFloat(p.dataset.deg);
+      $('proofslider').value = proofDeg;
+      sfx('tap');
+      paintProof();
+    });
+  });
+  paintProof();
+}
+
 /* ---- almanac ---- */
 function paintAlmanac() {
   const wrap = $('alcards');
@@ -4980,7 +5181,7 @@ function GO(v) {
   if (v === 'garden')  { paintPlots(); spawnBees(); setTimeout(flyBees, 60); }
   if (v === 'market')  { paintMarket(); hint('orders'); }
   if (v === 'journal') paintJournal();
-  if (v === 'almanac') paintAlmanac();
+  if (v === 'almanac') { paintAlmanac(); paintCodex(); }
   if (v === 'shop')    {
     paintShop();
     if (state.runEarned > 400) hint('prestige');
