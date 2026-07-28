@@ -301,7 +301,7 @@ which is the same rule the breeding bench uses.
 |---|---|
 | `index.html` | **The game.** |
 | `concepts-round-1.html` | First design pass — four concepts (merge puzzle, Zeckendorf, rhythm, rabbit sim), each playable. Too maths-heavy. |
-| `tests/` | 1,202 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
+| `tests/` | 1,232 automated checks — `node tests/run.js`. See [tests/README.md](tests/README.md). |
 | `concepts-round-2.html` | Second pass — three concepts with one rule each. "Bloom" from this round became the game. |
 
 The concept pages are kept because they're playable prototypes in their own right and
@@ -385,6 +385,15 @@ looping animation, not just some of them. The system-level `prefers-reduced-moti
 setting is honoured too, so you should not have to find our switch if you have already
 asked your phone.
 
+Twenty minutes of ordinary play, recorded note by note, comes to **127 sounds**: about
+two and a half pours a minute and nothing at all more often than that. Nothing clips —
+the loudest single note peaks at 0.17, and the worst simultaneous burst the game can
+produce (a perfect pour that completes a combo and tips into fever) sums to 2.05 across
+thirteen notes. The score sits deliberately under the effects: its loudest note is 0.075
+against a perfect pour's 0.17, so the music never competes with the sound of your own
+hand. With sound switched off, *nothing* escapes — not one note, and not the score
+either, which runs on its own timer.
+
 ## Moving your garden between computers
 
 The game saves to `localStorage`, so a garden lives on one browser. To move it:
@@ -394,6 +403,11 @@ refused rather than half-loaded over a real save.
 
 **⚙ → postcard** renders your actual garden — real phyllotaxis, your level and best
 blooms — as a PNG worth sharing.
+
+**⚙ → start over** gives you a genuinely fresh garden: 20🪙, three beds, and the opening
+plays again. Unlike replanting, it keeps *nothing* — no almanac, no golden seeds, no
+crosses you had bred. It asks first, and points you at the keepsake, because the only
+thing worse than losing a garden is losing one you could have kept.
 
 Every large number the game says is abbreviated the same way — exact under 10,000, then
 `34.5k`, `3.71M`, `9.00B` — because the XP curve is geometric and a long-lived garden

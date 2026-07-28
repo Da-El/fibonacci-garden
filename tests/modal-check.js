@@ -193,6 +193,75 @@ Object.keys(WORLDS).forEach(function (name) {
         !/NaN|Infinity/.test(top), top.trim().slice(0, 60));
 }
 
+/* ---- starting over must actually start over ----
+   Settings has a "start a fresh garden" button. Before it, the only reset in
+   the game lived inside a box labelled "prototype tools, remove before
+   shipping", had no confirmation, and left the tutorial flag set — so the
+   fresh garden skipped the opening it exists to show you. */
+{
+  const g = H.build(); const G = g.evalIn; const s = G('state');
+  s.offset = 0; s.coins = 90000; s.level = 16; s.golden = 40; s.prestiges = 3;
+  G('BASE_SPECIES').forEach(function (sp) { s.almanac[sp.id] = 3; });
+  G('doBreed("elm","daisy")');
+  G('plant(0,"elm")');
+  G('tutor').done = true;
+  const speciesBefore = G('SPECIES').length;
+  const crossId = G('hybridId')('elm', 'daisy');
+
+  G('startFresh()');
+  const t = G('state');
+  console.log('\n  a maxed garden, started fresh: ' + t.coins + '🪙, ' +
+    t.golden + ' golden, ' + Object.keys(t.almanac).length + ' in the almanac, ' +
+    t.plots.filter(Boolean).length + ' beds planted');
+  check('a fresh garden starts on the opening purse', t.coins === 20, String(t.coins));
+  check('and keeps nothing permanent — not even golden seeds',
+        !t.golden && !t.prestiges, t.golden + ' golden, ' + t.prestiges + ' replants');
+  check('and empties the almanac', !Object.keys(t.almanac).length,
+        String(Object.keys(t.almanac).length));
+  check('and clears the beds', !t.plots.filter(Boolean).length,
+        t.plots.map(function (p) { return p ? p.s : '-'; }).join(','));
+
+  /* SPECIES is appended to at boot for every cross in the save. Leave it and
+     a fresh garden inherits plants it has no record of ever breeding. */
+  console.log('  the shelf went from ' + speciesBefore + ' species back to ' +
+    G('SPECIES').length);
+  check('and forgets every cross the old garden had bred',
+        G('SPECIES').length === G('BASE_SPECIES').length && !G('byId')[crossId],
+        G('SPECIES').length + ' species, cross ' + (G('byId')[crossId] ? 'kept' : 'gone'));
+  check('and the shelf is indexed from nought again',
+        G('SPECIES').every(function (sp, i) { return sp.idx === i; }));
+
+  /* And the opening has to play, or "fresh" means "empty" rather than "from
+     the beginning". */
+  check('and the tutorial runs again', !G('tutor').done && G('coachActive()'),
+        'done ' + G('tutor').done + ', coach ' + G('coachActive()'));
+
+  /* Every screen must survive it, since the button lives on one of them. */
+  const broke = [];
+  SCREENS.forEach(function (sc) {
+    try { G(sc[1]); } catch (e) { broke.push(sc[0] + ': ' + e.message); }
+  });
+  check('and every screen still opens afterwards', !broke.length,
+        broke.slice(0, 2).join('; '));
+}
+
+/* ---- and it must ask first ---- */
+{
+  const g = H.build(); const G = g.evalIn; const s = G('state');
+  s.offset = 0; s.coins = 5000; s.level = 12;
+  G('openSettings()');
+  G('$')('freshgame').dispatchEvent({ type: 'click' });
+  const card = G('$')('card').innerHTML.replace(/<[^>]+>/g, ' ');
+  console.log('  tapping it asks: "' + card.trim().slice(0, 70) + '"');
+  check('the button asks before it wipes anything',
+        /fresh garden\?/i.test(card), card.slice(0, 60));
+  check('and the garden is still there while it asks', G('state').coins === 5000,
+        String(G('state').coins));
+  check('and it names the keepsake as the way to save this one',
+        /keepsake/i.test(card));
+  check('and offers a way out', /keep my garden/i.test(card));
+}
+
 console.log('\nPASS ' + ok.length + ' / FAIL ' + bugs.length);
 ok.forEach(function (t) { console.log('  ok   ' + t); });
 bugs.forEach(function (t) { console.log('  FAIL ' + t); });

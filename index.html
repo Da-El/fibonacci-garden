@@ -851,6 +851,11 @@
   }
   #devbox p { margin: 0 0 9px; font-family: var(--mono); font-size: 9px; color: var(--dim); line-height: 1.5; letter-spacing: .04em; }
   #devbox .r { display: flex; gap: 7px; }
+  #startover p {
+    margin: 0 0 10px; font-family: var(--mono); font-size: 9.5px; color: var(--dim);
+    line-height: 1.55; letter-spacing: .03em;
+  }
+  #startover .btn { width: 100%; }
 
   /* ---------- welcome back ---------- */
   #wb .wbhead { text-align: center; margin-bottom: 4px; }
@@ -1332,6 +1337,13 @@
       <div id="installwrap"></div>
       <div class="sectitle">Records</div>
       <div id="records"></div>
+      <div class="sectitle">Start over</div>
+      <div id="startover">
+        <p>A fresh garden: 20🪙, three beds and the opening again. Everything
+           goes — almanac, golden seeds, records, the lot. Take a keepsake
+           first if you want this one back.</p>
+        <button class="btn" id="freshgame">start a fresh garden</button>
+      </div>
       <div id="devbox">
         <p>Prototype tools — water normally takes real time to refill.
            Remove this box before shipping.</p>
@@ -7713,8 +7725,56 @@ $('dev-day').addEventListener('click', function () {
   toast('+1 day — market prices moved');
 });
 $('dev-reset').addEventListener('click', function () {
-  state = freshState(); saveState(); paintAll(); GO('garden');
-  toast('Save reset');
+  startFresh();
+});
+
+/* ---- starting over ----------------------------------------------
+   A garden you can throw away is a garden you can experiment with, and
+   until now the only way to get one was a button inside a box labelled
+   "prototype tools, remove before shipping" — with no confirmation, and
+   which left the tutorial flag set, so the "fresh" garden skipped the
+   opening it exists to show you.
+
+   Everything goes: the save, the coach, and the hybrids the game rebuilt
+   from it. Golden seeds and the almanac go too, which is what makes this
+   different from replanting — a replant keeps them on purpose. */
+function startFresh() {
+  state = freshState();
+  tutor = { done: false, step: 0, hints: {} };
+  saveTutor();
+  /* SPECIES is appended to at boot for every cross in the save, and byId
+     points into it. Leave them and a fresh garden inherits crosses it has
+     no record of ever making. */
+  SPECIES.length = BASE_SPECIES.length;
+  Object.keys(byId).forEach(function (id) {
+    if (!SPECIES.some(function (sp) { return sp.id === id; })) delete byId[id];
+  });
+  SPECIES.forEach(function (sp, i) { sp.idx = i; });
+  saveState();
+  paintAll();
+  GO('garden');
+  startTutorial(true);
+  toast('🌱 A fresh garden');
+}
+
+$('freshgame').addEventListener('click', function () {
+  /* Irreversible and unprompted, so it asks — and points at the keepsake
+     first, because the one thing worse than losing a garden is losing one
+     you could have kept. */
+  $('card').innerHTML =
+    '<h3>Start a fresh garden?</h3>' +
+    '<div class="sub">this one is not coming back</div>' +
+    '<div class="fact">Everything goes: your coins, plots, barn, almanac, ' +
+    'records, <b>golden seeds</b> and every cross you have bred. You begin ' +
+    'again at 20🪙 with three beds, and the opening plays.<br><br>' +
+    'If you might want this garden later, close this and take a ' +
+    '<b>keepsake</b> from the settings screen first — it is a code you can ' +
+    'paste back in.</div>' +
+    '<div class="row"><button class="btn" id="c-close">keep my garden</button>' +
+    '<button class="btn" id="c-fresh" style="background:linear-gradient(160deg,var(--bad),#7a2b22);color:#fff;border-color:transparent;font-weight:700">start fresh</button></div>';
+  $('modal').classList.add('show');
+  $('c-close').addEventListener('click', closeCard);
+  $('c-fresh').addEventListener('click', function () { closeCard(); startFresh(); });
 });
 
 /* ---- loop ---- */

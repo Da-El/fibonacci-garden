@@ -4,7 +4,7 @@
 node tests/run.js
 ```
 
-1,202 checks. Each one loads the game's inline `<script>` into a headless harness and
+1,232 checks. Each one loads the game's inline `<script>` into a headless harness and
 drives the **real functions** — nothing is reimplemented, so a check that passes is a
 statement about the game rather than about a model of it.
 
@@ -88,6 +88,7 @@ if you add a system, add the counter that proves it fires.
 | `deep2-check.js` | the deepening pass over 89-92: every counter, every nowrap, the bench |
 | `begin-check.js` | the opening played the way a beginner plays it: slowly and imprecisely |
 | `modal-check.js` | every screen opened on seven worlds, including ones that should not exist |
+| `session-check.js` | twenty minutes of play, listened to: what fires, how often, how loud |
 | `skip-check.js` | the opening played with the coach off: what a skipper is never told |
 | `return-check.js` | everything a returning player is told: the hints, the digest, the tab title |
 | `orders-check.js` | the order board: what it pays, and whether it is ever worth planting for |
@@ -160,6 +161,13 @@ you need and read the elapsed time back off the state the game wrote.
 briefly unparseable and fourteen files finished with no verdict. The runner reported that
 honestly rather than passing them — which is the only reason it was obvious — but a whole
 fifteen-minute run was wasted. Let it finish.
+
+**A perfect bot hears a different game.** Twenty minutes of play poured dead centre every
+time, so every bloom came out pristine, the ordinary harvest sound never fired once, and
+the check read that as a defect in the game. It was a defect in the player. Real hands
+rotate through a hit, a near miss and a spill; the driver does too now, and the same
+twenty minutes gives 29 perfect, 14 good, 8 spilled and 3 harvests. When a bot's
+behaviour is uniform, every consequence downstream of that behaviour is uniform too.
 
 **Say how much your check actually read.** The screen sweep opened twenty-two painters
 across seven worlds and reported all clean — while three of the worlds were scanning
